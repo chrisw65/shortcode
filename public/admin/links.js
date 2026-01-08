@@ -225,7 +225,11 @@ async function createLink() {
     const body = { url, title };
     if (code) body.short_code = code;        // server expects short_code
     if (domain.id) body.domain_id = domain.id;
-    const res = unwrap(await api('/api/links', { method: 'POST', body }));
+    const res = unwrap(await api('/api/links', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }));
     // Prepend newly created (if API returns a single item)
     await load();
     els.inUrl.value = ''; els.inTitle.value = ''; els.inCode.value = '';
