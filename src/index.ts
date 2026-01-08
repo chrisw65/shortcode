@@ -1,6 +1,7 @@
 // src/index.ts
 import 'dotenv/config';
 import path from 'path';
+import { randomUUID } from 'crypto';
 import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -32,7 +33,13 @@ app.use(
 );
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
-app.use(morgan('combined'));
+app.use((req, res, next) => {
+  (req as any).id = randomUUID();
+  res.setHeader('X-Request-Id', (req as any).id);
+  next();
+});
+const morganFormat = ':remote-addr :method :url :status :res[content-length] - :response-time ms :req[x-request-id]';
+app.use(morgan(morganFormat));
 
 // Serve static admin UI from /public
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -63,8 +70,8 @@ app.use((req: Request, res: Response) => {
 
 // Error handler
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Unhandled error:', err);
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', { err, request_id: (req as any).id });
   if (res.headersSent) return;
   res.status(500).json({ success: false, error: 'Internal server error' });
 });
@@ -81,4 +88,3 @@ if (require.main === module) {
 }
 
 export default app;
-

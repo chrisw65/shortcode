@@ -30,6 +30,17 @@ export const perIp60rpm = rateLimit({
 });
 
 /**
+ * Per-IP limiter for redirects: 600 req/min.
+ */
+export const perIp600rpm = rateLimit({
+  windowMs: 60_000,
+  limit: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => ipv6SafeKey(req),
+});
+
+/**
  * Per-User limiter: 120 req/min.
  * Keys by authenticated userId; falls back to IPv6-safe IP key.
  * Requires auth middleware to set req.user = { userId: string, ... }.
@@ -44,4 +55,3 @@ export const perUser120rpm = rateLimit({
     return userId ? `user:${userId}` : ipv6SafeKey(req);
   },
 });
-
