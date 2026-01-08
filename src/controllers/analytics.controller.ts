@@ -16,8 +16,11 @@ function bucketUserAgent(ua: string | null): 'mobile' | 'desktop' | 'bot' | 'oth
 /**
  * GET /api/analytics/summary
  */
-export async function summary(_req: Request, res: Response) {
+export async function summary(req: ReqWithUser, res: Response) {
   try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
     const series = await db.query<{ h: string; count: string | number }>(`
       WITH series AS (
         SELECT generate_series(
@@ -27,38 +30,45 @@ export async function summary(_req: Request, res: Response) {
         ) AS h
       )
       SELECT to_char(s.h, 'YYYY-MM-DD"T"HH24:00:00"Z"') AS h,
-             COALESCE(COUNT(c.*), 0) AS count
+             COALESCE(COUNT(l.id), 0) AS count
       FROM series s
       LEFT JOIN click_events c
         ON date_trunc('hour', c.occurred_at) = s.h
+      LEFT JOIN links l
+        ON l.id = c.link_id AND l.user_id = $1
       GROUP BY s.h
       ORDER BY s.h
-    `);
+    `, [userId]);
 
-    const totals = await db.query<{ total_clicks: string; last_click_at: Date | null }>(`
-      SELECT COALESCE(COUNT(*), 0) AS total_clicks,
-             MAX(occurred_at) AS last_click_at
-      FROM click_events
-    `);
+    const totals = await db.query<{ total_clicks: string; last_click_at: Date | null; clicks_24h: string }>(`
+      SELECT COUNT(*)::bigint AS total_clicks,
+             MAX(occurred_at) AS last_click_at,
+             SUM(CASE WHEN occurred_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)::bigint AS clicks_24h
+      FROM click_events c
+      JOIN links l ON l.id = c.link_id
+      WHERE l.user_id = $1
+    `, [userId]);
 
     const referrers = await db.query<{ referrer: string | null; count: string }>(`
       SELECT COALESCE(NULLIF(TRIM(referer), ''), '(direct)') AS referrer,
              COUNT(*)::bigint AS count
-      FROM click_events
-      WHERE occurred_at >= NOW() - INTERVAL '7 days'
+      FROM click_events c
+      JOIN links l ON l.id = c.link_id
+      WHERE l.user_id = $1 AND c.occurred_at >= NOW() - INTERVAL '7 days'
       GROUP BY 1
       ORDER BY COUNT(*) DESC
       LIMIT 10
-    `);
+    `, [userId]);
 
     const uas = await db.query<{ ua: string | null; count: string }>(`
       SELECT user_agent AS ua, COUNT(*)::bigint AS count
-      FROM click_events
-      WHERE occurred_at >= NOW() - INTERVAL '7 days'
+      FROM click_events c
+      JOIN links l ON l.id = c.link_id
+      WHERE l.user_id = $1 AND c.occurred_at >= NOW() - INTERVAL '7 days'
       GROUP BY 1
       ORDER BY COUNT(*) DESC
       LIMIT 200
-    `);
+    `, [userId]);
 
     const uaBuckets = uas.rows.reduce<Record<string, number>>((acc, row) => {
       const b = bucketUserAgent(row.ua);
@@ -71,6 +81,7 @@ export async function summary(_req: Request, res: Response) {
       data: {
         sparkline: series.rows.map((r) => ({ t: r.h, y: Number(r.count) })),
         total_clicks: Number(totals.rows[0]?.total_clicks || 0),
+        clicks_24h: Number(totals.rows[0]?.clicks_24h || 0),
         last_click_at: totals.rows[0]?.last_click_at ?? null,
         top_referrers: referrers.rows.map((r) => ({
           referrer: r.referrer ?? '(direct)',
@@ -224,4 +235,3 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
-

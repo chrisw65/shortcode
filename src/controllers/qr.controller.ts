@@ -14,6 +14,7 @@ async function ensureShortExists(shortCode: string): Promise<boolean> {
     `SELECT 1
        FROM links
       WHERE short_code = $1
+        AND active = true
         AND (expires_at IS NULL OR expires_at > NOW())
       LIMIT 1`,
     [shortCode],
@@ -83,4 +84,3 @@ export async function getQrPng(req: Request, res: Response) {
     return res.status(500).send('Internal server error');
   }
 }
-

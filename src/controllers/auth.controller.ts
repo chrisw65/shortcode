@@ -19,7 +19,8 @@ function safeUser(row: any) {
 }
 
 function signToken(payload: Record<string, any>) {
-  const secret: Secret = (process.env.JWT_SECRET as Secret) || 'dev_secret_change_me';
+  const secret: Secret = process.env.JWT_SECRET as Secret;
+  if (!secret) throw new Error('JWT_SECRET missing');
 
   // Infer the exact type jsonwebtoken expects
   const expiresIn: SignOptions['expiresIn'] = (() => {
@@ -114,4 +115,3 @@ export class AuthController {
 // Named exports (if used elsewhere)
 export const login = (req: Request, res: Response) => { void loginImpl(req, res); };
 export const register = (req: Request, res: Response) => { void registerImpl(req, res); };
-

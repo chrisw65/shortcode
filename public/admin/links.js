@@ -1,9 +1,10 @@
 // ===== Local, self-contained helpers (no imports) =====
+const TOKEN_KEY = 'admin_token';
 function getToken() {
-  try { return localStorage.getItem('token') || sessionStorage.getItem('token') || ''; } catch { return ''; }
+  try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; }
 }
 function clearToken() {
-  try { localStorage.removeItem('token'); sessionStorage.removeItem('token'); } catch {}
+  try { localStorage.removeItem(TOKEN_KEY); } catch {}
 }
 function requireAuth() {
   const t = getToken();
@@ -138,8 +139,8 @@ function render() {
       if (!id) return;
       if (!confirm(`Delete link "${code}"?`)) return;
       try {
-        await api(`/api/links/${id}`, { method: 'DELETE' });
-        allLinks = allLinks.filter(l => l.id !== id);
+        await api(`/api/links/${encodeURIComponent(code)}`, { method: 'DELETE' });
+        allLinks = allLinks.filter(l => l.short_code !== code);
         render();
       } catch (err) {
         alert(`Delete failed: ${err.message || err}`);
@@ -186,7 +187,7 @@ async function createLink() {
   els.btnCreate.disabled = true;
   try {
     const body = { url, title };
-    if (code) body.code = code;        // server supports custom code
+    if (code) body.short_code = code;        // server expects short_code
     const res = await api('/api/links', { method: 'POST', body });
     // Prepend newly created (if API returns a single item)
     await load();
@@ -242,4 +243,3 @@ els.btnExport.addEventListener('click', exportCSV);
 
 // Go
 load();
-

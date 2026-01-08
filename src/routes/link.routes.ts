@@ -2,6 +2,7 @@
 import { Router, type RequestHandler } from 'express';
 import * as linkController from '../controllers/link.controller';
 import { authenticate } from '../middleware/auth';
+import { perUser120rpm } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -11,6 +12,7 @@ const wrap = (fn: any): RequestHandler =>
 
 // All link endpoints require auth
 router.use(authenticate);
+router.use(perUser120rpm);
 
 // Create a new short link
 router.post('/', wrap(linkController.createLink));
@@ -28,4 +30,3 @@ router.put('/:shortCode', wrap(linkController.updateLink));
 router.delete('/:shortCode', wrap(linkController.deleteLink));
 
 export default router;
-

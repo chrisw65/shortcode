@@ -3,6 +3,15 @@ import { Request, Response } from 'express';
 import db from '../config/database';
 
 function nowUtc(): Date { return new Date(); }
+function safeRedirectUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
 
 export class RedirectController {
   public redirect = async (req: Request, res: Response) => {
@@ -39,7 +48,9 @@ export class RedirectController {
         [link.id, ip, referer, ua]
       ).catch(() => {});
 
-      return res.redirect(302, link.original_url);
+      const safeUrl = safeRedirectUrl(link.original_url);
+      if (!safeUrl) return res.status(400).send('Invalid destination');
+      return res.redirect(302, safeUrl);
     } catch (e) {
       console.error('redirect error:', e);
       return res.status(500).send('Internal server error');

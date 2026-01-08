@@ -5,6 +5,16 @@ import db from '../config/database';
 
 type UserReq = Request & { user: { userId: string } };
 
+function ensureHttpUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
 function parseHostnameFromUrl(url: string): string | null {
   try {
     const u = new URL(url);
@@ -66,7 +76,12 @@ export async function createLink(req: UserReq, res: Response) {
     const { url, title, short_code, expires_at } = req.body ?? {};
     if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
 
-    const autoTitle = parseHostnameFromUrl(url) || 'link';
+    const normalizedUrl = ensureHttpUrl(String(url).trim());
+    if (!normalizedUrl) {
+      return res.status(400).json({ success: false, error: 'URL must be http(s)' });
+    }
+
+    const autoTitle = parseHostnameFromUrl(normalizedUrl) || 'link';
 
     let code = short_code ? String(short_code).trim() : nanoid(8);
     if (short_code) {
@@ -82,7 +97,7 @@ export async function createLink(req: UserReq, res: Response) {
       VALUES ($1, $2, $3, COALESCE($4, $5), $6, $7, true)
       RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active
     `;
-    const { rows } = await db.query(q, [userId, code, url, title ?? null, autoTitle, domainId, expires_at ?? null]);
+    const { rows } = await db.query(q, [userId, code, normalizedUrl, title ?? null, autoTitle, domainId, expires_at ?? null]);
 
     return res.status(201).json({ success: true, data: shapeLink(rows[0], baseUrl) });
   } catch (e: any) {
@@ -159,7 +174,14 @@ export async function updateLink(req: UserReq, res: Response) {
     const vals: any[] = [];
     let i = 1;
 
-    if (url !== undefined) { sets.push(`original_url = $${i++}`); vals.push(url); }
+    if (url !== undefined) {
+      const normalizedUrl = ensureHttpUrl(String(url).trim());
+      if (!normalizedUrl) {
+        return res.status(400).json({ success: false, error: 'URL must be http(s)' });
+      }
+      sets.push(`original_url = $${i++}`);
+      vals.push(normalizedUrl);
+    }
     if (title !== undefined) { sets.push(`title = $${i++}`); vals.push(title); }
     if (expires_at !== undefined) { sets.push(`expires_at = $${i++}`); vals.push(expires_at); }
     if (short_code !== undefined) {
@@ -241,4 +263,3 @@ export async function deleteLink(req: UserReq, res: Response) {
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
-

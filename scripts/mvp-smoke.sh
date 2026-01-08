@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BASE_URL="${BASE_URL:-http://localhost:3000}"
+EMAIL="${EMAIL:-smoke+$(date +%s)@example.com}"
+PASSWORD="${PASSWORD:-pass1234}"
+
+echo "==> Smoke test against ${BASE_URL}"
+
+echo "==> Healthcheck"
+curl -fsS "${BASE_URL}/health" >/dev/null
+
+echo "==> Register user"
+REGISTER_JSON=$(curl -fsS -X POST "${BASE_URL}/api/auth/register" \
+  -H 'Content-Type: application/json' \
+  -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}")
+
+TOKEN="$(printf '%s' "${REGISTER_JSON}" | sed -n 's/.*"token":"\\([^"]*\\)".*/\\1/p')"
+if [[ -z "${TOKEN}" ]]; then
+  echo "Register did not return token. Response:"
+  echo "${REGISTER_JSON}"
+  exit 1
+fi
+
+echo "==> Create link"
+CREATE_JSON=$(curl -fsS -X POST "${BASE_URL}/api/links" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.com","title":"Smoke Test"}')
+
+SHORT_CODE="$(printf '%s' "${CREATE_JSON}" | sed -n 's/.*"short_code":"\\([^"]*\\)".*/\\1/p')"
+if [[ -z "${SHORT_CODE}" ]]; then
+  echo "Create link did not return short_code. Response:"
+  echo "${CREATE_JSON}"
+  exit 1
+fi
+
+echo "==> Redirect check"
+curl -fsS -I "${BASE_URL}/${SHORT_CODE}" >/dev/null
+
+echo "==> QR check"
+curl -fsS "${BASE_URL}/api/qr/${SHORT_CODE}.png" >/dev/null
+curl -fsS "${BASE_URL}/api/qr/${SHORT_CODE}.svg" >/dev/null
+
+echo "==> Analytics summary"
+curl -fsS "${BASE_URL}/api/analytics/summary" \
+  -H "Authorization: Bearer ${TOKEN}" >/dev/null
+
+echo "==> OK"
