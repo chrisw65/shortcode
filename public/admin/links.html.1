@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin • Links</title>
+  <link rel="stylesheet" href="/admin/admin.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <div class="nav">
+      <a data-tab="dashboard" href="/admin/index.html">Dashboard</a>
+      <a data-tab="links" href="/admin/links.html">Links</a>
+      <a data-tab="domains" href="/admin/domains.html">Domains</a>
+      <a data-tab="analytics" href="/admin/analytics.html">Analytics</a>
+      <span class="muted" id="whoami"></span>
+      <span style="flex:1"></span>
+      <button class="btn" id="logoutBtn">Logout</button>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Create link</h2>
+        <div class="col" style="gap:10px;margin-top:6px">
+          <input id="longUrl" class="input" placeholder="https://example.com/page" />
+          <input id="title" class="input" placeholder="Title (optional)" />
+          <div class="row" style="gap:10px">
+            <button id="createBtn" class="btn">Create</button>
+            <span id="createMsg" class="muted"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Filters</h2>
+        <div class="row" style="gap:10px;margin-top:6px">
+          <input id="q" class="input" placeholder="Search title or code…" />
+          <button id="refreshBtn" class="btn">Refresh</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h2>Your links</h2>
+      <div style="max-height:60vh;overflow:auto;border-radius:8px;border:1px solid var(--border)">
+        <table>
+          <thead>
+            <tr><th>Short</th><th>Title</th><th>Clicks</th><th>Created</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="5" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/admin-common.js"></script>
+  <script type="module" src="/admin/links.js"></script>
+</body>
+</html>
+

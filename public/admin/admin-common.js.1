@@ -1,0 +1,144 @@
+/* /public/admin/admin-common.js  — v11 (complete) */
+
+const TOKEN_KEY = 'shortlink_token';
+
+/* -------------------- Token helpers -------------------- */
+export function getToken() {
+  try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; }
+}
+export function setToken(t)  { try { localStorage.setItem(TOKEN_KEY, t); } catch {} }
+export function clearToken() { try { localStorage.removeItem(TOKEN_KEY); } catch {} }
+
+/* -------------------- Auth guard -------------------- */
+export function requireAuth() {
+  if (!getToken()) {
+    if (!location.pathname.endsWith('/admin/index.html')) {
+      location.replace('/admin/index.html');
+    }
+    throw new Error('No auth token');
+  }
+}
+// legacy alias some pages used
+export const reqAuth = requireAuth;
+
+/* -------------------- Fetch wrapper -------------------- */
+export async function apiFetch(path, opts = {}) {
+  const token = getToken();
+  const headers = new Headers(opts.headers || {});
+
+  // auto JSON headers if body or opts.json present
+  if (!headers.has('Content-Type') && (opts.body || opts.json)) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const init = { method: 'GET', credentials: 'same-origin', ...opts, headers };
+  if (opts.json && !opts.body) init.body = JSON.stringify(opts.json);
+
+  const res = await fetch(path, init);
+
+  if (opts.expect204 && res.status === 204) return null;
+
+  let body = null;
+  try { body = await res.json(); } catch {} // non-JSON or empty
+
+  if (res.status === 401) {
+    clearToken();
+    if (!location.pathname.endsWith('/admin/index.html')) {
+      location.replace('/admin/index.html?expired=1');
+    }
+    throw new Error(body?.error || 'Unauthorized');
+  }
+  if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
+
+  return body;
+}
+// legacy alias some pages used
+export const api = apiFetch;
+
+/* -------------------- Logout -------------------- */
+export function logout() {
+  clearToken();
+  location.replace('/admin/index.html');
+}
+
+/* -------------------- Utilities -------------------- */
+export async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {}
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch {}
+  document.body.removeChild(ta);
+  return true;
+}
+
+export function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+}
+
+export function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+/* -------------------- DOM helpers -------------------- */
+export const $  = (sel, el = document) => el.querySelector(sel);
+export const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
+
+/* -------------------- Nav mounting (requested) -------------------- */
+/**
+ * Adds “active” state to the current nav tab and wires Logout button.
+ * Accepts optional explicit current key: 'dashboard' | 'links' | 'domains' | 'analytics'
+ */
+export function mountNav(current) {
+  try {
+    // Wire logout
+    const lo = $('#logoutBtn') || document.querySelector('button, a.logout, #logout');
+    if (lo) lo.addEventListener('click', e => { e.preventDefault?.(); logout(); });
+
+    // Determine active tab
+    const path = location.pathname;
+    const guess =
+      current ||
+      (path.includes('/dashboard') ? 'dashboard' :
+       path.includes('/links')     ? 'links'     :
+       path.includes('/domains')   ? 'domains'   :
+       path.includes('/analytics') ? 'analytics' : '');
+
+    // Apply active class if nav exists
+    const map = {
+      dashboard: $('#nav-dashboard'),
+      links:     $('#nav-links'),
+      domains:   $('#nav-domains'),
+      analytics: $('#nav-analytics'),
+    };
+    Object.values(map).forEach(el => el && el.classList.remove('active'));
+    if (guess && map[guess]) map[guess].classList.add('active');
+  } catch {
+    // non-fatal for pages without the nav
+  }
+}
+// legacy aliases some pages might import
+export const navMount = mountNav;
+export const mountnav = mountNav;
+
+/* -------------------- Name-compat to stop further breakage -------------------- */
+// different spellings seen across pages:
+export const htmlEsc = escapeHtml;   // camelCase
+export const htmlesc = escapeHtml;   // lowercase
+export const HTMLEsc = escapeHtml;   // odd legacy
+
+export default {}; // keep module ESM, avoid accidental default semantics
+

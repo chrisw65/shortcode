@@ -1,0 +1,249 @@
+// src/controllers/link.controller.ts
+import { Request, Response } from 'express';
+import { nanoid } from 'nanoid';
+import db from '../config/database';
+
+type AuthedUser = { userId: string; email: string; role?: string };
+type AuthedRequest = Request & { user?: AuthedUser };
+
+function parseHostnameFromUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    return u.hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Choose the base host for rendering short URLs:
+ * - If the user has a verified default domain -> http://<domain>
+ * - else use PUBLIC_HOST (e.g., http://your-ip-or-domain)
+ * - fallback to http://localhost:3000
+ */
+async function resolveUserBaseUrl(userId: string): Promise<{ baseUrl: string; domainId: string | null }> {
+  const { rows } = await db.query(
+    `
+    SELECT d.id AS domain_id, d.hostname, d.is_verified
+      FROM users u
+      LEFT JOIN domains d ON d.id = u.default_domain_id
+     WHERE u.id = $1
+    `,
+    [userId],
+  );
+
+  const row = rows[0];
+  if (row?.hostname && row?.is_verified) {
+    return { baseUrl: `http://${row.hostname}`, domainId: row.domain_id ?? null };
+  }
+  const envHost = process.env.PUBLIC_HOST; // e.g. http://104.248.198.72 or https://api.example.com
+  return { baseUrl: envHost || 'http://localhost:3000', domainId: null };
+}
+
+function shapeLink(row: any, baseUrl: string) {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    short_code: row.short_code,
+    original_url: row.original_url,
+    title: row.title,
+    click_count: Number(row.click_count || 0),
+    created_at: row.created_at,
+    expires_at: row.expires_at,
+    short_url: `${baseUrl}/${row.short_code}`,
+  };
+}
+
+/**
+ * POST /api/links
+ * Body:
+ *   { url: string, title?: string, short_code?: string, expires_at?: string }
+ */
+export async function createLink(req: AuthedRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const { url, title, short_code, expires_at } = req.body as {
+      url?: string;
+      title?: string;
+      short_code?: string;
+      expires_at?: string | null;
+    };
+
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'URL is required' });
+    }
+
+    // compute title if absent
+    const autoTitle = parseHostnameFromUrl(url) || 'link';
+
+    // pick a code
+    const code = (short_code || nanoid(8)).replace(/\s+/g, '');
+
+    // pick domain for storage + host for rendering
+    const { baseUrl, domainId } = await resolveUserBaseUrl(userId);
+
+    const { rows } = await db.query(
+      `
+      INSERT INTO links (user_id, short_code, original_url, title, domain_id, expires_at)
+      VALUES ($1, $2, $3, COALESCE($4, $5), $6, $7)
+      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at
+      `,
+      [userId, code, url, title ?? null, autoTitle, domainId, expires_at ?? null],
+    );
+
+    const shaped = shapeLink(rows[0], baseUrl);
+    return res.status(201).json({ success: true, data: shaped });
+  } catch (e: any) {
+    if (e?.code === '23505') {
+      // unique violation (short_code or something else)
+      return res.status(409).json({ success: false, error: 'short_code already exists' });
+    }
+    console.error('createLink error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/links
+ * Returns all links for the authenticated user, rendering short_url with default domain if any.
+ */
+export async function getUserLinks(req: AuthedRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const { baseUrl } = await resolveUserBaseUrl(userId);
+
+    const { rows } = await db.query(
+      `
+      SELECT id, user_id, short_code, original_url, title, click_count, created_at, expires_at
+        FROM links
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+      `,
+      [userId],
+    );
+
+    const data = rows.map((r) => shapeLink(r, baseUrl));
+    return res.json({ success: true, data });
+  } catch (e) {
+    console.error('getUserLinks error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/links/:shortCode
+ * Returns a single link that belongs to the user.
+ */
+export async function getLinkDetails(req: AuthedRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const { shortCode } = req.params;
+
+    const { rows } = await db.query(
+      `
+      SELECT id, user_id, short_code, original_url, title, click_count, created_at, expires_at
+        FROM links
+       WHERE user_id = $1 AND short_code = $2
+      `,
+      [userId, shortCode],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ success: false, error: 'Link not found' });
+    }
+
+    const { baseUrl } = await resolveUserBaseUrl(userId);
+    return res.json({ success: true, data: shapeLink(rows[0], baseUrl) });
+  } catch (e) {
+    console.error('getLinkDetails error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * PUT /api/links/:shortCode
+ * Body may include: { url?: string, title?: string, expires_at?: string | null }
+ */
+export async function updateLink(req: AuthedRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const { shortCode } = req.params;
+    const { url, title, expires_at } = req.body as {
+      url?: string;
+      title?: string | null;
+      expires_at?: string | null;
+    };
+
+    // fetch to ensure ownership
+    const { rows: existingRows } = await db.query(
+      `SELECT id FROM links WHERE user_id = $1 AND short_code = $2`,
+      [userId, shortCode],
+    );
+    if (!existingRows.length) {
+      return res.status(404).json({ success: false, error: 'Link not found' });
+    }
+
+    // Build dynamic update
+    const sets: string[] = [];
+    const vals: any[] = [];
+    let i = 1;
+
+    if (url !== undefined) {
+      sets.push(`original_url = $${i++}`);
+      vals.push(url);
+    }
+    if (title !== undefined) {
+      sets.push(`title = $${i++}`);
+      vals.push(title);
+    }
+    if (expires_at !== undefined) {
+      sets.push(`expires_at = $${i++}`);
+      vals.push(expires_at);
+    }
+
+    if (!sets.length) {
+      return res.status(400).json({ success: false, error: 'No fields to update' });
+    }
+
+    vals.push(userId, shortCode);
+    const { rows } = await db.query(
+      `
+      UPDATE links
+         SET ${sets.join(', ')}
+       WHERE user_id = $${i++} AND short_code = $${i++}
+       RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at
+      `,
+      vals,
+    );
+
+    const { baseUrl } = await resolveUserBaseUrl(userId);
+    return res.json({ success: true, data: shapeLink(rows[0], baseUrl) });
+  } catch (e) {
+    console.error('updateLink error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * DELETE /api/links/:shortCode
+ */
+export async function deleteLink(req: AuthedRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const { shortCode } = req.params;
+
+    const { rowCount } = await db.query(
+      `DELETE FROM links WHERE user_id = $1 AND short_code = $2`,
+      [userId, shortCode],
+    );
+
+    if (!rowCount) {
+      return res.status(404).json({ success: false, error: 'Link not found' });
+    }
+    return res.json({ success: true, data: { deleted: true, short_code: shortCode } });
+  } catch (e) {
+    console.error('deleteLink error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+

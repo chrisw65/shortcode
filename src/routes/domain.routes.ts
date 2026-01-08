@@ -1,0 +1,19 @@
+// src/routes/domain.routes.ts
+import { Router, type RequestHandler } from 'express';
+import * as domainController from '../controllers/domain.controller';
+import { authenticate } from '../middleware/auth';
+
+const router = Router();
+const wrap = (fn: any): RequestHandler => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
+router.use(authenticate);
+
+router.get('/', wrap(domainController.listDomains));
+router.post('/', wrap(domainController.createDomain));
+router.post('/:id/verify', wrap(domainController.verifyDomain));
+router.post('/:id/default', wrap(domainController.setDefaultDomain));
+router.delete('/:id', wrap(domainController.deleteDomain));
+
+export default router;
+

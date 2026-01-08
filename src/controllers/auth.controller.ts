@@ -1,100 +1,117 @@
 // src/controllers/auth.controller.ts
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import db from '../config/database';
 
-export class AuthController {
-  async register(req: Request, res: Response) {
-    try {
-      const { email, password, name } = req.body;
+// ---- helpers ---------------------------------------------------------------
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 12);
+function safeUser(row: any) {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name ?? null,
+    plan: row.plan ?? null,
+    created_at: row.created_at ?? null,
+    is_active: row.is_active ?? true,
+    email_verified: row.email_verified ?? true,
+  };
+}
 
-      // Create user
-      const result = await db.query(
-        `INSERT INTO users (email, password, name) 
-         VALUES ($1, $2, $3) 
-         RETURNING id, email, name, plan, created_at`,
-        [email, hashedPassword, name]
-      );
+function signToken(payload: Record<string, any>) {
+  const secret: Secret = (process.env.JWT_SECRET as Secret) || 'dev_secret_change_me';
 
-      const user = result.rows[0];
+  // Infer the exact type jsonwebtoken expects
+  const expiresIn: SignOptions['expiresIn'] = (() => {
+    const expEnv = process.env.JWT_EXPIRES_IN;
+    if (expEnv && /^\d+$/.test(expEnv)) return Number(expEnv); // seconds
+    return (expEnv || '7d') as SignOptions['expiresIn'];       // ms-style string like '7d'
+  })();
 
-      // Generate token
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        process.env.JWT_SECRET!,
-        { expiresIn: '7d' }
-      );
+  const opts: SignOptions = { expiresIn };
+  return jwt.sign(payload, secret, opts);
+}
 
-      res.status(201).json({
-        success: true,
-        data: { user, token }
-      });
-    } catch (error: any) {
-      if (error.constraint === 'users_email_key') {
-        return res.status(400).json({
-          success: false,
-          error: 'Email already exists'
-        });
-      }
-      res.status(500).json({
-        success: false,
-        error: 'Registration failed'
-      });
+async function loginImpl(req: Request, res: Response) {
+  try {
+    const rawEmail = String(req.body?.email ?? '');
+    const rawPass = String(req.body?.password ?? '');
+    const email = rawEmail.replace(/\s+/g, '').trim().toLowerCase();
+
+    if (!email || !rawPass) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
     }
-  }
 
-  async login(req: Request, res: Response) {
-    try {
-      const { email, password } = req.body;
+    const { rows } = await db.query(
+      `SELECT id, email, name, plan, created_at, password AS password_hash,
+              COALESCE(is_active, true)  AS is_active,
+              COALESCE(email_verified, true) AS email_verified
+         FROM users
+        WHERE LOWER(email) = $1
+        LIMIT 1`,
+      [email]
+    );
 
-      // Find user
-      const result = await db.query(
-        'SELECT * FROM users WHERE email = $1',
-        [email]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(401).json({
-          success: false,
-          error: 'Invalid credentials'
-        });
-      }
-
-      const user = result.rows[0];
-
-      // Verify password
-      const isValid = await bcrypt.compare(password, user.password);
-      if (!isValid) {
-        return res.status(401).json({
-          success: false,
-          error: 'Invalid credentials'
-        });
-      }
-
-      // Generate token
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        process.env.JWT_SECRET!,
-        { expiresIn: '7d' }
-      );
-
-      // Remove password from response
-      delete user.password;
-
-      res.json({
-        success: true,
-        data: { user, token }
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Login failed'
-      });
+    const user = rows[0];
+    if (!user) return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    if (user.is_active === false) {
+      return res.status(403).json({ success: false, error: 'Account disabled' });
     }
+
+    // compare, with a guard for accidental leading/trailing spaces
+    let ok = await bcrypt.compare(rawPass, user.password_hash);
+    if (!ok && (/^\s/.test(rawPass) || /\s$/.test(rawPass))) {
+      const trimmed = rawPass.trim();
+      if (trimmed.length > 0) ok = await bcrypt.compare(trimmed, user.password_hash);
+    }
+    if (!ok) return res.status(401).json({ success: false, error: 'Invalid credentials' });
+
+    const token = signToken({ userId: user.id, email: user.email });
+    return res.json({ success: true, data: { user: safeUser(user), token } });
+  } catch (err) {
+    console.error('auth.login error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
+
+async function registerImpl(req: Request, res: Response) {
+  try {
+    const email = String(req.body?.email ?? '').replace(/\s+/g, '').trim().toLowerCase();
+    const password = String(req.body?.password ?? '');
+    const name = (req.body?.name ?? null) as string | null;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+
+    const { rows } = await db.query(
+      `INSERT INTO users (email, password, name, is_active, email_verified)
+       VALUES ($1, $2, $3, true, true)
+       ON CONFLICT (email) DO NOTHING
+       RETURNING id, email, name, plan, created_at, password AS password_hash, is_active, email_verified`,
+      [email, hash, name]
+    );
+
+    const user = rows[0];
+    if (!user) return res.status(409).json({ success: false, error: 'User already exists' });
+
+    const token = signToken({ userId: user.id, email: user.email });
+    return res.status(201).json({ success: true, data: { user: safeUser(user), token } });
+  } catch (err) {
+    console.error('auth.register error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+// Class export for existing routes
+export class AuthController {
+  login = (req: Request, res: Response) => { void loginImpl(req, res); };
+  register = (req: Request, res: Response) => { void registerImpl(req, res); };
+}
+
+// Named exports (if used elsewhere)
+export const login = (req: Request, res: Response) => { void loginImpl(req, res); };
+export const register = (req: Request, res: Response) => { void registerImpl(req, res); };
 

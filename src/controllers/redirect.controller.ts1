@@ -1,0 +1,133 @@
+import { Request, Response } from 'express';
+import db from '../config/database';
+import redis from '../config/redis';
+
+type LinkRow = {
+  id: string;
+  user_id: string;
+  short_code: string;
+  original_url: string;
+  title: string | null;
+  click_count: number | null;
+  created_at: string;
+  expires_at: string | null;
+  domain_id: string | null;
+};
+
+function clientIp(req: Request): string {
+  const xf = (req.headers['x-forwarded-for'] as string) || '';
+  const first = xf.split(',')[0].trim();
+  return first || (req.socket?.remoteAddress ?? '');
+}
+
+function normalizeHost(h: string | undefined): string | null {
+  if (!h) return null;
+  return h.split(':')[0].toLowerCase(); // strip :port
+}
+
+function mergeQueryIfAllowed(destUrl: string, req: Request): string {
+  if (!process.env.ALLOW_QUERY_PASS_THROUGH) return destUrl;
+  try {
+    const u = new URL(destUrl);
+    const incoming = new URL(req.originalUrl, `http://${req.headers.host}`);
+    incoming.searchParams.forEach((v, k) => {
+      if (!u.searchParams.has(k)) u.searchParams.append(k, v);
+    });
+    return u.toString();
+  } catch {
+    return destUrl;
+  }
+}
+
+async function fetchLinkByHostAndCode(hostname: string | null, shortCode: string): Promise<LinkRow | null> {
+  if (hostname) {
+    const byDomain = await db.query<LinkRow>(
+      `
+      SELECT l.*
+        FROM domains d
+        JOIN links l ON l.domain_id = d.id
+       WHERE d.domain = $1
+         AND d.verified = true
+         AND d.is_active = true
+         AND l.short_code = $2
+       LIMIT 1
+      `,
+      [hostname, shortCode]
+    );
+    if (byDomain.rows.length) return byDomain.rows[0];
+  }
+
+  const fallback = await db.query<LinkRow>(
+    `
+    SELECT *
+      FROM links
+     WHERE short_code = $1
+     ORDER BY created_at DESC
+     LIMIT 1
+    `,
+    [shortCode]
+  );
+  return fallback.rows[0] || null;
+}
+
+export class RedirectController {
+  public redirect = async (req: Request, res: Response) => {
+    const shortCode = req.params.shortCode;
+    const hostname = normalizeHost(req.headers.host);
+    const cacheKey = `sl:sc:${hostname ?? '_'}:${shortCode}`;
+
+    try {
+      // 1) cache
+      let link: LinkRow | null = null;
+      if (redis) {
+        const cached = await redis.get(cacheKey);
+        if (cached) link = JSON.parse(cached) as LinkRow;
+      }
+
+      // 2) DB
+      if (!link) {
+        link = await fetchLinkByHostAndCode(hostname, shortCode);
+        if (link && redis) await redis.set(cacheKey, JSON.stringify(link), { EX: 300 });
+      }
+
+      if (!link) return res.status(404).send('Not found');
+
+      // 3) expiry
+      if (link.expires_at && new Date(link.expires_at) < new Date()) {
+        return res.status(410).send('Link expired');
+      }
+
+      // 4) analytics (non-blocking)
+      const ip = clientIp(req);
+      const userAgent = (req.headers['user-agent'] as string) || '';
+      const referer = (req.headers['referer'] as string) || '';
+      const country =
+        (req.headers['cf-ipcountry'] as string) ||
+        (req.headers['x-vercel-ip-country'] as string) ||
+        null;
+
+      db.query(`UPDATE links SET click_count = COALESCE(click_count,0) + 1 WHERE id = $1`, [link.id]).catch(() => void 0);
+      db.query(
+        `INSERT INTO clicks (link_id, ip_address, user_agent, referer, country)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [link.id, ip, userAgent, referer, country]
+      ).catch(() => void 0);
+
+      // 5) no-cache headers
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store',
+      });
+
+      // 6) redirect
+      const target = mergeQueryIfAllowed(link.original_url, req);
+      return res.redirect(302, target);
+    } catch (err) {
+      console.error('redirect error:', err);
+      return res.status(500).send('Internal server error');
+    }
+  };
+}
+

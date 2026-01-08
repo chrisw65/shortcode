@@ -1,0 +1,209 @@
+// src/controllers/analytics.controller.ts
+import type { Request, Response } from 'express';
+import db from '../config/database'; // use the same shared pool as other controllers
+
+function getUserId(req: Request): string | null {
+  return (req as any).user?.userId ?? null;
+}
+
+function groupUserAgent(ua: string | null): 'mobile' | 'desktop' | 'other' {
+  if (!ua) return 'other';
+  const s = ua.toLowerCase();
+  if (/(iphone|ipad|android|mobile)/.test(s)) return 'mobile';
+  if (/(windows|macintosh|linux|x11|cros)/.test(s)) return 'desktop';
+  return 'other';
+}
+
+/**
+ * GET /api/analytics/summary
+ * Response shape:
+ * {
+ *   success: true,
+ *   data: {
+ *     totals: { total_links, total_clicks, clicks_24h, last_click_at },
+ *     top_links: [{ short_code, title, clicks, clicks_24h, last_click_at }, ...]
+ *   }
+ * }
+ */
+export async function summary(req: Request, res: Response) {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const totalsSql = `
+      WITH my_links AS (
+        SELECT id, click_count FROM links WHERE user_id = $1
+      )
+      SELECT
+        (SELECT COUNT(*)::int FROM my_links) AS total_links,
+        COALESCE((SELECT SUM(click_count)::int FROM my_links), 0) AS total_clicks,
+        COALESCE((
+          SELECT COUNT(*)::int
+          FROM click_events c
+          JOIN links l ON l.id = c.link_id
+          WHERE l.user_id = $1 AND c.occurred_at >= NOW() - INTERVAL '24 hours'
+        ), 0) AS clicks_24h,
+        (
+          SELECT MAX(c.occurred_at)
+          FROM click_events c
+          JOIN links l ON l.id = c.link_id
+          WHERE l.user_id = $1
+        ) AS last_click_at
+    `;
+    const { rows: [totals] } = await db.query(totalsSql, [userId]);
+
+    const topSql = `
+      SELECT l.short_code, l.title, l.click_count AS clicks,
+             (
+               SELECT COUNT(*)::int
+               FROM click_events c
+               WHERE c.link_id = l.id AND c.occurred_at >= NOW() - INTERVAL '24 hours'
+             ) AS clicks_24h,
+             (
+               SELECT MAX(c.occurred_at)
+               FROM click_events c
+               WHERE c.link_id = l.id
+             ) AS last_click_at
+      FROM links l
+      WHERE l.user_id = $1
+      ORDER BY l.click_count DESC NULLS LAST, l.created_at DESC
+      LIMIT 10
+    `;
+    const { rows: top_links } = await db.query(topSql, [userId]);
+
+    return res.json({ success: true, data: { totals, top_links } });
+  } catch (err) {
+    console.error('analytics.summary error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/analytics/links/:shortCode/summary
+ * Response shape (as you’ve already seen):
+ * {
+ *   success: true,
+ *   data: {
+ *     short_code, title, total_clicks, last_click_at, clicks_24h,
+ *     top_referrers: [{ referrer, count }...],
+ *     user_agents: [{ group, count }...]
+ *   }
+ * }
+ */
+export async function linkSummary(req: Request, res: Response) {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const { shortCode } = req.params;
+
+    const linkSql = `
+      SELECT id, short_code, title, click_count
+      FROM links
+      WHERE user_id = $1 AND short_code = $2
+      LIMIT 1
+    `;
+    const { rows: linkRows } = await db.query(linkSql, [userId, shortCode]);
+    if (!linkRows.length) {
+      return res.status(404).json({ success: false, error: 'Link not found' });
+    }
+    const link = linkRows[0];
+
+    const metaSql = `
+      SELECT
+        (SELECT MAX(c.occurred_at)
+           FROM click_events c
+          WHERE c.link_id = $1) AS last_click_at,
+        (SELECT COUNT(*)::int
+           FROM click_events c
+          WHERE c.link_id = $1
+            AND c.occurred_at >= NOW() - INTERVAL '24 hours') AS clicks_24h
+    `;
+    const { rows: [meta] } = await db.query(metaSql, [link.id]);
+
+    const refSql = `
+      SELECT COALESCE(NULLIF(referer, ''),'(direct)') AS referrer, COUNT(*)::int AS count
+      FROM click_events
+      WHERE link_id = $1
+      GROUP BY COALESCE(NULLIF(referer, ''),'(direct)')
+      ORDER BY count DESC
+      LIMIT 5
+    `;
+    const { rows: top_referrers } = await db.query(refSql, [link.id]);
+
+    const uaSql = `
+      SELECT user_agent FROM click_events WHERE link_id = $1
+    `;
+    const { rows: uaRows } = await db.query(uaSql, [link.id]);
+
+    let mobile = 0, desktop = 0, other = 0;
+    for (const r of uaRows) {
+      const g = groupUserAgent(r.user_agent ?? null);
+      if (g === 'mobile') mobile++;
+      else if (g === 'desktop') desktop++;
+      else other++;
+    }
+    const user_agents = [
+      { group: 'mobile', count: mobile },
+      { group: 'desktop', count: desktop },
+      { group: 'other', count: other },
+    ].filter(x => x.count > 0);
+
+    return res.json({
+      success: true,
+      data: {
+        short_code: link.short_code,
+        title: link.title,
+        total_clicks: Number(link.click_count || 0),
+        last_click_at: meta.last_click_at || null,
+        clicks_24h: Number(meta.clicks_24h || 0),
+        top_referrers,
+        user_agents,
+      },
+    });
+  } catch (err) {
+    console.error('analytics.linkSummary error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/analytics/links/:shortCode/events?limit=20&offset=0
+ * Response: { success: true, data: [{ occurred_at, ip, user_agent, referer }, ...] }
+ */
+export async function linkEvents(req: Request, res: Response) {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const { shortCode } = req.params;
+    const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 20));
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+
+    const linkSql = `
+      SELECT id FROM links
+      WHERE user_id = $1 AND short_code = $2
+      LIMIT 1
+    `;
+    const { rows: linkRows } = await db.query(linkSql, [userId, shortCode]);
+    if (!linkRows.length) {
+      return res.status(404).json({ success: false, error: 'Link not found' });
+    }
+    const linkId = linkRows[0].id;
+
+    const eventsSql = `
+      SELECT occurred_at, ip::text AS ip, user_agent, referer
+      FROM click_events
+      WHERE link_id = $1
+      ORDER BY occurred_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    const { rows } = await db.query(eventsSql, [linkId, limit, offset]);
+
+    return res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('analytics.linkEvents error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+

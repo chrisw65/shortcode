@@ -1,4 +1,7 @@
 # 1. Test redirect in browser
+export TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyNGQxMjVlZi05YmFmLTQyMTktOWZlZi1lZmY3MGMxY2YxZjciLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjAyMDIyMDcsImV4cCI6MTc2MDgwNzAwN30.y1M5Zt3nsFrjBWMSX1tStW1VkQX5sJrZdoAMG8-Ryds"
+
+
 open http://localhost:3000/EpK2f0Cr
 # Should redirect to Google!
 

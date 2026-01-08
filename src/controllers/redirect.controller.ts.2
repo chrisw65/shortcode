@@ -1,0 +1,79 @@
+// src/controllers/redirect.controller.ts
+import { Request, Response } from 'express';
+import db from '../config/database';
+import redis from '../config/redis';
+
+export class RedirectController {
+  public redirect = async (req: Request, res: Response) => {
+    const { shortCode } = req.params as { shortCode: string };
+    const cacheKey = `link:${shortCode}`;
+
+    try {
+      // 1) Try cache
+      const cachedStr = await redis.get(cacheKey);
+      if (cachedStr) {
+        try {
+          const cached = JSON.parse(cachedStr) as {
+            original_url: string;
+            expires_at: string | null;
+          };
+
+          // Guard against expired cached entries
+          if (cached.expires_at && new Date(cached.expires_at) <= new Date()) {
+            await redis.del(cacheKey).catch(() => {});
+            return res.status(410).send('Link expired');
+          }
+
+          // Valid cached redirect
+          return res.redirect(302, cached.original_url);
+        } catch {
+          // Bad cache -> drop and continue to DB
+          await redis.del(cacheKey).catch(() => {});
+        }
+      }
+
+      // 2) DB lookup
+      const { rows } = await db.query(
+        `SELECT original_url, expires_at FROM links WHERE short_code = $1 LIMIT 1`,
+        [shortCode]
+      );
+
+      if (!rows.length) {
+        return res.status(404).send('Not found');
+      }
+
+      const row = rows[0];
+
+      // Expiry check
+      if (row.expires_at && new Date(row.expires_at) <= new Date()) {
+        await redis.del(cacheKey).catch(() => {});
+        return res.status(410).send('Link expired');
+      }
+
+      // 3) Increment click count (best-effort)
+      db.query(
+        `UPDATE links SET click_count = COALESCE(click_count, 0) + 1 WHERE short_code = $1`,
+        [shortCode]
+      ).catch(() => {});
+
+      // 4) Write fresh cache (short TTL keeps things consistent)
+      await redis
+        .set(
+          cacheKey,
+          JSON.stringify({
+            original_url: row.original_url,
+            expires_at: row.expires_at ? new Date(row.expires_at).toISOString() : null,
+          }),
+          { EX: 300 } // 5 minutes
+        )
+        .catch(() => {});
+
+      // 5) Redirect
+      return res.redirect(302, row.original_url);
+    } catch (e) {
+      console.error('redirect error:', e);
+      return res.status(500).send('Internal server error');
+    }
+  };
+}
+

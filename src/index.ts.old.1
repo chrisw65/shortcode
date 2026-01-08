@@ -1,0 +1,66 @@
+// src/index.ts
+import path from 'path';
+import express, { NextFunction, Request, Response } from 'express';
+import helmet from 'helmet';
+
+import authRoutes from './routes/auth.routes';
+import linkRoutes from './routes/link.routes';
+import domainRoutes from './routes/domain.routes';
+import redirectRoutes from './routes/redirect.routes';
+
+import { perIp60rpm, perUser120rpm } from './middleware/rateLimit';
+
+const app = express();
+
+// --- Core middleware
+app.use(helmet());                  // security headers
+app.use(express.json());            // JSON bodies
+app.use(express.urlencoded({ extended: false }));
+
+// --- Static admin/UI (must be BEFORE redirect routes)
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// --- Health checks
+app.get('/healthz', (_req, res) => res.json({ ok: true }));
+app.get('/api/healthz', (_req, res) => res.json({ ok: true }));
+
+// --- Global per-IP rate limit for all API traffic
+app.use('/api', perIp60rpm);
+
+// --- API routes
+app.use('/api/auth', authRoutes);
+
+// Per-user limiter on authenticated resources
+app.use('/api/links', perUser120rpm, linkRoutes);
+app.use('/api/domains', perUser120rpm, domainRoutes);
+
+// --- Redirects (must be LAST so it doesn’t shadow /api or static)
+app.use('/', redirectRoutes);
+
+// --- 404 for unmatched API/static (redirect routes will have handled short codes)
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/admin')) {
+    return res.status(404).json({ success: false, error: 'Not found' });
+  }
+  next();
+});
+
+// --- Error handler (typed)
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // eslint-disable-next-line no-console
+  console.error(err);
+  const status = typeof err?.status === 'number' ? err.status : 500;
+  const message = err?.message || 'Internal server error';
+  res.status(status).json({ success: false, error: message });
+});
+
+// --- Start server
+const PORT = Number(process.env.PORT || 3000);
+app.listen(PORT, () => {
+  // eslint-disable-next-line no-console
+  console.log(`✓ Server running on port ${PORT}`);
+  console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+
+export default app;
+

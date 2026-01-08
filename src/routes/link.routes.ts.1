@@ -5,26 +5,26 @@ import { authenticate } from '../middleware/auth';
 
 const router = Router();
 
-// tiny async wrapper so unhandled rejections don’t crash the process
-const wrap = (fn: any): RequestHandler =>
-  (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+// Helper to normalize async controllers to RequestHandler
+const wrap = (fn: any): RequestHandler => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
 
-// All link endpoints require auth
+// All link routes require auth
 router.use(authenticate);
 
-// Create a new short link
+// Create a short link
 router.post('/', wrap(linkController.createLink));
 
-// List current user's links
+// List the authenticated user's links
 router.get('/', wrap(linkController.getUserLinks));
 
-// Get a single link (by short code, owned by the user)
+// Get details for a link by shortCode (owned by the user)
 router.get('/:shortCode', wrap(linkController.getLinkDetails));
 
-// Update a link (title/url/expiry) by short code
+// Update a link by shortCode
 router.put('/:shortCode', wrap(linkController.updateLink));
 
-// Delete a link by short code
+// Delete a link by shortCode
 router.delete('/:shortCode', wrap(linkController.deleteLink));
 
 export default router;

@@ -1,0 +1,128 @@
+import { requireAuth, api, mountNav, htmlesc, copyText } from '/admin/admin-common.js';
+
+document.addEventListener('DOMContentLoaded', () => {
+  requireAuth();
+  mountNav('links');
+
+  const longUrl   = document.getElementById('longUrl');
+  const title     = document.getElementById('title');
+  const createBtn = document.getElementById('createBtn');
+  const createMsg = document.getElementById('createMsg');
+  const q         = document.getElementById('q');
+  const refreshBtn= document.getElementById('refreshBtn');
+  const tbody     = document.getElementById('tbody');
+
+  if (!longUrl || !title || !createBtn || !createMsg || !q || !refreshBtn || !tbody) {
+    console.error('links.js: missing required DOM nodes', {
+      longUrl: !!longUrl, title: !!title, createBtn: !!createBtn,
+      createMsg: !!createMsg, q: !!q, refreshBtn: !!refreshBtn, tbody: !!tbody
+    });
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="danger">DOM error: reload page (⌘⇧R).</td></tr>';
+    return;
+  }
+
+  let all = [];
+
+  async function load() {
+    try {
+      const j = await api('/api/links');
+      all = Array.isArray(j.data) ? j.data : [];
+      render();
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="5" class="danger">Load failed: ${htmlesc(e.message || 'unknown')}</td></tr>`;
+    }
+  }
+
+  function filtered() {
+    const term = (q.value || '').trim().toLowerCase();
+    if (!term) return all;
+    return all.filter(x =>
+      (x.title || '').toLowerCase().includes(term) ||
+      (x.short_code || '').toLowerCase().includes(term)
+    );
+  }
+
+  function render() {
+    const rows = filtered();
+    tbody.innerHTML = '';
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">No links.</td></tr>';
+      return;
+    }
+    for (const r of rows) {
+      const shortUrl = r.short_url || '';
+      const created = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><code>${htmlesc(r.short_code)}</code></td>
+        <td>${htmlesc(r.title || '')}</td>
+        <td>${Number(r.click_count || 0)}</td>
+        <td>${htmlesc(created)}</td>
+        <td class="row" style="gap:8px;justify-content:end">
+          <a class="btn" href="${htmlesc(shortUrl)}" target="_blank" rel="noopener">Open</a>
+          <button class="btn" data-act="copy" data-url="${htmlesc(shortUrl)}">Copy</button>
+          <a class="btn" href="/admin/analytics.html?short=${encodeURIComponent(r.short_code)}">Analytics</a>
+          <button class="btn" data-act="delete" data-code="${htmlesc(r.short_code)}">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    tbody.querySelectorAll('button[data-act]').forEach(b => {
+      b.addEventListener('click', async () => {
+        const act = b.dataset.act;
+        if (act === 'copy') {
+          const url = b.dataset.url || '';
+          try { await copyText(url); b.textContent = 'Copied'; setTimeout(()=>b.textContent='Copy', 1200); }
+          catch { alert('Copy failed'); }
+        } else if (act === 'delete') {
+          const code = b.dataset.code;
+          if (!confirm(`Delete ${code}?`)) return;
+          try {
+            await api(`/api/links/${encodeURIComponent(code)}`, { method: 'DELETE' });
+            all = all.filter(x => x.short_code !== code);
+            render();
+          } catch (e) {
+            alert('Delete failed: ' + (e.message || 'unknown'));
+          }
+        }
+      });
+    });
+  }
+
+  async function create() {
+    createMsg.textContent = '';
+    const url = (longUrl.value || '').trim();
+    const t   = (title.value || '').trim();
+    try {
+      new URL(url);
+    } catch {
+      createMsg.textContent = 'Enter a valid URL (https://…)';
+      return;
+    }
+    createBtn.disabled = true;
+    try {
+      const j = await api('/api/links', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ url, title: t || undefined })
+      });
+      all.unshift(j.data);
+      render();
+      longUrl.value = ''; title.value = '';
+      createMsg.textContent = 'Created';
+      setTimeout(()=>{ createMsg.textContent=''; }, 1000);
+    } catch (e) {
+      createMsg.textContent = e.message || 'Create failed';
+    } finally {
+      createBtn.disabled = false;
+    }
+  }
+
+  createBtn.addEventListener('click', create);
+  refreshBtn.addEventListener('click', load);
+  q.addEventListener('input', render);
+
+  load();
+});
+

@@ -1,0 +1,85 @@
+// src/index.ts
+import express from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import helmet from 'helmet';
+import db from './config/database';
+import redis from './config/redis';
+import authRoutes from './routes/auth.routes';
+import linkRoutes from './routes/link.routes';
+import redirectRoutes from './routes/redirect.routes';
+import domainRoutes from './routes/domain.routes';
+import { perIp60rpm, perUser120rpm } from './middleware/rateLimit';
+import { authenticate } from './middleware/auth';
+import { apiRateLimit, redirectRateLimit } from './middleware/rateLimit';
+import path from 'path';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Serve static admin tools (front-end below):
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Rate limits
+app.use('/api', apiRateLimit);   // all API endpoints
+app.use('/', redirectRateLimit); // covers GET /:shortCode
+
+
+// Middleware
+app.use(helmet());
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use('/api/links', authenticate, perUser120rpm, linkRoutes);
+app.use('/api/domains', authenticate, perUser120rpm, domainRoutes);
+
+// Public endpoints (auth + redirects) -> per-IP limiter
+app.use('/api/auth', perIp60rpm);
+app.use('/', perIp60rpm); // covers GET /:shortCode (redirect)
+
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/links', linkRoutes);
+app.use('/', redirectRoutes);
+
+// Start server
+async function startServer() {
+  try {
+    // Test database connection
+    await db.query('SELECT 1');
+    console.log('✓ Database connected');
+
+    // Connect to Redis - THIS IS KEY!
+    await redis.connect();
+    console.log('✓ Redis connected');
+
+    app.listen(PORT, () => {
+      console.log(`✓ Server running on port ${PORT}`);
+      console.log(`✓ Environment: ${process.env.NODE_ENV}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, closing connections...');
+  await redis.quit();
+  await db.end();
+  process.exit(0);
+});
+
+startServer();
+
+export default app;

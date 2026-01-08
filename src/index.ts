@@ -1,64 +1,84 @@
 // src/index.ts
-import express from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
+import 'dotenv/config';
+import path from 'path';
+import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
-import db from './config/database';
-import redis from './config/redis';
+import cors from 'cors';
+import morgan from 'morgan';
+
+// Routers
 import authRoutes from './routes/auth.routes';
 import linkRoutes from './routes/link.routes';
+import domainRoutes from './routes/domain.routes';
+import analyticsRoutes from './routes/analytics.routes';
+import qrRoutes from './routes/qr.routes';
 import redirectRoutes from './routes/redirect.routes';
 
-dotenv.config();
+// Ensure DB connects on boot (side-effect import if you have it)
+import './config/database';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Middleware
+// If behind Cloudflare / a proxy
+app.set('trust proxy', true);
+
+// Security + basics
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false }));
+app.use(morgan('combined'));
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+// Serve static admin UI from /public
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Healthcheck
+app.get('/health', (_req, res) => {
+  res.json({ ok: true, env: process.env.NODE_ENV || 'development' });
 });
 
-// Routes
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/links', linkRoutes);
+app.use('/api/domains', domainRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/qr', qrRoutes);
+
+// Public redirect route (must come AFTER /api and static so it doesn’t swallow them)
 app.use('/', redirectRoutes);
 
-// Start server
-async function startServer() {
-  try {
-    // Test database connection
-    await db.query('SELECT 1');
-    console.log('✓ Database connected');
-
-    // Connect to Redis - THIS IS KEY!
-    await redis.connect();
-    console.log('✓ Redis connected');
-
-    app.listen(PORT, () => {
-      console.log(`✓ Server running on port ${PORT}`);
-      console.log(`✓ Environment: ${process.env.NODE_ENV}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
+// 404 handler
+app.use((req: Request, res: Response) => {
+  // JSON for API paths, basic text for others
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ success: false, error: 'Not found' });
   }
-}
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, closing connections...');
-  await redis.quit();
-  await db.end();
-  process.exit(0);
+  return res.status(404).send('Not found');
 });
 
-startServer();
+// Error handler
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', err);
+  if (res.headersSent) return;
+  res.status(500).json({ success: false, error: 'Internal server error' });
+});
+
+// Start server (when run directly)
+if (require.main === module) {
+  const PORT = parseInt(process.env.PORT || '3000', 10);
+  app.listen(PORT, () => {
+    // eslint-disable-next-line no-console
+    console.log(`✓ Server running on port ${PORT}`);
+    // eslint-disable-next-line no-console
+    console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}
 
 export default app;
+

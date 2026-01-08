@@ -1,0 +1,228 @@
+// src/controllers/domain.controller.ts
+import { Request, Response } from 'express';
+import crypto from 'crypto';
+import db from '../config/database';
+import { verifyDomainTxt } from '../services/domainVerification';
+
+type AuthedRequest = Request & {
+  user?: { userId: string; email: string; role?: string };
+};
+
+function newToken(len = 32) {
+  return crypto.randomBytes(len).toString('hex');
+}
+
+export async function listDomains(req: AuthedRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const { rows } = await db.query(
+      `SELECT id, hostname, is_active, is_verified, verification_code, verification_method,
+              verified_at, last_checked_at, failure_reason, ssl_enabled, ssl_expires_at, created_at
+         FROM domains
+        WHERE owner_user_id = $1 OR owner_user_id IS NULL
+        ORDER BY created_at DESC`,
+      [userId],
+    );
+    return res.json({ success: true, data: rows });
+  } catch (e) {
+    console.error('listDomains error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/domains { hostname }
+ * Creates (or returns) a domain entry and issues a verification code.
+ * Instruction: add TXT at _shortlink-verify.<hostname> with value shortlink-verify=<code>
+ */
+export async function createDomain(req: AuthedRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    let { hostname } = req.body as { hostname?: string };
+    if (!hostname) return res.status(400).json({ success: false, error: 'hostname required' });
+    hostname = hostname.toLowerCase().trim();
+
+    // Attempt to claim or read existing
+    const token = newToken(16);
+
+    const insertSql = `
+      INSERT INTO domains (owner_user_id, hostname, is_active, is_verified, verification_code, verification_method)
+      VALUES ($1, $2, TRUE, FALSE, $3, 'dns_txt')
+      ON CONFLICT (hostname) DO NOTHING
+      RETURNING id, hostname, is_active, is_verified, verification_code, verification_method, created_at
+    `;
+    const { rows } = await db.query(insertSql, [userId, hostname, token]);
+
+    if (!rows.length) {
+      // Already exists — ensure it's owned by this user or global
+      const { rows: existing } = await db.query(
+        `SELECT id, hostname, is_active, is_verified, verification_code, verification_method, created_at, owner_user_id
+           FROM domains
+          WHERE hostname = $1`,
+        [hostname],
+      );
+      if (!existing.length) {
+        return res.status(409).json({ success: false, error: 'Hostname conflict' });
+      }
+      const dom = existing[0];
+      if (dom.owner_user_id && dom.owner_user_id !== userId) {
+        return res.status(409).json({ success: false, error: 'Hostname claimed by another account' });
+      }
+      // If no code yet, attach one
+      if (!dom.verification_code) {
+        const code = newToken(16);
+        const { rows: updated } = await db.query(
+          `UPDATE domains
+              SET verification_code = $1, verification_method = 'dns_txt', is_verified = FALSE, verified_at = NULL
+            WHERE id = $2
+          RETURNING id, hostname, is_active, is_verified, verification_code, verification_method, created_at`,
+          [code, dom.id],
+        );
+        return res.status(200).json({
+          success: true,
+          data: {
+            ...updated[0],
+            instructions: txtInstructions(updated[0].hostname, updated[0].verification_code),
+          },
+        });
+      }
+      // Return existing with instructions
+      return res.json({
+        success: true,
+        data: {
+          id: dom.id,
+          hostname: dom.hostname,
+          is_active: dom.is_active,
+          is_verified: dom.is_verified,
+          verification_code: dom.verification_code,
+          verification_method: dom.verification_method,
+          created_at: dom.created_at,
+          instructions: txtInstructions(dom.hostname, dom.verification_code),
+        },
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        ...rows[0],
+        instructions: txtInstructions(rows[0].hostname, rows[0].verification_code),
+      },
+    });
+  } catch (e) {
+    console.error('createDomain error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+function txtInstructions(hostname: string, code: string) {
+  return {
+    method: 'dns_txt',
+    record_name_primary: `_shortlink-verify.${hostname}`,
+    record_name_fallback: hostname,
+    expected_value: `shortlink-verify=${code}`,
+    notes: [
+      'Create a DNS TXT record at the primary name. Some DNS providers require using the root (fallback).',
+      'Propagation can take up to 30 minutes (often faster).',
+    ],
+  };
+}
+
+/**
+ * POST /api/domains/:id/verify
+ * Tries DNS TXT lookup; sets is_verified on success.
+ */
+export async function verifyDomain(req: AuthedRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const { id } = req.params;
+
+    const { rows } = await db.query(
+      `SELECT id, hostname, owner_user_id, verification_code, is_verified
+         FROM domains
+        WHERE id = $1`,
+      [id],
+    );
+
+    if (!rows.length) return res.status(404).json({ success: false, error: 'Domain not found' });
+    const dom = rows[0];
+    if (dom.owner_user_id && dom.owner_user_id !== userId) {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+    if (!dom.verification_code) {
+      return res.status(400).json({ success: false, error: 'No verification code set; recreate domain' });
+    }
+
+    const result = await verifyDomainTxt(dom.hostname, dom.verification_code);
+
+    await db.query(
+      `UPDATE domains
+          SET last_checked_at = NOW(),
+              is_verified = $1,
+              verified_at = CASE WHEN $1 THEN NOW() ELSE verified_at END,
+              failure_reason = $2
+        WHERE id = $3`,
+      [result.ok, result.ok ? null : result.reason, dom.id],
+    );
+
+    if (!result.ok) {
+      return res.status(202).json({
+        success: false,
+        error: 'Not verified',
+        data: { checked: result.checkedHostnames, reason: result.reason },
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: { verified: true, matchedAt: result.matchedAt },
+    });
+  } catch (e) {
+    console.error('verifyDomain error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+export async function deleteDomain(req: AuthedRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const { id } = req.params;
+
+    // Only the owner can delete
+    const { rowCount } = await db.query(
+      `DELETE FROM domains WHERE id = $1 AND owner_user_id = $2`,
+      [id, userId],
+    );
+    if (!rowCount) return res.status(404).json({ success: false, error: 'Domain not found' });
+
+    await db.query(`UPDATE links SET domain_id = NULL WHERE domain_id = $1`, [id]);
+
+    return res.json({ success: true, data: { deleted: true, id } });
+  } catch (e) {
+    console.error('deleteDomain error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+export async function setDefaultDomain(req: AuthedRequest, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const { id } = req.params;
+
+    const { rows } = await db.query(
+      `SELECT id, is_verified FROM domains WHERE id = $1 AND (owner_user_id = $2 OR owner_user_id IS NULL)`,
+      [id, userId],
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'Domain not found' });
+    if (!rows[0].is_verified) {
+      return res.status(400).json({ success: false, error: 'Domain not verified yet' });
+    }
+
+    await db.query(`UPDATE users SET default_domain_id = $1 WHERE id = $2`, [id, userId]);
+    return res.json({ success: true, data: { default_domain_id: id } });
+  } catch (e) {
+    console.error('setDefaultDomain error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+

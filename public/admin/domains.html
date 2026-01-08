@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin • Domains</title>
+  <link rel="stylesheet" href="/admin/admin.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <div class="nav">
+      <a data-tab="dashboard" href="/admin/index.html">Dashboard</a>
+      <a data-tab="links" href="/admin/links.html">Links</a>
+      <a data-tab="domains" href="/admin/domains.html">Domains</a>
+      <a data-tab="analytics" href="/admin/analytics.html">Analytics</a>
+      <span class="muted" id="whoami"></span>
+      <span style="flex:1"></span>
+      <button class="btn" id="logoutBtn">Logout</button>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Add custom domain</h2>
+        <div class="row" style="flex-direction:column;gap:10px;margin-top:6px">
+          <input id="domain" class="input" placeholder="yourdomain.tld" />
+          <div class="row">
+            <button id="addBtn" class="btn">Add</button>
+            <span id="addMsg" class="muted"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Instructions</h2>
+        <div class="muted" id="hint">
+          Add a domain, then create this TXT record:<br/>
+          <span class="badge">_shortlink.yourdomain.tld → &lt;token&gt;</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h2>Your domains</h2>
+      <div style="max-height:60vh;overflow:auto;border-radius:8px;border:1px solid var(--border)">
+        <table>
+          <thead>
+            <tr><th>Domain</th><th>Status</th><th>Default</th><th>Token</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="5" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/admin-common.js"></script>
+  <script type="module" src="/admin/domains.js"></script>
+</body>
+</html>
+
