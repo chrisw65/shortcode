@@ -235,3 +235,62 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
+
+/**
+ * GET /api/analytics/domains/:id/summary
+ */
+export async function domainSummary(req: ReqWithUser, res: Response) {
+  try {
+    const orgId = (req as any).org?.orgId;
+    if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const { id } = req.params;
+    const domainRow = await db.query<{ id: string; domain: string }>(
+      `SELECT id, domain FROM domains WHERE org_id = $1 AND id = $2`,
+      [orgId, id]
+    );
+    if (!domainRow.rowCount) return res.status(404).json({ success: false, error: 'Domain not found' });
+
+    const series = await db.query<{ h: string; count: string | number }>(`
+      WITH series AS (
+        SELECT generate_series(
+          date_trunc('hour', NOW()) - INTERVAL '23 hours',
+          date_trunc('hour', NOW()),
+          INTERVAL '1 hour'
+        ) AS h
+      )
+      SELECT to_char(s.h, 'YYYY-MM-DD"T"HH24:00:00"Z"') AS h,
+             COALESCE(COUNT(c.*), 0) AS count
+      FROM series s
+      LEFT JOIN click_events c
+        ON date_trunc('hour', c.occurred_at) = s.h
+      LEFT JOIN links l
+        ON l.id = c.link_id AND l.domain_id = $1
+      GROUP BY s.h
+      ORDER BY s.h
+    `, [id]);
+
+    const totals = await db.query<{ total_clicks: string; last_click_at: Date | null; clicks_24h: string }>(`
+      SELECT COUNT(*)::bigint AS total_clicks,
+             MAX(occurred_at) AS last_click_at,
+             SUM(CASE WHEN occurred_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)::bigint AS clicks_24h
+      FROM click_events c
+      JOIN links l ON l.id = c.link_id
+      WHERE l.domain_id = $1
+    `, [id]);
+
+    return res.json({
+      success: true,
+      data: {
+        domain: domainRow.rows[0].domain,
+        total_clicks: Number(totals.rows[0]?.total_clicks || 0),
+        clicks_24h: Number(totals.rows[0]?.clicks_24h || 0),
+        last_click_at: totals.rows[0]?.last_click_at ?? null,
+        sparkline: series.rows.map((r) => ({ t: r.h, y: Number(r.count) })),
+      },
+    });
+  } catch (e) {
+    console.error('analytics.domainSummary error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}

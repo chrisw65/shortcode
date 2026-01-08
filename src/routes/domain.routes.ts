@@ -2,7 +2,7 @@
 import { Router, type RequestHandler } from 'express';
 import * as domainController from '../controllers/domain.controller';
 import { authenticate } from '../middleware/auth';
-import { requireOrg } from '../middleware/org';
+import { requireOrg, requireOrgRole } from '../middleware/org';
 import { perUser120rpm } from '../middleware/rateLimit';
 
 const router = Router();
@@ -17,6 +17,6 @@ router.get('/', wrap(domainController.listDomains));
 router.post('/', wrap(domainController.createDomain));
 router.post('/:id/verify', wrap(domainController.verifyDomain));
 router.post('/:id/default', wrap(domainController.setDefaultDomain));
-router.delete('/:id', wrap(domainController.deleteDomain));
+router.delete('/:id', requireOrgRole(['owner']), wrap(domainController.deleteDomain));
 
 export default router;

@@ -1,8 +1,8 @@
 import { Router, type RequestHandler } from 'express';
 import { authenticate } from '../middleware/auth';
-import { summary, linkSummary, linkEvents, domainSummary } from '../controllers/analytics.controller';
+import { requireOrg, requireOrgRole } from '../middleware/org';
 import { perUser120rpm } from '../middleware/rateLimit';
-import { requireOrg } from '../middleware/org';
+import { listMembers, addMember, removeMember } from '../controllers/org.controller';
 
 const router = Router();
 const wrap = (fn: any): RequestHandler => (req, res, next) =>
@@ -12,9 +12,8 @@ router.use(authenticate);
 router.use(requireOrg);
 router.use(perUser120rpm);
 
-router.get('/summary', wrap(summary));
-router.get('/links/:shortCode/summary', wrap(linkSummary));
-router.get('/links/:shortCode/events', wrap(linkEvents));
-router.get('/domains/:id/summary', wrap(domainSummary));
+router.get('/members', wrap(listMembers));
+router.post('/members', requireOrgRole(['owner']), wrap(addMember));
+router.delete('/members/:memberId', requireOrgRole(['owner']), wrap(removeMember));
 
 export default router;
