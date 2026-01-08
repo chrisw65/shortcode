@@ -6,6 +6,7 @@ export type AuthenticatedRequest = Request & {
     userId: string;
     email?: string;
     role?: string;
+    is_superadmin?: boolean;
   };
 };
 
@@ -27,12 +28,14 @@ export function authenticate(req: AuthenticatedRequest, res: Response, next: Nex
       userId: string;
       email?: string;
       role?: string;
+      is_superadmin?: boolean;
     };
 
     req.user = {
       userId: payload.userId,
       email: payload.email,
       role: payload.role,
+      is_superadmin: payload.is_superadmin,
     };
 
     return next();

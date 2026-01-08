@@ -18,8 +18,8 @@ function bucketUserAgent(ua: string | null): 'mobile' | 'desktop' | 'bot' | 'oth
  */
 export async function summary(req: ReqWithUser, res: Response) {
   try {
-    const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    const orgId = (req as any).org?.orgId;
+    if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const series = await db.query<{ h: string; count: string | number }>(`
       WITH series AS (
@@ -35,10 +35,10 @@ export async function summary(req: ReqWithUser, res: Response) {
       LEFT JOIN click_events c
         ON date_trunc('hour', c.occurred_at) = s.h
       LEFT JOIN links l
-        ON l.id = c.link_id AND l.user_id = $1
+        ON l.id = c.link_id AND l.org_id = $1
       GROUP BY s.h
       ORDER BY s.h
-    `, [userId]);
+    `, [orgId]);
 
     const totals = await db.query<{ total_clicks: string; last_click_at: Date | null; clicks_24h: string }>(`
       SELECT COUNT(*)::bigint AS total_clicks,
@@ -46,29 +46,29 @@ export async function summary(req: ReqWithUser, res: Response) {
              SUM(CASE WHEN occurred_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)::bigint AS clicks_24h
       FROM click_events c
       JOIN links l ON l.id = c.link_id
-      WHERE l.user_id = $1
-    `, [userId]);
+      WHERE l.org_id = $1
+    `, [orgId]);
 
     const referrers = await db.query<{ referrer: string | null; count: string }>(`
       SELECT COALESCE(NULLIF(TRIM(referer), ''), '(direct)') AS referrer,
              COUNT(*)::bigint AS count
       FROM click_events c
       JOIN links l ON l.id = c.link_id
-      WHERE l.user_id = $1 AND c.occurred_at >= NOW() - INTERVAL '7 days'
+      WHERE l.org_id = $1 AND c.occurred_at >= NOW() - INTERVAL '7 days'
       GROUP BY 1
       ORDER BY COUNT(*) DESC
       LIMIT 10
-    `, [userId]);
+    `, [orgId]);
 
     const uas = await db.query<{ ua: string | null; count: string }>(`
       SELECT user_agent AS ua, COUNT(*)::bigint AS count
       FROM click_events c
       JOIN links l ON l.id = c.link_id
-      WHERE l.user_id = $1 AND c.occurred_at >= NOW() - INTERVAL '7 days'
+      WHERE l.org_id = $1 AND c.occurred_at >= NOW() - INTERVAL '7 days'
       GROUP BY 1
       ORDER BY COUNT(*) DESC
       LIMIT 200
-    `, [userId]);
+    `, [orgId]);
 
     const uaBuckets = uas.rows.reduce<Record<string, number>>((acc, row) => {
       const b = bucketUserAgent(row.ua);
@@ -101,13 +101,13 @@ export async function summary(req: ReqWithUser, res: Response) {
  */
 export async function linkSummary(req: ReqWithUser, res: Response) {
   try {
-    const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    const orgId = (req as any).org?.orgId;
+    if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { shortCode } = req.params;
     const linkRow = await db.query<{ id: string; title: string | null }>(
-      `SELECT id, title FROM links WHERE user_id = $1 AND short_code = $2`,
-      [userId, shortCode],
+      `SELECT id, title FROM links WHERE org_id = $1 AND short_code = $2`,
+      [orgId, shortCode],
     );
     if (!linkRow.rowCount) {
       return res.status(404).json({ success: false, error: 'Link not found' });
@@ -193,15 +193,15 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
  */
 export async function linkEvents(req: ReqWithUser, res: Response) {
   try {
-    const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    const orgId = (req as any).org?.orgId;
+    if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { shortCode } = req.params;
     const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 500);
 
     const linkRow = await db.query<{ id: string }>(
-      `SELECT id FROM links WHERE user_id = $1 AND short_code = $2`,
-      [userId, shortCode],
+      `SELECT id FROM links WHERE org_id = $1 AND short_code = $2`,
+      [orgId, shortCode],
     );
     if (!linkRow.rowCount) {
       return res.status(404).json({ success: false, error: 'Link not found' });

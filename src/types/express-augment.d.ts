@@ -11,9 +11,13 @@ declare module 'express-serve-static-core' {
       userId: string;
       email?: string;
       role?: string;
+      is_superadmin?: boolean;
+    };
+    org?: {
+      orgId: string;
+      role: 'owner' | 'admin' | 'member';
     };
   }
 }
 
 export {};
-

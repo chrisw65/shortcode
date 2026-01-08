@@ -2,6 +2,7 @@
 import { Router, type RequestHandler } from 'express';
 import * as domainController from '../controllers/domain.controller';
 import { authenticate } from '../middleware/auth';
+import { requireOrg } from '../middleware/org';
 import { perUser120rpm } from '../middleware/rateLimit';
 
 const router = Router();
@@ -9,6 +10,7 @@ const wrap = (fn: any): RequestHandler => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
 router.use(authenticate);
+router.use(requireOrg);
 router.use(perUser120rpm);
 
 router.get('/', wrap(domainController.listDomains));

@@ -4,9 +4,9 @@ import { randomBytes } from 'crypto';
 import { promises as dns } from 'node:dns';
 import db from '../config/database';
 
-// Local auth-aware request type (your middleware attaches req.user)
+// Local auth-aware request type (your middleware attaches req.user/org)
 type JwtUser = { userId: string; email?: string };
-type AuthedRequest = Request & { user: JwtUser };
+type AuthedRequest = Request & { user: JwtUser; org: { orgId: string } };
 
 /**
  * domains schema assumed:
@@ -51,13 +51,13 @@ function shape(row: any) {
  */
 export async function listDomains(req: AuthedRequest, res: Response) {
   try {
-    const userId = req.user.userId;
+    const orgId = req.org.orgId;
     const { rows } = await db.query(
       `SELECT id, user_id, domain, is_default, is_active, verified, verification_token, verified_at, created_at
          FROM domains
-        WHERE user_id = $1
+        WHERE org_id = $1
         ORDER BY is_default DESC, created_at DESC`,
-      [userId],
+      [orgId],
     );
     return res.json({ success: true, data: rows.map(shape) });
   } catch (e) {
@@ -73,6 +73,7 @@ export async function listDomains(req: AuthedRequest, res: Response) {
 export async function createDomain(req: AuthedRequest, res: Response) {
   try {
     const userId = req.user.userId;
+    const orgId = req.org.orgId;
     const { domain, make_default } = req.body ?? {};
 
     if (!domain || typeof domain !== 'string') {
@@ -83,8 +84,8 @@ export async function createDomain(req: AuthedRequest, res: Response) {
 
     // Does it already exist for this user?
     const existing = await db.query(
-      `SELECT id, verification_token FROM domains WHERE user_id = $1 AND domain = $2`,
-      [userId, d],
+      `SELECT id, verification_token FROM domains WHERE org_id = $1 AND domain = $2`,
+      [orgId, d],
     );
 
     let row;
@@ -103,30 +104,30 @@ export async function createDomain(req: AuthedRequest, res: Response) {
       row = upd.rows[0];
 
       if (make_default) {
-        await db.query(`UPDATE domains SET is_default = false WHERE user_id = $1`, [userId]);
+        await db.query(`UPDATE domains SET is_default = false WHERE org_id = $1`, [orgId]);
         const def = await db.query(
-          `UPDATE domains SET is_default = true WHERE id = $1 AND user_id = $2
+          `UPDATE domains SET is_default = true WHERE id = $1 AND org_id = $2
            RETURNING id, user_id, domain, is_default, is_active, verified, verification_token, verified_at, created_at`,
-          [id, userId],
+          [id, orgId],
         );
         row = def.rows[0];
       }
     } else {
       const token = newVerificationToken();
       const ins = await db.query(
-        `INSERT INTO domains (user_id, domain, is_default, is_active, verified, verification_token)
-         VALUES ($1, $2, $3, true, false, $4)
+        `INSERT INTO domains (org_id, user_id, domain, is_default, is_active, verified, verification_token)
+         VALUES ($1, $2, $3, $4, true, false, $5)
          RETURNING id, user_id, domain, is_default, is_active, verified, verification_token, verified_at, created_at`,
-        [userId, d, !!make_default, token],
+        [orgId, userId, d, !!make_default, token],
       );
       row = ins.rows[0];
 
       if (make_default && !row.is_default) {
-        await db.query(`UPDATE domains SET is_default = false WHERE user_id = $1`, [userId]);
+        await db.query(`UPDATE domains SET is_default = false WHERE org_id = $1`, [orgId]);
         const def = await db.query(
-          `UPDATE domains SET is_default = true WHERE id = $1 AND user_id = $2
+          `UPDATE domains SET is_default = true WHERE id = $1 AND org_id = $2
            RETURNING id, user_id, domain, is_default, is_active, verified, verification_token, verified_at, created_at`,
-          [row.id, userId],
+          [row.id, orgId],
         );
         row = def.rows[0];
       }
@@ -158,15 +159,15 @@ export async function createDomain(req: AuthedRequest, res: Response) {
  */
 export async function verifyDomain(req: AuthedRequest, res: Response) {
   try {
-    const userId = req.user.userId;
+    const orgId = req.org.orgId;
     const { id } = req.params;
     const { token: manualToken } = req.body ?? {};
 
     const { rows } = await db.query(
       `SELECT id, user_id, domain, verified, verification_token
          FROM domains
-        WHERE id = $1 AND user_id = $2`,
-      [id, userId],
+        WHERE id = $1 AND org_id = $2`,
+      [id, orgId],
     );
     if (!rows.length) {
       return res.status(404).json({ success: false, error: 'Domain not found' });
@@ -189,9 +190,9 @@ export async function verifyDomain(req: AuthedRequest, res: Response) {
       const upd = await db.query(
         `UPDATE domains
             SET verified = true, verified_at = NOW()
-          WHERE id = $1 AND user_id = $2
+          WHERE id = $1 AND org_id = $2
           RETURNING id, user_id, domain, is_default, is_active, verified, verification_token, verified_at, created_at`,
-        [row.id, userId],
+        [row.id, orgId],
       );
       return res.json({ success: true, data: shape(upd.rows[0]), method: 'manual' });
     }
@@ -246,9 +247,9 @@ export async function verifyDomain(req: AuthedRequest, res: Response) {
     const upd = await db.query(
       `UPDATE domains
           SET verified = true, verified_at = NOW()
-        WHERE id = $1 AND user_id = $2
+        WHERE id = $1 AND org_id = $2
         RETURNING id, user_id, domain, is_default, is_active, verified, verification_token, verified_at, created_at`,
-      [row.id, userId],
+      [row.id, orgId],
     );
 
     return res.json({ success: true, data: shape(upd.rows[0]), method, txts_sample: txts.slice(0, 5) });
@@ -263,14 +264,14 @@ export async function verifyDomain(req: AuthedRequest, res: Response) {
  */
 export async function setDefaultDomain(req: AuthedRequest, res: Response) {
   try {
-    const userId = req.user.userId;
+    const orgId = req.org.orgId;
     const { id } = req.params;
 
     const { rows } = await db.query(
       `SELECT id, user_id, domain, is_active, verified
          FROM domains
-        WHERE id = $1 AND user_id = $2`,
-      [id, userId],
+        WHERE id = $1 AND org_id = $2`,
+      [id, orgId],
     );
     if (!rows.length) {
       return res.status(404).json({ success: false, error: 'Domain not found' });
@@ -284,13 +285,13 @@ export async function setDefaultDomain(req: AuthedRequest, res: Response) {
       return res.status(400).json({ success: false, error: 'Domain must be verified before setting default' });
     }
 
-    await db.query(`UPDATE domains SET is_default = false WHERE user_id = $1`, [userId]);
+    await db.query(`UPDATE domains SET is_default = false WHERE org_id = $1`, [orgId]);
     const upd = await db.query(
       `UPDATE domains
           SET is_default = true
-        WHERE id = $1 AND user_id = $2
+        WHERE id = $1 AND org_id = $2
         RETURNING id, user_id, domain, is_default, is_active, verified, verification_token, verified_at, created_at`,
-      [id, userId],
+      [id, orgId],
     );
 
     return res.json({ success: true, data: shape(upd.rows[0]) });
@@ -305,12 +306,12 @@ export async function setDefaultDomain(req: AuthedRequest, res: Response) {
  */
 export async function deleteDomain(req: AuthedRequest, res: Response) {
   try {
-    const userId = req.user.userId;
+    const orgId = req.org.orgId;
     const { id } = req.params;
 
     const result = await db.query(
-      `DELETE FROM domains WHERE id = $1 AND user_id = $2`,
-      [id, userId],
+      `DELETE FROM domains WHERE id = $1 AND org_id = $2`,
+      [id, orgId],
     );
 
     const deleted = (result.rowCount ?? 0) > 0;
@@ -320,4 +321,3 @@ export async function deleteDomain(req: AuthedRequest, res: Response) {
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
-

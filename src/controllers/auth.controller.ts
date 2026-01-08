@@ -15,6 +15,7 @@ function safeUser(row: any) {
     created_at: row.created_at ?? null,
     is_active: row.is_active ?? true,
     email_verified: row.email_verified ?? true,
+    is_superadmin: row.is_superadmin ?? false,
   };
 }
 
@@ -46,7 +47,8 @@ async function loginImpl(req: Request, res: Response) {
     const { rows } = await db.query(
       `SELECT id, email, name, plan, created_at, password AS password_hash,
               COALESCE(is_active, true)  AS is_active,
-              COALESCE(email_verified, true) AS email_verified
+              COALESCE(email_verified, true) AS email_verified,
+              COALESCE(is_superadmin, false) AS is_superadmin
          FROM users
         WHERE LOWER(email) = $1
         LIMIT 1`,
@@ -67,7 +69,7 @@ async function loginImpl(req: Request, res: Response) {
     }
     if (!ok) return res.status(401).json({ success: false, error: 'Invalid credentials' });
 
-    const token = signToken({ userId: user.id, email: user.email });
+    const token = signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
     return res.json({ success: true, data: { user: safeUser(user), token } });
   } catch (err) {
     console.error('auth.login error:', err);
@@ -87,20 +89,45 @@ async function registerImpl(req: Request, res: Response) {
 
     const hash = await bcrypt.hash(password, 12);
 
+    await db.query('BEGIN');
+
     const { rows } = await db.query(
-      `INSERT INTO users (email, password, name, is_active, email_verified)
-       VALUES ($1, $2, $3, true, true)
+      `INSERT INTO users (email, password, name, is_active, email_verified, is_superadmin)
+       VALUES ($1, $2, $3, true, true, false)
        ON CONFLICT (email) DO NOTHING
-       RETURNING id, email, name, plan, created_at, password AS password_hash, is_active, email_verified`,
+       RETURNING id, email, name, plan, created_at, password AS password_hash, is_active, email_verified, is_superadmin`,
       [email, hash, name]
     );
 
     const user = rows[0];
-    if (!user) return res.status(409).json({ success: false, error: 'User already exists' });
+    if (!user) {
+      await db.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: 'User already exists' });
+    }
 
-    const token = signToken({ userId: user.id, email: user.email });
-    return res.status(201).json({ success: true, data: { user: safeUser(user), token } });
+    const orgName = 'Default Org';
+    const orgRes = await db.query(
+      `INSERT INTO orgs (name, owner_user_id)
+       VALUES ($1, $2)
+       RETURNING id`,
+      [orgName, user.id]
+    );
+
+    await db.query(
+      `INSERT INTO org_memberships (org_id, user_id, role)
+       VALUES ($1, $2, 'owner')`,
+      [orgRes.rows[0].id, user.id]
+    );
+
+    await db.query('COMMIT');
+
+    const token = signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
+    return res.status(201).json({
+      success: true,
+      data: { user: safeUser(user), token, org_id: orgRes.rows[0].id },
+    });
   } catch (err) {
+    try { await db.query('ROLLBACK'); } catch {}
     console.error('auth.register error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }

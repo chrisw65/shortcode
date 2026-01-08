@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { nanoid } from 'nanoid';
 import db from '../config/database';
 
-type UserReq = Request & { user: { userId: string } };
+type UserReq = Request & { user: { userId: string }; org: { orgId: string } };
 
 function ensureHttpUrl(raw: string): string | null {
   try {
@@ -73,6 +73,7 @@ function shapeLink(row: any, baseUrl: string) {
 export async function createLink(req: UserReq, res: Response) {
   try {
     const userId = req.user.userId;
+    const orgId = req.org.orgId;
     const { url, title, short_code, expires_at } = req.body ?? {};
     if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
 
@@ -93,11 +94,11 @@ export async function createLink(req: UserReq, res: Response) {
     const { baseUrl, domainId } = await resolveUserBaseUrl(userId);
 
     const q = `
-      INSERT INTO links (user_id, short_code, original_url, title, domain_id, expires_at, active)
-      VALUES ($1, $2, $3, COALESCE($4, $5), $6, $7, true)
+      INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, expires_at, active)
+      VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, $8, true)
       RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active
     `;
-    const { rows } = await db.query(q, [userId, code, normalizedUrl, title ?? null, autoTitle, domainId, expires_at ?? null]);
+    const { rows } = await db.query(q, [orgId, userId, code, normalizedUrl, title ?? null, autoTitle, domainId, expires_at ?? null]);
 
     return res.status(201).json({ success: true, data: shapeLink(rows[0], baseUrl) });
   } catch (e: any) {
@@ -114,14 +115,14 @@ export async function createLink(req: UserReq, res: Response) {
  */
 export async function getUserLinks(req: UserReq, res: Response) {
   try {
-    const userId = req.user.userId;
-    const { baseUrl } = await resolveUserBaseUrl(userId);
+    const orgId = req.org.orgId;
+    const { baseUrl } = await resolveUserBaseUrl(req.user.userId);
     const { rows } = await db.query(
       `SELECT id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active
          FROM links
-        WHERE user_id = $1
+        WHERE org_id = $1
         ORDER BY created_at DESC`,
-      [userId]
+      [orgId]
     );
     return res.json({ success: true, data: rows.map(r => shapeLink(r, baseUrl)) });
   } catch (e) {
@@ -135,13 +136,13 @@ export async function getUserLinks(req: UserReq, res: Response) {
  */
 export async function getLinkDetails(req: UserReq, res: Response) {
   try {
-    const userId = req.user.userId;
+    const orgId = req.org.orgId;
     const { shortCode } = req.params;
     const { rows } = await db.query(
       `SELECT id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active
          FROM links
-        WHERE user_id = $1 AND short_code = $2`,
-      [userId, shortCode]
+        WHERE org_id = $1 AND short_code = $2`,
+      [orgId, shortCode]
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'Link not found' });
 
@@ -160,13 +161,13 @@ export async function getLinkDetails(req: UserReq, res: Response) {
  */
 export async function updateLink(req: UserReq, res: Response) {
   try {
-    const userId = req.user.userId;
+    const orgId = req.org.orgId;
     const { shortCode } = req.params;
     const { url, title, expires_at, short_code } = req.body ?? {};
 
     const { rows: existing } = await db.query(
-      `SELECT id FROM links WHERE user_id = $1 AND short_code = $2`,
-      [userId, shortCode]
+      `SELECT id FROM links WHERE org_id = $1 AND short_code = $2`,
+      [orgId, shortCode]
     );
     if (!existing.length) return res.status(404).json({ success: false, error: 'Link not found' });
 
@@ -195,11 +196,11 @@ export async function updateLink(req: UserReq, res: Response) {
       return res.json({ success: true, data: { updated: false } });
     }
 
-    vals.push(userId, shortCode);
+    vals.push(orgId, shortCode);
     const q = `
       UPDATE links
          SET ${sets.join(', ')}
-       WHERE user_id = $${i++} AND short_code = $${i++}
+       WHERE org_id = $${i++} AND short_code = $${i++}
       RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active
     `;
     const { rows } = await db.query(q, vals);
@@ -221,7 +222,7 @@ export async function updateLink(req: UserReq, res: Response) {
  */
 export async function updateLinkStatus(req: UserReq, res: Response) {
   try {
-    const userId = req.user.userId;
+    const orgId = req.org.orgId;
     const { shortCode } = req.params;
     const { active } = req.body ?? {};
 
@@ -232,9 +233,9 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
     const { rows } = await db.query(
       `UPDATE links
           SET active = $1
-        WHERE user_id = $2 AND short_code = $3
+        WHERE org_id = $2 AND short_code = $3
       RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active`,
-      [active, userId, shortCode]
+      [active, orgId, shortCode]
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'Link not found' });
 
@@ -251,11 +252,11 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
  */
 export async function deleteLink(req: UserReq, res: Response) {
   try {
-    const userId = req.user.userId;
+    const orgId = req.org.orgId;
     const { shortCode } = req.params;
     const result = await db.query(
-      `DELETE FROM links WHERE user_id = $1 AND short_code = $2`,
-      [userId, shortCode]
+      `DELETE FROM links WHERE org_id = $1 AND short_code = $2`,
+      [orgId, shortCode]
     );
     return res.json({ success: true, data: { deleted: result.rowCount ? result.rowCount > 0 : false, short_code: shortCode } });
   } catch (e) {
