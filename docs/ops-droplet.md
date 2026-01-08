@@ -2,13 +2,14 @@
 
 ## Assumed deployment model
 - Single droplet
-- Node app running via systemd or a process manager
+- systemd service running a single Docker container
 - Postgres hosted externally or on the droplet
 - Nginx (or Caddy) as reverse proxy
 - Domain: `oklink.lnk`
 
 ## Baseline checks
 - `systemctl status <service>`
+- `cat /etc/systemd/system/shortlink.service`
 - `curl http://127.0.0.1:3000/health`
 - `curl https://oklink.lnk/health`
 - `openssl s_client -connect oklink.lnk:443 -servername oklink.lnk`
@@ -35,6 +36,9 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 ```
+
+## Live image (current)
+- `registry.digitalocean.com/oakleaf/shortlink-mvp:latest`
 
 ## Nginx reverse proxy (example)
 ```

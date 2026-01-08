@@ -48,6 +48,8 @@ These must be true for the MVP to work as intended:
 5) Log into `/admin/` and create a link
 6) Confirm redirect and QR endpoints work
 
+Current deployment model: systemd + single Docker container.
+
 ## Current known gaps (from review)
 - No Redis caching for redirects or rate limits
 - No API keys for programmatic usage

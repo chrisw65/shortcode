@@ -3,8 +3,8 @@
 set -e
 
 # Configuration
-REGISTRY="registry.digitalocean.com/shortlink-registry"
-IMAGE_NAME="shortlink-api"
+REGISTRY="registry.digitalocean.com/oakleaf"
+IMAGE_NAME="shortlink-mvp"
 VERSION=${1:-latest}
 
 echo "Building Docker image..."

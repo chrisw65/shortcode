@@ -1,8 +1,9 @@
 #!/bin/bash
-export TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyNGQxMjVlZi05YmFmLTQyMTktOWZlZi1lZmY3MGMxY2YxZjciLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjAyMDIyMDcsImV4cCI6MTc2MDgwNzAwN30.y1M5Zt3nsFrjBWMSX1tStW1VkQX5sJrZdoAMG8-Ryds"
+set -euo pipefail
 
-
-BASE_URL="http://localhost:3000"
+BASE_URL="${BASE_URL:-http://localhost:3000}"
+EMAIL="${EMAIL:-test+$(date +%s)@example.com}"
+PASSWORD="${PASSWORD:-Test123!}"
 
 echo "Testing ShortLink API..."
 echo ""
@@ -17,8 +18,8 @@ echo "2. Register User"
 REGISTER_RESPONSE=$(curl -s -X POST $BASE_URL/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "test@example.com",
-    "password": "Test123!",
+    "email": "'"${EMAIL}"'",
+    "password": "'"${PASSWORD}"'",
     "name": "Test User"
   }')
 echo $REGISTER_RESPONSE | jq
