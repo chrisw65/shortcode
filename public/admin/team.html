@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shortlink Admin · Team</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2346e1a4'/%3E%3Ctext x='8' y='22' font-size='16' font-family='Arial' fill='white'%3EL%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <a href="/admin/dashboard.html">Dashboard</a>
+      <a href="/admin/links.html">Links</a>
+      <a href="/admin/domains.html">Domains</a>
+      <a href="/admin/analytics.html">Analytics</a>
+      <a href="/admin/team.html" class="active">Team</a>
+      <a href="/admin/api-keys.html">API Keys</a>
+      <a href="/admin/settings.html">Settings</a>
+      <button class="btn" id="logoutBtn" style="margin-left:auto">Logout</button>
+    </nav>
+
+    <section class="card">
+      <h3 style="margin-top:0">Team members</h3>
+      <div class="row-between mb-10">
+        <div class="muted">Manage org members and roles.</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Name</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Added</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="membersBody">
+          <tr><td class="empty" colspan="6">Loading…</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <h3 style="margin-top:0">Add member</h3>
+      <div class="grid grid-2">
+        <label>
+          Email
+          <input id="memberEmail" class="input" type="email" placeholder="name@company.com">
+        </label>
+        <label>
+          Role
+          <select id="memberRole" class="input">
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+            <option value="owner">Owner</option>
+          </select>
+        </label>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:10px">
+        <button id="btnAdd" class="btn">Add member</button>
+      </div>
+      <div id="inviteMsg" class="muted mt-6"></div>
+    </section>
+  </div>
+
+  <script type="module" src="/admin/team.js"></script>
+</body>
+</html>

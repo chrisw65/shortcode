@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shortlink Admin · API Keys</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%236ac8ff'/%3E%3Ctext x='8' y='22' font-size='16' font-family='Arial' fill='white'%3EL%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <a href="/admin/dashboard.html">Dashboard</a>
+      <a href="/admin/links.html">Links</a>
+      <a href="/admin/domains.html">Domains</a>
+      <a href="/admin/analytics.html">Analytics</a>
+      <a href="/admin/team.html">Team</a>
+      <a href="/admin/api-keys.html" class="active">API Keys</a>
+      <a href="/admin/settings.html">Settings</a>
+      <button class="btn" id="logoutBtn" style="margin-left:auto">Logout</button>
+    </nav>
+
+    <section class="card">
+      <h3 style="margin-top:0">API keys</h3>
+      <div class="muted mb-10">Create keys for integrations. Keys are shown once.</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Prefix</th>
+            <th>Last used</th>
+            <th>Revoked</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="keysBody">
+          <tr><td class="empty" colspan="5">Loading…</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <h3 style="margin-top:0">Create new key</h3>
+      <div class="grid grid-2">
+        <label>
+          Name
+          <input id="keyName" class="input" type="text" placeholder="Server integration">
+        </label>
+        <div class="row" style="align-items:flex-end">
+          <button id="btnCreate" class="btn">Create key</button>
+        </div>
+      </div>
+      <div id="keyMsg" class="muted mt-6"></div>
+    </section>
+  </div>
+
+  <script type="module" src="/admin/api-keys.js"></script>
+</body>
+</html>
