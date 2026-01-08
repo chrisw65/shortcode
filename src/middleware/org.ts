@@ -2,10 +2,12 @@ import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from './auth';
 import db from '../config/database';
 
+export type OrgRole = 'owner' | 'admin' | 'member';
+
 export type OrgRequest = AuthenticatedRequest & {
   org?: {
     orgId: string;
-    role: 'owner' | 'admin' | 'member';
+    role: OrgRole;
   };
 };
 
@@ -35,13 +37,13 @@ export async function requireOrg(req: OrgRequest, res: Response, next: NextFunct
   }
 }
 
-const roleRank: Record<OrgRequest['org']['role'], number> = {
+const roleRank: Record<OrgRole, number> = {
   owner: 3,
   admin: 2,
   member: 1,
 };
 
-export function requireOrgRole(roles: Array<OrgRequest['org']['role']>) {
+export function requireOrgRole(roles: Array<OrgRole>) {
   const minRank = Math.min(...roles.map((r) => roleRank[r]));
   return (req: OrgRequest, res: Response, next: NextFunction) => {
     const role = req.org?.role;
