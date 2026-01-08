@@ -133,12 +133,74 @@ async function registerImpl(req: Request, res: Response) {
   }
 }
 
+async function meImpl(req: Request, res: Response) {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const { rows } = await db.query(
+      `SELECT id, email, name, plan, created_at,
+              COALESCE(is_active, true)  AS is_active,
+              COALESCE(email_verified, true) AS email_verified,
+              COALESCE(is_superadmin, false) AS is_superadmin
+         FROM users
+        WHERE id = $1
+        LIMIT 1`,
+      [user.userId]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'User not found' });
+
+    const org = (req as any).org ?? null;
+    return res.json({ success: true, data: { user: safeUser(rows[0]), org } });
+  } catch (err) {
+    console.error('auth.me error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+async function changePasswordImpl(req: Request, res: Response) {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const current_password = String(req.body?.current_password ?? '');
+    const new_password = String(req.body?.new_password ?? '');
+    if (!current_password || !new_password) {
+      return res.status(400).json({ success: false, error: 'current_password and new_password are required' });
+    }
+    if (new_password.length < 8) {
+      return res.status(400).json({ success: false, error: 'new_password must be at least 8 characters' });
+    }
+
+    const { rows } = await db.query(
+      `SELECT password AS password_hash FROM users WHERE id = $1 LIMIT 1`,
+      [user.userId]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'User not found' });
+
+    const ok = await bcrypt.compare(current_password, rows[0].password_hash);
+    if (!ok) return res.status(401).json({ success: false, error: 'Invalid current password' });
+
+    const newHash = await bcrypt.hash(new_password, 12);
+    await db.query(`UPDATE users SET password = $1 WHERE id = $2`, [newHash, user.userId]);
+
+    return res.json({ success: true, data: { updated: true } });
+  } catch (err) {
+    console.error('auth.changePassword error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
 // Class export for existing routes
 export class AuthController {
   login = (req: Request, res: Response) => { void loginImpl(req, res); };
   register = (req: Request, res: Response) => { void registerImpl(req, res); };
+  me = (req: Request, res: Response) => { void meImpl(req, res); };
+  changePassword = (req: Request, res: Response) => { void changePasswordImpl(req, res); };
 }
 
 // Named exports (if used elsewhere)
 export const login = (req: Request, res: Response) => { void loginImpl(req, res); };
 export const register = (req: Request, res: Response) => { void registerImpl(req, res); };
+export const me = (req: Request, res: Response) => { void meImpl(req, res); };
+export const changePassword = (req: Request, res: Response) => { void changePasswordImpl(req, res); };

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shortlink Admin · Settings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%234ea1ff'/%3E%3Ctext x='8' y='22' font-size='16' font-family='Arial' fill='white'%3EL%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav" id="top-nav">
+      <a href="/admin/dashboard.html">Dashboard</a>
+      <a href="/admin/links.html">Links</a>
+      <a href="/admin/domains.html">Domains</a>
+      <a href="/admin/analytics.html">Analytics</a>
+      <a href="/admin/settings.html" class="active">Settings</a>
+      <button class="btn" id="logoutBtn" style="margin-left:auto">Logout</button>
+    </nav>
+
+    <section class="card">
+      <h3 style="margin-top:0">Profile</h3>
+      <div class="grid grid-2">
+        <div>
+          <div class="muted">Email</div>
+          <div id="meEmail">—</div>
+        </div>
+        <div>
+          <div class="muted">Org Role</div>
+          <div id="meRole">—</div>
+        </div>
+        <div>
+          <div class="muted">Org ID</div>
+          <div id="meOrg">—</div>
+        </div>
+        <div>
+          <div class="muted">Superadmin</div>
+          <div id="meSuper">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <h3 style="margin-top:0">Change Password</h3>
+      <div class="grid">
+        <label>
+          Current password
+          <input id="curPass" class="input" type="password" autocomplete="current-password">
+        </label>
+        <label>
+          New password
+          <input id="newPass" class="input" type="password" autocomplete="new-password">
+        </label>
+        <div class="row" style="justify-content:flex-end">
+          <button id="btnChange" class="btn">Update password</button>
+        </div>
+        <div id="msg" class="muted"></div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="/admin/settings.js"></script>
+</body>
+</html>
