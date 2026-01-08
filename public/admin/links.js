@@ -1,56 +1,19 @@
-// ===== Local, self-contained helpers (no imports) =====
-const TOKEN_KEY = 'admin_token';
-function getToken() {
-  try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; }
-}
-function clearToken() {
-  try { localStorage.removeItem(TOKEN_KEY); } catch {}
-}
-function requireAuth() {
-  const t = getToken();
-  if (!t) { location.replace('/admin/index.html'); throw new Error('Not authenticated'); }
-  return t;
-}
-async function api(path, { method = 'GET', body, headers } = {}) {
-  const token = getToken();
-  const h = new Headers(headers || {});
-  h.set('Accept', 'application/json');
-  const isJSON = body && typeof body === 'object' && !(body instanceof FormData);
-  if (isJSON) h.set('Content-Type', 'application/json');
-  if (token) h.set('Authorization', `Bearer ${token}`);
+import { requireAuth, api, mountNav, htmlesc, copyText, logout } from '/admin/admin-common.js';
 
-  const res = await fetch(path, { method, headers: h, body: isJSON ? JSON.stringify(body) : body || null });
-  let data = null;
-  const ct = res.headers.get('content-type') || '';
-  if (ct.includes('application/json')) { try { data = await res.json(); } catch {} } else { data = await res.text().catch(() => null); }
-  if (!res.ok) {
-    const msg = (data && data.error) || (data && data.message) || `HTTP ${res.status}`;
-    const err = new Error(msg); err.status = res.status; err.payload = data; throw err;
-  }
-  return (data && typeof data === 'object' && 'data' in data) ? data.data : data;
-}
-async function copyText(text) {
-  try { await navigator.clipboard.writeText(text); return true; } catch {
-    const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly','');
-    ta.style.position='absolute'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); } finally { ta.remove(); }
-    return true;
-  }
-}
 function fmtDate(v) {
   if (!v) return '—';
   const d = new Date(v); if (isNaN(d)) return '—';
   return d.toLocaleString(undefined, { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
 }
 function hostFrom(url) { try { return new URL(url).host; } catch { return '—'; } }
-// =====================================================
 
-requireAuth(); // redirect if not signed in
+function unwrap(res) {
+  return (res && typeof res === 'object' && 'data' in res) ? res.data : res;
+}
 
-// Nav logout (keep here to avoid touching other pages)
-document.getElementById('logoutBtn')?.addEventListener('click', () => {
-  clearToken(); location.replace('/admin/index.html');
-});
+requireAuth();
+mountNav('links');
+document.getElementById('logoutBtn')?.addEventListener('click', () => logout());
 
 const els = {
   inUrl:     document.getElementById('inUrl'),
@@ -102,9 +65,9 @@ function render() {
     const created= fmtDate(l.created_at);
     return `
       <tr data-id="${l.id}" data-code="${code}">
-        <td>${escapeHtml(l.title || '—')}</td>
-        <td><span class="pill">${escapeHtml(code)}</span></td>
-        <td>${escapeHtml(domain)}</td>
+        <td>${htmlesc(l.title || '—')}</td>
+        <td><span class="pill">${htmlesc(code)}</span></td>
+        <td>${htmlesc(domain)}</td>
         <td>
           <a href="${short}" target="_blank" rel="noopener">${short}</a>
           <button class="btn btn-copy" style="margin-left:6px">Copy</button>
@@ -149,18 +112,9 @@ function render() {
   });
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll('&','&amp;')
-    .replaceAll('<','&lt;')
-    .replaceAll('>','&gt;')
-    .replaceAll('"','&quot;')
-    .replaceAll("'","&#39;");
-}
-
 async function load() {
   try {
-    const data = await api('/api/links');
+    const data = unwrap(await api('/api/links'));
     // Normalise keys we rely on
     allLinks = (Array.isArray(data) ? data : []).map(x => ({
       id: x.id,
@@ -188,7 +142,7 @@ async function createLink() {
   try {
     const body = { url, title };
     if (code) body.short_code = code;        // server expects short_code
-    const res = await api('/api/links', { method: 'POST', body });
+    const res = unwrap(await api('/api/links', { method: 'POST', body }));
     // Prepend newly created (if API returns a single item)
     await load();
     els.inUrl.value = ''; els.inTitle.value = ''; els.inCode.value = '';

@@ -19,6 +19,7 @@ Deliverables:
 3) Add safer default headers and request size limits (already present but verify)
 4) Add admin password rotation and remove default admin in production
 5) Add rate limits for redirect endpoints (separate limit from API)
+6) Clean up admin UI scripts and remove unused backup files from `public/`
 
 Deliverables:
 - Hardened prod config
