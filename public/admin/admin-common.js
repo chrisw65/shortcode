@@ -122,7 +122,7 @@ export function escapeHtml(s) {
 export async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text);
-    showToast('Copied');
+    showToast('Copied to clipboard');
   } catch {
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -133,7 +133,7 @@ export async function copyToClipboard(text) {
     ta.select();
     document.execCommand('copy');
     ta.remove();
-    showToast('Copied');
+    showToast('Copied to clipboard');
   }
 }
 
