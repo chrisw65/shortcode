@@ -22,6 +22,12 @@ export function logoutAndRedirect() {
   window.location.href = '/admin/index.html';
 }
 
+// Auto-wire logout button if present
+onReady(() => {
+  const btn = document.getElementById('logoutBtn');
+  if (btn) btn.addEventListener('click', logoutAndRedirect);
+});
+
 // ========================= API =========================
 export async function apiFetch(path, opts = {}) {
   const headers = { ...(opts.headers || {}) };
@@ -166,4 +172,3 @@ export { setText as text, setHTML as html };
 
 // Version for sanity checks
 export const __ADMIN_COMMON_VERSION__ = '1.1-bc-superset';
-

@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import { promises as dns } from 'node:dns';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
+import { tryGrantReferralReward } from '../services/referrals';
 
 // Local auth-aware request type (your middleware attaches req.user/org)
 type JwtUser = { userId: string; email?: string };
@@ -143,6 +144,7 @@ export async function createDomain(req: AuthedRequest, res: Response) {
       metadata: { domain: row.domain },
     });
 
+    try { await tryGrantReferralReward(userId, orgId); } catch (err) { console.error('referral reward error:', err); }
     return res.status(201).json({
       success: true,
       data: shape(row),

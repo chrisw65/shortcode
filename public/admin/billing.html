@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Shortlink Admin - Billing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/admin/admin.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
+      </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a href="/admin/domains.html">Domains</a>
+        <a href="/admin/analytics.html">Analytics</a>
+        <a href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a href="/admin/site-settings.html">Site</a>
+        <a class="active" href="/admin/billing.html">Billing</a>
+        <a href="/admin/affiliates.html">Affiliates</a>
+        <a href="/admin/settings.html">Settings</a>
+      </nav>
+      <div class="side-footer">
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Billing & Promotions</h1>
+          <p class="page-sub">Create coupons and grant temporary upgrades.</p>
+        </div>
+      </header>
+
+      <main class="admin-content">
+        <section class="card">
+          <h3>Create coupon</h3>
+          <div class="grid grid-2" style="margin-top:10px">
+            <div>
+              <label class="muted">Code</label>
+              <input id="couponCode" class="input" placeholder="WELCOME30">
+            </div>
+            <div>
+              <label class="muted">Plan</label>
+              <input id="couponPlan" class="input" placeholder="pro">
+            </div>
+            <div>
+              <label class="muted">Duration (months)</label>
+              <input id="couponDuration" class="input" type="number" value="1">
+            </div>
+            <div>
+              <label class="muted">Percent off</label>
+              <input id="couponPercent" class="input" type="number" placeholder="30">
+            </div>
+            <div>
+              <label class="muted">Max redemptions</label>
+              <input id="couponMax" class="input" type="number" placeholder="100">
+            </div>
+            <div>
+              <label class="muted">Expires at (YYYY-MM-DD)</label>
+              <input id="couponExpires" class="input" placeholder="2026-12-31">
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button id="createCoupon" class="btn">Create coupon</button>
+            <span id="couponMsg" class="muted"></span>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <h3 class="m-0">Coupons</h3>
+            <button id="refreshCoupons" class="btn ghost">Refresh</button>
+          </div>
+          <table style="margin-top:10px">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Plan</th>
+                <th>Duration</th>
+                <th>Percent off</th>
+                <th>Max</th>
+                <th>Expires</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="couponsBody">
+              <tr><td colspan="7" class="muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <h3>Create plan grant</h3>
+          <div class="grid grid-2" style="margin-top:10px">
+            <div>
+              <label class="muted">Target type</label>
+              <select id="grantType">
+                <option value="user">User</option>
+                <option value="org">Org</option>
+              </select>
+            </div>
+            <div>
+              <label class="muted">Target ID</label>
+              <input id="grantTarget" class="input" placeholder="user or org UUID">
+            </div>
+            <div>
+              <label class="muted">Plan</label>
+              <input id="grantPlan" class="input" placeholder="pro">
+            </div>
+            <div>
+              <label class="muted">Duration (months)</label>
+              <input id="grantDuration" class="input" type="number" value="1">
+            </div>
+            <div>
+              <label class="muted">Reason</label>
+              <input id="grantReason" class="input" placeholder="promo or goodwill">
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button id="createGrant" class="btn">Create grant</button>
+            <span id="grantMsg" class="muted"></span>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <h3 class="m-0">Plan grants</h3>
+            <button id="refreshGrants" class="btn ghost">Refresh</button>
+          </div>
+          <table style="margin-top:10px">
+            <thead>
+              <tr>
+                <th>Target</th>
+                <th>Plan</th>
+                <th>Starts</th>
+                <th>Ends</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody id="grantsBody">
+              <tr><td colspan="5" class="muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/billing.js"></script>
+</body>
+</html>

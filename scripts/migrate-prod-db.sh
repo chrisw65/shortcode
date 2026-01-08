@@ -119,6 +119,127 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS site_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS site_settings_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  key TEXT NOT NULL,
+  value JSONB NOT NULL,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_settings_history_key ON site_settings_history(key);
+CREATE INDEX IF NOT EXISTS idx_site_settings_history_created ON site_settings_history(created_at);
+
+CREATE TABLE IF NOT EXISTS invites (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  inviter_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  invitee_email VARCHAR(255) NOT NULL,
+  role VARCHAR(20) NOT NULL DEFAULT 'member',
+  token VARCHAR(128) UNIQUE NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'sent',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  accepted_at TIMESTAMP NULL,
+  expires_at TIMESTAMP NULL,
+  last_reminded_at TIMESTAMP NULL
+);
+CREATE INDEX IF NOT EXISTS idx_invites_org_id ON invites(org_id);
+CREATE INDEX IF NOT EXISTS idx_invites_email ON invites(invitee_email);
+
+ALTER TABLE invites ADD COLUMN IF NOT EXISTS last_reminded_at TIMESTAMP NULL;
+
+CREATE TABLE IF NOT EXISTS referrals (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  referrer_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  invitee_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  reward_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  reward_grant_id UUID NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_user_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_invitee ON referrals(invitee_user_id);
+
+CREATE TABLE IF NOT EXISTS plan_grants (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  target_type VARCHAR(20) NOT NULL,
+  target_id UUID NOT NULL,
+  plan VARCHAR(50) NOT NULL,
+  starts_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  ends_at TIMESTAMP NOT NULL,
+  reason TEXT NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_plan_grants_target ON plan_grants(target_type, target_id);
+
+CREATE TABLE IF NOT EXISTS coupons (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  code VARCHAR(50) UNIQUE NOT NULL,
+  plan VARCHAR(50) NOT NULL,
+  duration_months INTEGER NOT NULL DEFAULT 1,
+  percent_off INTEGER NULL,
+  max_redemptions INTEGER NULL,
+  expires_at TIMESTAMP NULL,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS coupon_redemptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  coupon_id UUID REFERENCES coupons(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (coupon_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_coupon ON coupon_redemptions(coupon_id);
+
+CREATE TABLE IF NOT EXISTS affiliates (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  company VARCHAR(255) NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  code VARCHAR(32) UNIQUE NOT NULL,
+  payout_type VARCHAR(20) NOT NULL DEFAULT 'percent',
+  payout_rate NUMERIC(10,2) NOT NULL DEFAULT 30.00,
+  password_hash VARCHAR(255),
+  last_login_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP NULL;
+
+CREATE TABLE IF NOT EXISTS affiliate_conversions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  affiliate_id UUID REFERENCES affiliates(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  org_id UUID REFERENCES orgs(id) ON DELETE SET NULL,
+  amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_affiliate_conversions_affiliate ON affiliate_conversions(affiliate_id);
+
+CREATE TABLE IF NOT EXISTS affiliate_payouts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  affiliate_id UUID REFERENCES affiliates(id) ON DELETE CASCADE,
+  period_start DATE NOT NULL,
+  period_end DATE NOT NULL,
+  amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  paid_at TIMESTAMP NULL
+);
+CREATE INDEX IF NOT EXISTS idx_affiliate_payouts_affiliate ON affiliate_payouts(affiliate_id);
+
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_superadmin BOOLEAN DEFAULT false;
 
 -- Backfill orgs and org memberships for existing users

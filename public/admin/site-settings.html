@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shortlink Admin - Site Settings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
+      </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a href="/admin/domains.html">Domains</a>
+        <a href="/admin/analytics.html">Analytics</a>
+        <a href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a class="active" href="/admin/site-settings.html">Site</a>
+        <a href="/admin/affiliates.html">Affiliates</a>
+        <a href="/admin/settings.html">Settings</a>
+      </nav>
+      <div class="side-footer">
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Site Settings</h1>
+          <p class="page-sub">Control marketing copy, pricing, and FAQs.</p>
+        </div>
+        <div class="row" style="gap:10px">
+          <a class="btn ghost" id="previewBtn" href="/index.html?preview=1" target="_blank" rel="noreferrer">Preview</a>
+          <button class="btn" id="publishBtn" type="button">Publish</button>
+          <button class="btn ghost" id="saveBtn" type="button">Save draft</button>
+        </div>
+      </header>
+
+      <main class="admin-content">
+        <section class="grid grid-2">
+          <div class="card">
+            <h3>Brand</h3>
+            <label class="muted">Brand name</label>
+            <input class="input" id="brandName" placeholder="OkLeaf">
+            <label class="muted" style="margin-top:10px">Tagline</label>
+            <input class="input" id="brandTagline" placeholder="Short links for serious teams">
+          </div>
+          <div class="card">
+            <h3>Hero</h3>
+            <label class="muted">Headline</label>
+            <input class="input" id="heroHeadline" placeholder="Short links that feel enterprise-grade">
+            <label class="muted" style="margin-top:10px">Subheadline</label>
+            <input class="input" id="heroSub" placeholder="Create branded short links">
+          </div>
+        </section>
+
+        <section class="grid grid-2" style="margin-top:18px">
+          <div class="card">
+            <h3>Primary CTA</h3>
+            <label class="muted">Label</label>
+            <input class="input" id="ctaPrimaryLabel" placeholder="Start free">
+            <label class="muted" style="margin-top:10px">URL</label>
+            <input class="input" id="ctaPrimaryHref" placeholder="/register.html">
+          </div>
+          <div class="card">
+            <h3>Secondary CTA</h3>
+            <label class="muted">Label</label>
+            <input class="input" id="ctaSecondaryLabel" placeholder="Book a demo">
+            <label class="muted" style="margin-top:10px">URL</label>
+            <input class="input" id="ctaSecondaryHref" placeholder="/contact.html">
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <h3 class="m-0">Stats</h3>
+            <button class="btn ghost" id="addStatBtn" type="button">Add stat</button>
+          </div>
+          <div id="statsList" class="grid" style="margin-top:12px"></div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <h3 class="m-0">Features</h3>
+            <button class="btn ghost" id="addFeatureBtn" type="button">Add feature</button>
+          </div>
+          <div id="featuresList" class="grid" style="margin-top:12px"></div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <div>
+              <h3 class="m-0">Pricing</h3>
+              <div class="muted small">Set monthly and annual prices. Leave blank for custom pricing.</div>
+            </div>
+            <button class="btn ghost" id="addTierBtn" type="button">Add tier</button>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <div style="flex:1">
+              <label class="muted">Currency</label>
+              <input class="input" id="pricingCurrency" placeholder="USD">
+            </div>
+            <div style="flex:2">
+              <label class="muted">Billing note</label>
+              <input class="input" id="pricingNote" placeholder="Save 20% with annual billing.">
+            </div>
+          </div>
+          <div id="tiersList" class="grid" style="margin-top:12px"></div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <h3 class="m-0">FAQs</h3>
+            <button class="btn ghost" id="addFaqBtn" type="button">Add FAQ</button>
+          </div>
+          <div id="faqsList" class="grid" style="margin-top:12px"></div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <h3>Footer</h3>
+          <label class="muted">Company name</label>
+          <input class="input" id="footerCompany" placeholder="OkLeaf">
+          <label class="muted" style="margin-top:10px">Support email</label>
+          <input class="input" id="footerEmail" placeholder="support@okleaf.link">
+          <label class="muted" style="margin-top:10px">Address line</label>
+          <input class="input" id="footerAddress" placeholder="Amsterdam - Remote-first">
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <div>
+              <h3 class="m-0">History</h3>
+              <div class="muted">Latest saves and publishes. Roll back to any entry.</div>
+            </div>
+            <div class="row" style="gap:10px">
+              <button class="btn ghost" id="exportHistoryBtn" type="button">Export history</button>
+              <button class="btn ghost" id="refreshHistoryBtn" type="button">Refresh</button>
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px;gap:14px">
+            <div class="badge" id="lastPublished">Last published: -</div>
+            <div class="muted small" id="lastPublishedBy"></div>
+          </div>
+          <div id="historyList" class="grid" style="margin-top:12px"></div>
+          <div id="diffPanel" class="card" style="margin-top:12px;display:none">
+            <div class="row-between">
+              <h3 class="m-0">Diff view</h3>
+              <button class="btn ghost" id="closeDiffBtn" type="button">Close</button>
+            </div>
+            <div class="grid" style="margin-top:12px">
+              <div>
+                <div class="muted small">Summary</div>
+                <div id="diffSummary" class="diff-summary"></div>
+              </div>
+              <div class="grid grid-2">
+                <div>
+                  <div class="muted small">Selected</div>
+                  <pre class="code-block diff-block" id="diffSelected"></pre>
+                </div>
+                <div>
+                  <div class="muted small">Current draft</div>
+                  <pre class="code-block diff-block" id="diffDraft"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/admin-common.js"></script>
+  <script type="module" src="/admin/site-settings.js"></script>
+</body>
+</html>

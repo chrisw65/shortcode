@@ -1,4 +1,4 @@
-import { requireAuth, api, mountNav, htmlesc, copyText, logout } from '/admin/admin-common.js';
+import { requireAuth, api, mountNav, htmlesc, copyText } from '/admin/admin-common.js';
 
 function fmtDate(v) {
   if (!v) return '—';
@@ -13,7 +13,6 @@ function unwrap(res) {
 
 requireAuth();
 mountNav('links');
-document.getElementById('logoutBtn')?.addEventListener('click', () => logout());
 
 const els = {
   inUrl:     document.getElementById('inUrl'),

@@ -1,74 +1,149 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Admin • Analytics</title>
-  <link rel="stylesheet" href="/admin/admin.css"/>
+  <meta charset="utf-8" />
+  <title>Shortlink Admin - Analytics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/admin/admin.css" />
 </head>
 <body>
-  <div class="wrap">
-    <div class="nav">
-      <a data-tab="dashboard" href="/admin/index.html">Dashboard</a>
-      <a data-tab="links" href="/admin/links.html">Links</a>
-      <a data-tab="domains" href="/admin/domains.html">Domains</a>
-      <a data-tab="analytics" href="/admin/analytics.html">Analytics</a>
-      <a data-tab="team" href="/admin/team.html">Team</a>
-      <a data-tab="api-keys" href="/admin/api-keys.html">API Keys</a>
-      <a data-tab="settings" href="/admin/settings.html">Settings</a>
-      <span class="muted" id="whoami"></span>
-      <span style="flex:1"></span>
-      <button class="btn" id="logoutBtn">Logout</button>
-    </div>
-
-    <div class="grid grid-aside">
-      <div class="card">
-        <h2>Your links</h2>
-        <div class="row" style="gap:8px;margin-bottom:10px">
-          <input id="search" class="input" placeholder="Filter by title or short code…"/>
-          <button class="btn" id="refreshList">Refresh</button>
-        </div>
-        <div style="max-height:60vh;overflow:auto;border-radius:8px;border:1px solid var(--border)">
-          <table id="linksTable">
-            <thead><tr><th>Short</th><th>Title</th><th>Clicks</th><th>Created</th></tr></thead>
-            <tbody id="linksBody"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
-          </table>
-        </div>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
       </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a href="/admin/domains.html">Domains</a>
+        <a class="active" href="/admin/analytics.html">Analytics</a>
+        <a href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a href="/admin/site-settings.html">Site</a>
+        <a href="/admin/billing.html">Billing</a>
+        <a href="/admin/affiliates.html">Affiliates</a>
+        <a href="/admin/settings.html">Settings</a>
+      </nav>
+      <div class="side-footer">
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </aside>
 
-      <div style="display:grid;gap:18px">
-        <div class="card">
-          <h2>Overview</h2>
-          <div id="currentLink" class="muted">No link selected.</div>
-          <div class="grid grid-2" style="grid-template-columns:1fr 1fr 1fr;margin-top:10px;gap:10px">
-            <div class="card"><div class="muted">Total clicks</div><div id="statTotal" style="font-size:22px;margin-top:4px">–</div></div>
-            <div class="card"><div class="muted">Clicks (last 24h)</div><div id="stat24h" style="font-size:22px;margin-top:4px">–</div></div>
-            <div class="card"><div class="muted">Last click</div><div id="statLast" style="font-size:22px;margin-top:4px">–</div></div>
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Analytics</h1>
+          <p class="page-sub">Inspect link performance and engagement.</p>
+        </div>
+        <div class="badge" id="whoami"></div>
+      </header>
+
+      <main class="admin-content">
+        <div class="grid grid-aside">
+          <div class="card">
+            <h2>Your links</h2>
+            <div class="row" style="gap:8px;margin-bottom:10px">
+              <input id="search" class="input" placeholder="Filter by title or short code"/>
+              <button class="btn ghost" id="refreshList">Refresh</button>
+            </div>
+            <div style="max-height:60vh;overflow:auto;border-radius:8px;border:1px solid var(--border)">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Title</th>
+                    <th>Clicks</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody id="linksBody">
+                  <tr><td class="empty" colspan="4">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="card">
+              <div class="row-between">
+                <h2 class="m-0" id="currentLink">Select a link</h2>
+                <button id="copyUrl" class="btn ghost" type="button">Copy URL</button>
+              </div>
+              <div class="grid grid-2" style="margin-top:12px">
+                <div class="card">
+                  <div class="muted">Total clicks</div>
+                  <div id="statTotal" style="font-size:20px;font-weight:700">-</div>
+                </div>
+                <div class="card">
+                  <div class="muted">Clicks (24h)</div>
+                  <div id="stat24h" style="font-size:20px;font-weight:700">-</div>
+                </div>
+                <div class="card">
+                  <div class="muted">Last click</div>
+                  <div id="statLast" style="font-size:20px;font-weight:700">-</div>
+                </div>
+                <div class="card">
+                  <div class="muted">Quick view</div>
+                  <div class="muted">Referrers and devices below</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Clicks by hour</h3>
+              <canvas id="spark" class="card" style="width:100%;height:140px"></canvas>
+            </div>
+
+            <div class="grid grid-2">
+              <div class="card">
+                <h3>Top referrers</h3>
+                <table style="margin-top:8px">
+                  <thead>
+                    <tr><th>Referrer</th><th>Clicks</th></tr>
+                  </thead>
+                  <tbody id="refBody">
+                    <tr><td class="empty" colspan="2">No data.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="card">
+                <h3>Devices</h3>
+                <table style="margin-top:8px">
+                  <thead>
+                    <tr><th>Device</th><th>Clicks</th></tr>
+                  </thead>
+                  <tbody id="uaBody">
+                    <tr><td class="empty" colspan="2">No data.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Recent events</h3>
+              <table style="margin-top:10px">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>IP</th>
+                    <th>Referrer</th>
+                    <th>User agent</th>
+                  </tr>
+                </thead>
+                <tbody id="evBody">
+                  <tr><td class="empty" colspan="4">No events yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-
-        <div class="card">
-          <h2>Last 24h sparkline</h2>
-          <canvas id="spark" style="width:100%;height:100px;background:#0d1420;border-radius:8px"></canvas>
-        </div>
-
-        <div class="card">
-          <h2>Top referrers</h2>
-          <table><thead><tr><th>Referrer</th><th>Clicks</th></tr></thead><tbody id="refBody"><tr><td colspan="2" class="empty">–</td></tr></tbody></table>
-        </div>
-
-        <div class="card">
-          <h2>User agents</h2>
-          <table><thead><tr><th>Group</th><th>Count</th></tr></thead><tbody id="uaBody"><tr><td colspan="2" class="empty">–</td></tr></tbody></table>
-        </div>
-
-        <div class="card">
-          <h2>Recent events</h2>
-          <table><thead><tr><th>Time (UTC)</th><th>IP</th><th>Referrer</th><th>User-Agent</th></tr></thead><tbody id="evBody"><tr><td colspan="4" class="empty">–</td></tr></tbody></table>
-        </div>
-      </div>
+      </main>
     </div>
   </div>
-  <script type="module" src="/admin/admin-common.js"></script>
+
   <script type="module" src="/admin/analytics.js"></script>
 </body>
 </html>

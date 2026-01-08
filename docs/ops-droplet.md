@@ -71,3 +71,6 @@ server {
 ## Backup
 - Postgres backups (managed or cron)
 - `.env` stored securely
+
+## Scheduled jobs (optional)
+- Invite reminders: run `node /root/app/scripts/send-invite-reminders.js` daily (requires SMTP env vars).

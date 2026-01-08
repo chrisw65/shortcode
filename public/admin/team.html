@@ -1,68 +1,107 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Shortlink Admin · Team</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2346e1a4'/%3E%3Ctext x='8' y='22' font-size='16' font-family='Arial' fill='white'%3EL%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/admin/admin.css">
+  <meta charset="utf-8" />
+  <title>Shortlink Admin - Team</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/admin/admin.css" />
 </head>
 <body>
-  <div class="wrap">
-    <nav class="nav">
-      <a href="/admin/dashboard.html">Dashboard</a>
-      <a href="/admin/links.html">Links</a>
-      <a href="/admin/domains.html">Domains</a>
-      <a href="/admin/analytics.html">Analytics</a>
-      <a href="/admin/team.html" class="active">Team</a>
-      <a href="/admin/api-keys.html">API Keys</a>
-      <a href="/admin/settings.html">Settings</a>
-      <button class="btn" id="logoutBtn" style="margin-left:auto">Logout</button>
-    </nav>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
+      </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a href="/admin/domains.html">Domains</a>
+        <a href="/admin/analytics.html">Analytics</a>
+        <a class="active" href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a href="/admin/site-settings.html">Site</a>
+        <a href="/admin/billing.html">Billing</a>
+        <a href="/admin/affiliates.html">Affiliates</a>
+        <a href="/admin/settings.html">Settings</a>
+      </nav>
+      <div class="side-footer">
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </aside>
 
-    <section class="card">
-      <h3 style="margin-top:0">Team members</h3>
-      <div class="row-between mb-10">
-        <div class="muted">Manage org members and roles.</div>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Email</th>
-            <th>Name</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Added</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="membersBody">
-          <tr><td class="empty" colspan="6">Loading…</td></tr>
-        </tbody>
-      </table>
-    </section>
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Team</h1>
+          <p class="page-sub">Invite teammates and manage roles.</p>
+        </div>
+      </header>
 
-    <section class="card" style="margin-top:18px">
-      <h3 style="margin-top:0">Add member</h3>
-      <div class="grid grid-2">
-        <label>
-          Email
-          <input id="memberEmail" class="input" type="email" placeholder="name@company.com">
-        </label>
-        <label>
-          Role
-          <select id="memberRole" class="input">
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
-            <option value="owner">Owner</option>
-          </select>
-        </label>
-      </div>
-      <div class="row" style="justify-content:flex-end;margin-top:10px">
-        <button id="btnAdd" class="btn">Add member</button>
-      </div>
-      <div id="inviteMsg" class="muted mt-6"></div>
-    </section>
+      <main class="admin-content">
+        <section class="card">
+          <h3>Invite member</h3>
+          <div class="row" style="gap:10px;align-items:flex-end">
+            <div style="flex:1">
+              <label class="muted">Email</label>
+              <input id="memberEmail" class="input" type="email" placeholder="teammate@company.com" />
+            </div>
+            <div style="min-width:160px">
+              <label class="muted">Role</label>
+              <select id="memberRole">
+                <option value="member">Member</option>
+                <option value="admin">Admin</option>
+                <option value="owner">Owner</option>
+              </select>
+            </div>
+            <button id="btnAdd" class="btn">Invite</button>
+          </div>
+          <div id="inviteMsg" class="muted" style="margin-top:8px"></div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <h3 class="m-0">Pending invites</h3>
+            <button class="btn ghost" id="refreshInvites" type="button">Refresh</button>
+          </div>
+          <table style="margin-top:10px">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Invite link</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="invitesBody">
+              <tr><td colspan="5" class="muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <h3>Members</h3>
+          <table style="margin-top:10px">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Joined</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="membersBody">
+              <tr><td colspan="6" class="muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </main>
+    </div>
   </div>
 
   <script type="module" src="/admin/team.js"></script>

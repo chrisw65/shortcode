@@ -1,7 +1,6 @@
-import { requireAuth, api, logout, htmlesc } from '/admin/admin-common.js';
+import { requireAuth, api, htmlesc } from '/admin/admin-common.js';
 
 requireAuth();
-document.getElementById('logoutBtn')?.addEventListener('click', () => logout());
 
 const keysBody = document.getElementById('keysBody');
 const keyName = document.getElementById('keyName');

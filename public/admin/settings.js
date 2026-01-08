@@ -1,4 +1,4 @@
-import { requireAuth, api, logout } from '/admin/admin-common.js';
+import { requireAuth, api } from '/admin/admin-common.js';
 
 requireAuth();
 
@@ -11,7 +11,6 @@ const curPass = document.getElementById('curPass');
 const newPass = document.getElementById('newPass');
 const msg = document.getElementById('msg');
 
-document.getElementById('logoutBtn')?.addEventListener('click', () => logout());
 
 function setText(el, value) {
   if (el) el.textContent = value ?? '—';

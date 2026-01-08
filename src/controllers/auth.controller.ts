@@ -82,6 +82,9 @@ async function registerImpl(req: Request, res: Response) {
     const email = String(req.body?.email ?? '').replace(/\s+/g, '').trim().toLowerCase();
     const password = String(req.body?.password ?? '');
     const name = (req.body?.name ?? null) as string | null;
+    const inviteToken = String(req.body?.invite_token ?? '');
+    const couponCode = String(req.body?.coupon_code ?? '');
+    const affiliateCode = String(req.body?.affiliate_code ?? '');
 
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'Email and password are required' });
@@ -105,26 +108,129 @@ async function registerImpl(req: Request, res: Response) {
       return res.status(409).json({ success: false, error: 'User already exists' });
     }
 
-    const orgName = 'Default Org';
-    const orgRes = await db.query(
-      `INSERT INTO orgs (name, owner_user_id)
-       VALUES ($1, $2)
-       RETURNING id`,
-      [orgName, user.id]
-    );
+    let orgId: string | null = null;
 
-    await db.query(
-      `INSERT INTO org_memberships (org_id, user_id, role)
-       VALUES ($1, $2, 'owner')`,
-      [orgRes.rows[0].id, user.id]
-    );
+    if (inviteToken) {
+      const inviteRes = await db.query(
+        `SELECT id, org_id, inviter_user_id, role
+           FROM invites
+          WHERE token = $1
+            AND status = 'sent'
+            AND (expires_at IS NULL OR expires_at > NOW())
+          LIMIT 1`,
+        [inviteToken]
+      );
+      const invite = inviteRes.rows[0];
+      if (!invite) {
+        await db.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: 'Invalid or expired invite' });
+      }
+
+      orgId = invite.org_id;
+      await db.query(
+        `INSERT INTO org_memberships (org_id, user_id, role)
+         VALUES ($1, $2, $3)`,
+        [invite.org_id, user.id, invite.role]
+      );
+
+      await db.query(
+        `UPDATE invites
+            SET status = 'accepted', accepted_at = NOW()
+          WHERE id = $1`,
+        [invite.id]
+      );
+
+      if (invite.inviter_user_id) {
+        await db.query(
+          `INSERT INTO referrals (referrer_user_id, invitee_user_id)
+           VALUES ($1, $2)`,
+          [invite.inviter_user_id, user.id]
+        );
+      }
+    } else {
+      const orgName = 'Default Org';
+      const orgRes = await db.query(
+        `INSERT INTO orgs (name, owner_user_id)
+         VALUES ($1, $2)
+         RETURNING id`,
+        [orgName, user.id]
+      );
+      orgId = orgRes.rows[0].id;
+
+      await db.query(
+        `INSERT INTO org_memberships (org_id, user_id, role)
+         VALUES ($1, $2, 'owner')`,
+        [orgId, user.id]
+      );
+    }
+
+    if (couponCode) {
+      const { rows: couponRows } = await db.query(
+        `SELECT *
+           FROM coupons
+          WHERE code = $1 AND active = true
+          LIMIT 1`,
+        [couponCode.replace(/\s+/g, '').toUpperCase()]
+      );
+      const coupon = couponRows[0];
+      if (!coupon) {
+        await db.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: 'Invalid coupon' });
+      }
+      if (coupon.expires_at && new Date(coupon.expires_at).getTime() < Date.now()) {
+        await db.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: 'Coupon expired' });
+      }
+
+      const { rows: redemptions } = await db.query(
+        `SELECT count(*)::int AS count FROM coupon_redemptions WHERE coupon_id = $1`,
+        [coupon.id]
+      );
+      if (coupon.max_redemptions && redemptions[0]?.count >= coupon.max_redemptions) {
+        await db.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: 'Coupon limit reached' });
+      }
+
+      await db.query(
+        `INSERT INTO coupon_redemptions (coupon_id, user_id)
+         VALUES ($1, $2)
+         ON CONFLICT DO NOTHING`,
+        [coupon.id, user.id]
+      );
+
+      await db.query(
+        `INSERT INTO plan_grants (target_type, target_id, plan, ends_at, reason, created_by)
+         VALUES ('user', $1, $2, NOW() + ($3 || ' months')::interval, $4, $5)`,
+        [user.id, coupon.plan, coupon.duration_months, `coupon:${coupon.code}`, user.id]
+      );
+    }
+
+    if (affiliateCode) {
+      const { rows: affRows } = await db.query(
+        `SELECT id
+           FROM affiliates
+          WHERE code = $1 AND status = 'active'
+          LIMIT 1`,
+        [affiliateCode.replace(/\s+/g, '').toUpperCase()]
+      );
+      const affiliate = affRows[0];
+      if (!affiliate) {
+        await db.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: 'Invalid affiliate code' });
+      }
+      await db.query(
+        `INSERT INTO affiliate_conversions (affiliate_id, user_id, org_id, amount, status)
+         VALUES ($1, $2, $3, 0, 'pending')`,
+        [affiliate.id, user.id, orgId]
+      );
+    }
 
     await db.query('COMMIT');
 
     const token = signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
     return res.status(201).json({
       success: true,
-      data: { user: safeUser(user), token, org_id: orgRes.rows[0].id },
+      data: { user: safeUser(user), token, org_id: orgId },
     });
   } catch (err) {
     try { await db.query('ROLLBACK'); } catch {}

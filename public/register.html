@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OkLeaf - Start free</title>
+  <meta name="description" content="Create your OkLeaf account and launch branded short links in minutes." />
+  <meta property="og:title" content="Start free with OkLeaf" />
+  <meta property="og:description" content="Create a new OkLeaf workspace for your team." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/site.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="/">
+        <span class="brand-badge">O</span>
+        <span id="brandName">OkLeaf</span>
+      </a>
+      <nav class="nav-links">
+        <a href="/features.html">Features</a>
+        <a href="/pricing.html">Pricing</a>
+        <a href="/docs.html">Docs</a>
+        <a href="/case-studies.html">Case studies</a>
+        <a href="/affiliate/index.html">Affiliates</a>
+        <a href="/about.html">About</a>
+        <a href="/contact.html">Contact</a>
+      </nav>
+      <div class="nav-cta">
+        <a class="btn ghost small" href="/login.html">Login</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="auth-wrap">
+    <div class="auth-card reveal">
+      <h2>Create your OkLeaf account</h2>
+      <p class="notice">Get a branded short link workspace in minutes.</p>
+      <label for="name">Name</label>
+      <input id="name" type="text" placeholder="Your name" />
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@company.com" />
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="At least 8 characters" />
+      <div class="actions">
+        <button class="btn primary" id="registerBtn">Start free</button>
+        <a class="btn ghost" href="/login.html">Login</a>
+      </div>
+      <div class="notice" id="registerNotice"></div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container row">
+      <div>
+        <strong id="footerCompany">OkLeaf</strong>
+        <div id="footerAddress">Amsterdam - Remote-first</div>
+      </div>
+      <div>
+        <div>Support</div>
+        <div id="footerEmail">support@okleaf.link</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/site.js"></script>
+  <script src="/register.js"></script>
+</body>
+</html>

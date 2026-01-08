@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { nanoid } from 'nanoid';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
+import { tryGrantReferralReward } from '../services/referrals';
 
 type UserReq = Request & { user: { userId: string }; org: { orgId: string } };
 
@@ -110,6 +111,7 @@ export async function createLink(req: UserReq, res: Response) {
       metadata: { short_code: rows[0].short_code },
     });
 
+    try { await tryGrantReferralReward(userId, orgId); } catch (err) { console.error('referral reward error:', err); }
     return res.status(201).json({ success: true, data: shapeLink(rows[0], baseUrl) });
   } catch (e: any) {
     if (e?.code === '23505') {

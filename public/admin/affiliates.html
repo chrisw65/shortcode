@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Shortlink Admin - Affiliates</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/admin/admin.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
+      </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a href="/admin/domains.html">Domains</a>
+        <a href="/admin/analytics.html">Analytics</a>
+        <a href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a href="/admin/site-settings.html">Site</a>
+        <a href="/admin/billing.html">Billing</a>
+        <a class="active" href="/admin/affiliates.html">Affiliates</a>
+        <a href="/admin/settings.html">Settings</a>
+      </nav>
+      <div class="side-footer">
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Affiliates</h1>
+          <p class="page-sub">Review applications, track payouts, and manage incentives.</p>
+        </div>
+      </header>
+
+      <main class="admin-content">
+        <section class="card">
+          <h3>Create affiliate</h3>
+          <div class="grid grid-2" style="margin-top:10px">
+            <div>
+              <label class="muted">Name</label>
+              <input id="affName" class="input" placeholder="Partner name">
+            </div>
+            <div>
+              <label class="muted">Email</label>
+              <input id="affEmail" class="input" type="email" placeholder="partner@agency.com">
+            </div>
+            <div>
+              <label class="muted">Company</label>
+              <input id="affCompany" class="input" placeholder="Agency or studio">
+            </div>
+            <div class="row" style="gap:10px;align-items:flex-end">
+              <div style="flex:1">
+                <label class="muted">Payout type</label>
+                <select id="affPayoutType">
+                  <option value="percent">Percent</option>
+                  <option value="flat">Flat</option>
+                </select>
+              </div>
+              <div style="flex:1">
+                <label class="muted">Rate</label>
+                <input id="affPayoutRate" class="input" type="number" value="30">
+              </div>
+              <button id="affCreate" class="btn">Create</button>
+            </div>
+          </div>
+          <div id="affMsg" class="muted" style="margin-top:8px"></div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <h3 class="m-0">Affiliates</h3>
+            <button id="affRefresh" class="btn ghost" type="button">Refresh</button>
+          </div>
+          <table style="margin-top:10px">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Company</th>
+                <th>Status</th>
+                <th>Code</th>
+                <th>Payout</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="affiliatesBody">
+              <tr><td colspan="7" class="muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <h3 class="m-0">Payouts</h3>
+            <div class="row" style="gap:10px">
+              <button id="exportPayouts" class="btn ghost" type="button">Export CSV</button>
+              <button id="payoutRefresh" class="btn ghost" type="button">Refresh</button>
+            </div>
+          </div>
+          <table style="margin-top:10px">
+            <thead>
+              <tr>
+                <th>Affiliate</th>
+                <th>Period</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="payoutsBody">
+              <tr><td colspan="5" class="muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/affiliates.js"></script>
+</body>
+</html>

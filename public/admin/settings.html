@@ -1,66 +1,83 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Shortlink Admin · Settings</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%234ea1ff'/%3E%3Ctext x='8' y='22' font-size='16' font-family='Arial' fill='white'%3EL%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/admin/admin.css">
+  <meta charset="utf-8" />
+  <title>Shortlink Admin - Settings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/admin/admin.css" />
 </head>
 <body>
-  <div class="wrap">
-    <nav class="nav" id="top-nav">
-      <a href="/admin/dashboard.html">Dashboard</a>
-      <a href="/admin/links.html">Links</a>
-      <a href="/admin/domains.html">Domains</a>
-      <a href="/admin/analytics.html">Analytics</a>
-      <a href="/admin/team.html">Team</a>
-      <a href="/admin/api-keys.html">API Keys</a>
-      <a href="/admin/settings.html" class="active">Settings</a>
-      <button class="btn" id="logoutBtn" style="margin-left:auto">Logout</button>
-    </nav>
-
-    <section class="card">
-      <h3 style="margin-top:0">Profile</h3>
-      <div class="grid grid-2">
-        <div>
-          <div class="muted">Email</div>
-          <div id="meEmail">—</div>
-        </div>
-        <div>
-          <div class="muted">Org Role</div>
-          <div id="meRole">—</div>
-        </div>
-        <div>
-          <div class="muted">Org ID</div>
-          <div id="meOrg">—</div>
-        </div>
-        <div>
-          <div class="muted">Superadmin</div>
-          <div id="meSuper">—</div>
-        </div>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
       </div>
-    </section>
-
-    <section class="card" style="margin-top:18px">
-      <h3 style="margin-top:0">Change Password</h3>
-      <div class="grid">
-        <label>
-          Current password
-          <input id="curPass" class="input" type="password" autocomplete="current-password">
-        </label>
-        <label>
-          New password
-          <input id="newPass" class="input" type="password" autocomplete="new-password">
-        </label>
-        <div class="row" style="justify-content:flex-end">
-          <button id="btnChange" class="btn">Update password</button>
-        </div>
-        <div id="msg" class="muted"></div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a href="/admin/domains.html">Domains</a>
+        <a href="/admin/analytics.html">Analytics</a>
+        <a href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a href="/admin/site-settings.html">Site</a>
+        <a href="/admin/billing.html">Billing</a>
+        <a href="/admin/affiliates.html">Affiliates</a>
+        <a class="active" href="/admin/settings.html">Settings</a>
+      </nav>
+      <div class="side-footer">
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
       </div>
-    </section>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Settings</h1>
+          <p class="page-sub">Review account details and update password.</p>
+        </div>
+      </header>
+
+      <main class="admin-content">
+        <section class="card" style="max-width:720px">
+          <h3>Account</h3>
+          <div class="grid grid-2" style="margin-top:10px">
+            <div class="card">
+              <div class="muted">Email</div>
+              <div id="meEmail" style="font-weight:600">-</div>
+            </div>
+            <div class="card">
+              <div class="muted">Role</div>
+              <div id="meRole" style="font-weight:600">-</div>
+            </div>
+            <div class="card">
+              <div class="muted">Org</div>
+              <div id="meOrg" style="font-weight:600">-</div>
+            </div>
+            <div class="card">
+              <div class="muted">Superadmin</div>
+              <div id="meSuper" style="font-weight:600">-</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="max-width:720px;margin-top:18px">
+          <h3>Change password</h3>
+          <label class="muted">Current password</label>
+          <input id="curPass" class="input" type="password" placeholder="Current password" />
+          <label class="muted" style="margin-top:10px">New password</label>
+          <input id="newPass" class="input" type="password" placeholder="New password" />
+          <div class="row" style="margin-top:12px">
+            <button id="btnChange" class="btn">Update password</button>
+            <span id="msg" class="muted"></span>
+          </div>
+        </section>
+      </main>
+    </div>
   </div>
 
-  <script type="module" src="/admin/settings.js?v=2"></script>
+  <script type="module" src="/admin/settings.js"></script>
 </body>
 </html>

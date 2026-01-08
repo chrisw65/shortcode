@@ -70,6 +70,7 @@ Scope:
 - Bulk uploads and API
 - Branded domains and DNS automation
 - Geo routing, A/B testing, and campaigns
+ - Referral program, coupons, and affiliate payouts
 Milestones:
 - Rolling releases by tier
 Risks:

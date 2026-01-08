@@ -1,62 +1,89 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Admin • Domains</title>
-  <link rel="stylesheet" href="/admin/admin.css"/>
+  <meta charset="utf-8" />
+  <title>Shortlink Admin - Domains</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/admin/admin.css" />
 </head>
 <body>
-  <div class="wrap">
-    <div class="nav">
-      <a data-tab="dashboard" href="/admin/index.html">Dashboard</a>
-      <a data-tab="links" href="/admin/links.html">Links</a>
-      <a data-tab="domains" href="/admin/domains.html">Domains</a>
-      <a data-tab="analytics" href="/admin/analytics.html">Analytics</a>
-      <a data-tab="team" href="/admin/team.html">Team</a>
-      <a data-tab="api-keys" href="/admin/api-keys.html">API Keys</a>
-      <a data-tab="settings" href="/admin/settings.html">Settings</a>
-      <span class="muted" id="whoami"></span>
-      <span style="flex:1"></span>
-      <button class="btn" id="logoutBtn">Logout</button>
-    </div>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
+      </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a class="active" href="/admin/domains.html">Domains</a>
+        <a href="/admin/analytics.html">Analytics</a>
+        <a href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a href="/admin/site-settings.html">Site</a>
+        <a href="/admin/billing.html">Billing</a>
+        <a href="/admin/affiliates.html">Affiliates</a>
+        <a href="/admin/settings.html">Settings</a>
+      </nav>
+      <div class="side-footer">
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </aside>
 
-    <div class="grid grid-2">
-      <div class="card">
-        <h2>Add custom domain</h2>
-        <div class="row" style="flex-direction:column;gap:10px;margin-top:6px">
-          <input id="domain" class="input" placeholder="yourdomain.tld" />
-          <div class="row">
-            <button id="addBtn" class="btn">Add</button>
-            <span id="addMsg" class="muted"></span>
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Domains</h1>
+          <p class="page-sub">Verify and manage branded domains.</p>
+        </div>
+        <div class="badge" id="whoami"></div>
+      </header>
+
+      <main class="admin-content">
+        <div class="grid grid-2">
+          <div class="card">
+            <h2>Add custom domain</h2>
+            <div class="row" style="flex-direction:column;gap:10px;margin-top:6px">
+              <input id="domain" class="input" placeholder="yourdomain.tld" />
+              <div class="row">
+                <button id="addBtn" class="btn">Add</button>
+                <span id="addMsg" class="muted"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Instructions</h2>
+            <div class="muted" id="hint">
+              Add a domain, then create this TXT record:<br/>
+              <span class="badge">_shortlink.yourdomain.tld -> &lt;token&gt;</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="card">
-        <h2>Instructions</h2>
-        <div class="muted" id="hint">
-          Add a domain, then create this TXT record:<br/>
-          <span class="badge">_shortlink.yourdomain.tld → &lt;token&gt;</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:18px">
-      <h2>Your domains</h2>
-      <div style="max-height:60vh;overflow:auto;border-radius:8px;border:1px solid var(--border)">
-        <table>
-          <thead>
-            <tr><th>Domain</th><th>Status</th><th>Default</th><th>Token</th><th>Actions</th></tr>
-          </thead>
-          <tbody id="tbody">
-            <tr><td colspan="5" class="empty">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
+        <section class="card" style="margin-top:18px">
+          <h2>Your domains</h2>
+          <table style="margin-top:10px">
+            <thead>
+              <tr>
+                <th>Domain</th>
+                <th>Verified</th>
+                <th>Default</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td class="empty" colspan="5">Loading...</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </main>
     </div>
   </div>
 
-  <script type="module" src="/admin/admin-common.js"></script>
   <script type="module" src="/admin/domains.js"></script>
 </body>
 </html>

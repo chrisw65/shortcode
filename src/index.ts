@@ -16,6 +16,12 @@ import qrRoutes from './routes/qr.routes';
 import redirectRoutes from './routes/redirect.routes';
 import apiKeysRoutes from './routes/apiKeys.routes';
 import orgRoutes from './routes/org.routes';
+import siteRoutes from './routes/site.routes';
+import invitesRoutes from './routes/invites.routes';
+import couponsRoutes from './routes/coupons.routes';
+import planGrantsRoutes from './routes/planGrants.routes';
+import affiliatesRoutes from './routes/affiliates.routes';
+import affiliateAuthRoutes from './routes/affiliateAuth.routes';
 
 // Ensure DB connects on boot (side-effect import if you have it)
 import './config/database';
@@ -58,7 +64,13 @@ app.use('/api/domains', domainRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/api-keys', apiKeysRoutes);
+app.use('/api/org/invites', invitesRoutes);
 app.use('/api/org', orgRoutes);
+app.use('/api', siteRoutes);
+app.use('/api/coupons', couponsRoutes);
+app.use('/api/plan-grants', planGrantsRoutes);
+app.use('/api/affiliates', affiliatesRoutes);
+app.use('/api/affiliate', affiliateAuthRoutes);
 
 // Public redirect route (must come AFTER /api and static so it doesn’t swallow them)
 app.use('/', redirectRoutes);

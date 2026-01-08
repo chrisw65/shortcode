@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OkLeaf - Affiliate Dashboard</title>
+  <meta name="description" content="Affiliate dashboard for tracking referrals and payouts." />
+  <meta property="og:title" content="OkLeaf Affiliate Dashboard" />
+  <meta property="og:description" content="Affiliate dashboard for tracking referrals and payouts." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/site.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="/affiliate/index.html">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf Affiliates</span>
+      </a>
+      <nav class="nav-links">
+        <a href="/affiliate/dashboard.html">Dashboard</a>
+        <a href="/affiliate/index.html">Program</a>
+        <a href="/contact.html">Support</a>
+      </nav>
+      <div class="nav-cta">
+        <a class="btn ghost small" href="/affiliate/login.html">Sign out</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container section">
+    <div class="reveal">
+      <h1 class="section-title">Affiliate dashboard</h1>
+      <p class="section-sub">Track conversions, approvals, and upcoming payouts.</p>
+
+      <div class="feature-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="feature-card">
+          <h4>Conversions</h4>
+          <p><strong id="affConversions">-</strong> total</p>
+        </div>
+        <div class="feature-card">
+          <h4>Total earned</h4>
+          <p><strong id="affTotal">-</strong> all time</p>
+        </div>
+        <div class="feature-card">
+          <h4>Pending payout</h4>
+          <p><strong id="affPending">-</strong> awaiting approval</p>
+        </div>
+        <div class="feature-card">
+          <h4>Status</h4>
+          <p><strong id="affStatus">-</strong></p>
+        </div>
+      </div>
+
+      <section class="section">
+        <h2 class="section-title">Your affiliate link</h2>
+        <div class="doc-card">
+          <p>Share this link in your campaigns:</p>
+          <pre class="code-block"><code id="affLink">https://okleaf.link/register.html?aff=YOUR_CODE</code></pre>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Recent activity</h2>
+        <div class="doc-card" id="affActivity">
+          <p>Loading...</p>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Payouts</h2>
+        <div class="doc-card">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr>
+                <th align="left">Period</th>
+                <th align="left">Amount</th>
+                <th align="left">Status</th>
+              </tr>
+            </thead>
+            <tbody id="affPayouts">
+              <tr><td colspan="3">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container row">
+      <div>
+        <strong>OkLeaf</strong>
+        <div>Amsterdam - Remote-first</div>
+      </div>
+      <div>
+        <div>Affiliate support</div>
+        <div>partners@okleaf.link</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/affiliate/dashboard.js"></script>
+</body>
+</html>

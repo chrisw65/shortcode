@@ -1,9 +1,10 @@
-import { requireAuth, api, logout, htmlesc } from '/admin/admin-common.js';
+import { requireAuth, api, htmlesc, copyText } from '/admin/admin-common.js';
 
 requireAuth();
-document.getElementById('logoutBtn')?.addEventListener('click', () => logout());
 
 const membersBody = document.getElementById('membersBody');
+const invitesBody = document.getElementById('invitesBody');
+const refreshInvites = document.getElementById('refreshInvites');
 const memberEmail = document.getElementById('memberEmail');
 const memberRole = document.getElementById('memberRole');
 const btnAdd = document.getElementById('btnAdd');
@@ -49,6 +50,62 @@ async function loadMembers() {
   }
 }
 
+async function loadInvites() {
+  if (!invitesBody) return;
+  try {
+    const res = await api('/api/org/invites');
+    const data = res?.data || res;
+    if (!Array.isArray(data) || !data.length) {
+      invitesBody.innerHTML = '<tr><td class="empty" colspan="5">No pending invites.</td></tr>';
+      return;
+    }
+    invitesBody.innerHTML = data.map((inv) => {
+      const link = `${window.location.origin}/register.html?invite=${encodeURIComponent(inv.token)}`;
+      return `
+        <tr data-id="${htmlesc(inv.id)}">
+          <td>${htmlesc(inv.invitee_email)}</td>
+          <td><span class="pill">${htmlesc(inv.role)}</span></td>
+          <td>${htmlesc(inv.status)}</td>
+          <td><button class="btn ghost btn-copy" data-link="${htmlesc(link)}">Copy link</button></td>
+          <td>
+            <button class="btn ghost btn-resend">Resend</button>
+            <button class="btn danger btn-revoke">Revoke</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    invitesBody.querySelectorAll('.btn-copy').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const link = e.currentTarget.dataset.link;
+        if (link) await copyText(link);
+      });
+    });
+
+    invitesBody.querySelectorAll('.btn-revoke').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const tr = e.currentTarget.closest('tr');
+        const id = tr?.dataset.id;
+        if (!id) return;
+        if (!confirm('Revoke this invite?')) return;
+        await api(`/api/org/invites/${encodeURIComponent(id)}/revoke`, { method: 'POST' });
+        await loadInvites();
+      });
+    });
+
+    invitesBody.querySelectorAll('.btn-resend').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const tr = e.currentTarget.closest('tr');
+        const id = tr?.dataset.id;
+        if (!id) return;
+        await api(`/api/org/invites/${encodeURIComponent(id)}/resend`, { method: 'POST' });
+      });
+    });
+  } catch (e) {
+    invitesBody.innerHTML = '<tr><td class="empty" colspan="5">Failed to load invites.</td></tr>';
+  }
+}
+
 async function addMember() {
   const email = (memberEmail.value || '').trim().toLowerCase();
   const role = memberRole.value || 'member';
@@ -60,16 +117,13 @@ async function addMember() {
 
   btnAdd.disabled = true;
   try {
-    const res = await api('/api/org/members', { method: 'POST', body: { email, role } });
+    const res = await api('/api/org/invites', { method: 'POST', body: { email, role } });
     const data = res?.data || res;
-    if (data?.temp_password) {
-      inviteMsg.textContent = `Temporary password for ${email}: ${data.temp_password}`;
-    } else {
-      inviteMsg.textContent = 'Member added.';
-    }
+    const link = `${window.location.origin}/register.html?invite=${encodeURIComponent(data.token)}`;
+    inviteMsg.textContent = `Invite created. Share: ${link}`;
     memberEmail.value = '';
     memberRole.value = 'member';
-    await loadMembers();
+    await loadInvites();
   } catch (err) {
     inviteMsg.textContent = err?.message || 'Failed to add member.';
   } finally {
@@ -78,4 +132,6 @@ async function addMember() {
 }
 
 btnAdd?.addEventListener('click', addMember);
+refreshInvites?.addEventListener('click', loadInvites);
 loadMembers();
+loadInvites();
