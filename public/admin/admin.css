@@ -84,6 +84,7 @@ a{color:inherit;text-decoration:none}
 .row-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
 .grid{display:grid;gap:18px}
 .grid-2{grid-template-columns:1fr 1fr}
+.grid-3{grid-template-columns:repeat(3,1fr)}
 .grid-aside{grid-template-columns:330px 1fr}
 
 .nav{display:none}
@@ -156,5 +157,6 @@ tr.sel{background:rgba(255,255,255,.03)}
   .admin-top{padding:18px 20px 0}
   .admin-content{padding:18px 20px 24px}
   .grid-2{grid-template-columns:1fr}
+  .grid-3{grid-template-columns:1fr}
   .grid-aside{grid-template-columns:1fr}
 }

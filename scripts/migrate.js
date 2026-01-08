@@ -231,8 +231,17 @@ CREATE TABLE IF NOT EXISTS click_events (
   ip TEXT,
   user_agent TEXT,
   referer TEXT,
+  country_code VARCHAR(8),
+  country_name VARCHAR(120),
+  region VARCHAR(120),
+  city VARCHAR(120),
   occurred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE click_events ADD COLUMN IF NOT EXISTS country_code VARCHAR(8);
+ALTER TABLE click_events ADD COLUMN IF NOT EXISTS country_name VARCHAR(120);
+ALTER TABLE click_events ADD COLUMN IF NOT EXISTS region VARCHAR(120);
+ALTER TABLE click_events ADD COLUMN IF NOT EXISTS city VARCHAR(120);
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_links_short_code ON links(short_code);

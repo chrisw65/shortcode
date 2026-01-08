@@ -1,6 +1,7 @@
 // src/controllers/redirect.controller.ts
 import { Request, Response } from 'express';
 import db from '../config/database';
+import { lookupGeo } from '../services/geoip';
 
 function nowUtc(): Date { return new Date(); }
 function safeRedirectUrl(raw: string): string | null {
@@ -40,12 +41,14 @@ export class RedirectController {
       const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
       const referer = (req.get('referer') || null);
       const ua = (req.get('user-agent') || null);
+      const geo = await lookupGeo(ip);
 
       // Run in parallel
       void db.query(`UPDATE links SET click_count = COALESCE(click_count,0) + 1 WHERE id = $1`, [link.id]);
       void db.query(
-        `INSERT INTO click_events (link_id, ip, referer, user_agent) VALUES ($1, $2, $3, $4)`,
-        [link.id, ip, referer, ua]
+        `INSERT INTO click_events (link_id, ip, referer, user_agent, country_code, country_name, region, city)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [link.id, ip, referer, ua, geo?.country_code ?? null, geo?.country_name ?? null, geo?.region ?? null, geo?.city ?? null]
       ).catch(() => {});
 
       const safeUrl = safeRedirectUrl(link.original_url);
