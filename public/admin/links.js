@@ -18,7 +18,10 @@ const els = {
   inUrl:     document.getElementById('inUrl'),
   inTitle:   document.getElementById('inTitle'),
   inCode:    document.getElementById('inCode'),
+  inDomain:  document.getElementById('inDomain'),
   btnCreate: document.getElementById('btnCreate'),
+  codeStatus: document.getElementById('codeStatus'),
+  codePreviewValue: document.getElementById('codePreviewValue'),
   inFilter:  document.getElementById('inFilter'),
   btnRefresh:document.getElementById('btnRefresh'),
   btnExport: document.getElementById('btnExport'),
@@ -30,6 +33,60 @@ let allLinks = [];
 let sortKey = 'created_at';
 let sortDir = 'desc'; // 'asc'|'desc'
 let filterText = '';
+let coreHost = 'https://okleaf.lnk';
+let effectivePlan = 'free';
+let domains = [];
+
+function setCodeStatus(state, text) {
+  if (!els.codeStatus) return;
+  els.codeStatus.className = `status ${state || 'muted'}`;
+  els.codeStatus.textContent = text || '';
+}
+
+function updateCodePreview(code) {
+  if (!els.codePreviewValue) return;
+  els.codePreviewValue.textContent = code || 'your-code';
+}
+
+function selectedDomain() {
+  const value = (els.inDomain?.value || '').trim();
+  if (!value) return { id: '', host: coreHost.replace(/^https?:\/\//, '') };
+  const hit = domains.find(d => d.id === value);
+  return { id: value, host: (hit?.domain || coreHost).replace(/^https?:\/\//, '') };
+}
+
+function updatePreviewHost() {
+  const { host } = selectedDomain();
+  const node = document.getElementById('codePreview');
+  if (node) node.innerHTML = `Short URL: https://${htmlesc(host)}/<span id="codePreviewValue">${htmlesc(els.inCode.value || 'your-code')}</span>`;
+  els.codePreviewValue = document.getElementById('codePreviewValue');
+}
+
+function renderDomainSelect() {
+  if (!els.inDomain) return;
+  const options = [];
+  const coreLabel = coreHost.replace(/^https?:\/\//, '');
+  options.push(`<option value="">${coreLabel} (core)</option>`);
+
+  const available = domains.filter(d => d.verified && d.is_active);
+  if (isPaid()) {
+    for (const d of available) {
+      options.push(`<option value="${htmlesc(d.id)}">${htmlesc(d.domain)}</option>`);
+    }
+  }
+
+  els.inDomain.innerHTML = options.join('');
+  if (!isPaid()) {
+    els.inDomain.disabled = true;
+  } else {
+    els.inDomain.disabled = false;
+  }
+  updatePreviewHost();
+}
+
+function isPaid() {
+  return String(effectivePlan || '').toLowerCase() !== 'free';
+}
 
 function applyFilter(list) {
   if (!filterText) return list;
@@ -130,10 +187,36 @@ async function load() {
   }
 }
 
+async function loadContext() {
+  try {
+    const [coreRes, meRes, domainRes] = await Promise.all([
+      api('/api/links/core-domain'),
+      api('/api/auth/me'),
+      api('/api/domains'),
+    ]);
+
+    const core = unwrap(coreRes) || {};
+    if (core.base_url) coreHost = core.base_url;
+
+    const me = unwrap(meRes) || {};
+    effectivePlan = me.effective_plan || me.user?.plan || 'free';
+
+    const list = unwrap(domainRes);
+    domains = Array.isArray(list) ? list : [];
+  } catch (err) {
+    console.warn('Context load failed:', err);
+  } finally {
+    renderDomainSelect();
+    const host = selectedDomain().host;
+    setCodeStatus('muted', `Auto-generate on ${host}.`);
+  }
+}
+
 async function createLink() {
   const url = (els.inUrl.value || '').trim();
   const title = (els.inTitle.value || '').trim();
   const code = (els.inCode.value || '').trim();
+  const domain = selectedDomain();
 
   if (!url) { alert('Please enter a destination URL.'); els.inUrl.focus(); return; }
 
@@ -141,10 +224,13 @@ async function createLink() {
   try {
     const body = { url, title };
     if (code) body.short_code = code;        // server expects short_code
+    if (domain.id) body.domain_id = domain.id;
     const res = unwrap(await api('/api/links', { method: 'POST', body }));
     // Prepend newly created (if API returns a single item)
     await load();
     els.inUrl.value = ''; els.inTitle.value = ''; els.inCode.value = '';
+    updateCodePreview('');
+    setCodeStatus('muted', `Auto-generate on ${selectedDomain().host}.`);
   } catch (err) {
     alert(`Create failed: ${err.message || err}`);
   } finally {
@@ -189,10 +275,54 @@ els.inFilter.addEventListener('input', () => {
   tFilter = setTimeout(() => { filterText = els.inFilter.value.trim(); render(); }, 150);
 });
 
+// Code availability (debounced)
+let tCode = 0;
+els.inCode.addEventListener('input', () => {
+  clearTimeout(tCode);
+  tCode = setTimeout(async () => {
+    const raw = (els.inCode.value || '').trim();
+    if (!raw) {
+      updateCodePreview('');
+      setCodeStatus('muted', `Auto-generate on ${selectedDomain().host}.`);
+      return;
+    }
+    updateCodePreview(raw);
+    setCodeStatus('pending', 'Checking availability...');
+    try {
+      const data = unwrap(await api(`/api/links/availability/${encodeURIComponent(raw)}`));
+      if (data?.available) {
+        setCodeStatus('ok', `Available on ${selectedDomain().host}.`);
+      } else {
+        setCodeStatus('bad', data?.reason || 'Not available.');
+      }
+    } catch (err) {
+      setCodeStatus('bad', 'Availability check failed.');
+    }
+  }, 300);
+});
+
+els.inDomain?.addEventListener('change', () => {
+  updatePreviewHost();
+  const raw = (els.inCode.value || '').trim();
+  if (!raw) {
+    setCodeStatus('muted', `Auto-generate on ${selectedDomain().host}.`);
+    return;
+  }
+  setCodeStatus('pending', 'Checking availability...');
+  api(`/api/links/availability/${encodeURIComponent(raw)}`)
+    .then(res => {
+      const data = unwrap(res);
+      if (data?.available) setCodeStatus('ok', `Available on ${selectedDomain().host}.`);
+      else setCodeStatus('bad', data?.reason || 'Not available.');
+    })
+    .catch(() => setCodeStatus('bad', 'Availability check failed.'));
+});
+
 // Actions
 els.btnCreate.addEventListener('click', createLink);
 els.btnRefresh.addEventListener('click', load);
 els.btnExport.addEventListener('click', exportCSV);
 
 // Go
+loadContext();
 load();

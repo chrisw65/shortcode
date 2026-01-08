@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import db from '../config/database';
+import { getEffectivePlan } from '../services/plan';
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -257,7 +258,8 @@ async function meImpl(req: Request, res: Response) {
     if (!rows.length) return res.status(404).json({ success: false, error: 'User not found' });
 
     const org = (req as any).org ?? null;
-    return res.json({ success: true, data: { user: safeUser(rows[0]), org } });
+    const effectivePlan = await getEffectivePlan(user.userId, org?.orgId);
+    return res.json({ success: true, data: { user: safeUser(rows[0]), org, effective_plan: effectivePlan } });
   } catch (err) {
     console.error('auth.me error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });

@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
 import { tryGrantReferralReward } from '../services/referrals';
+import { getEffectivePlan, isPaidPlan } from '../services/plan';
 
 type UserReq = Request & { user: { userId: string }; org: { orgId: string } };
 
@@ -45,14 +46,28 @@ function validateCustomCode(code: string): { ok: boolean; error?: string } {
   return { ok: true };
 }
 
-async function resolveUserBaseUrl(userId: string): Promise<{ baseUrl: string; domainId: string | null }> {
-  // If you later wire default_domain_id, this SELECT can switch to that.
-  // For now we render using PUBLIC_HOST (or BASE_URL) when no verified user default.
-  const envHost = process.env.PUBLIC_HOST || process.env.BASE_URL || 'http://localhost:3000';
-  return { baseUrl: envHost, domainId: null };
+function normalizeShortCode(raw: string): string {
+  return String(raw || '').trim().replace(/\s+/g, '');
 }
 
-function shapeLink(row: any, baseUrl: string) {
+async function isShortCodeTaken(code: string, excludeId?: string): Promise<boolean> {
+  const q = excludeId
+    ? `SELECT 1 FROM links WHERE LOWER(short_code) = LOWER($1) AND id <> $2 LIMIT 1`
+    : `SELECT 1 FROM links WHERE LOWER(short_code) = LOWER($1) LIMIT 1`;
+  const params = excludeId ? [code, excludeId] : [code];
+  const { rows } = await db.query(q, params);
+  return rows.length > 0;
+}
+
+function coreBaseUrl(): string {
+  const raw = process.env.CORE_DOMAIN || process.env.PUBLIC_HOST || process.env.BASE_URL || 'https://okleaf.lnk';
+  const base = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+  return base.replace(/\/+$/, '');
+}
+
+function shapeLink(row: any, coreBase: string) {
+  const domain = row.domain || null;
+  const baseUrl = domain ? `https://${domain}` : coreBase;
   return {
     id: row.id,
     user_id: row.user_id,
@@ -64,6 +79,7 @@ function shapeLink(row: any, baseUrl: string) {
     expires_at: row.expires_at,
     active: row.active !== false, // default true
     short_url: `${baseUrl}/${row.short_code}`,
+    domain,
   };
 }
 
@@ -76,7 +92,7 @@ export async function createLink(req: UserReq, res: Response) {
   try {
     const userId = req.user.userId;
     const orgId = req.org.orgId;
-    const { url, title, short_code, expires_at } = req.body ?? {};
+    const { url, title, short_code, expires_at, domain_id } = req.body ?? {};
     if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
 
     const normalizedUrl = ensureHttpUrl(String(url).trim());
@@ -86,14 +102,52 @@ export async function createLink(req: UserReq, res: Response) {
 
     const autoTitle = parseHostnameFromUrl(normalizedUrl) || 'link';
 
-    let code = short_code ? String(short_code).trim() : nanoid(8);
-    if (short_code) {
+    const rawCode = short_code ? String(short_code) : '';
+    let code = rawCode ? normalizeShortCode(rawCode) : '';
+    if (rawCode) {
       const v = validateCustomCode(code);
       if (!v.ok) return res.status(400).json({ success: false, error: v.error });
+      if (await isShortCodeTaken(code)) {
+        return res.status(409).json({ success: false, error: 'short_code already exists' });
+      }
     }
-    code = code.replace(/\s+/g, '');
+    if (!rawCode) {
+      let attempts = 0;
+      do {
+        code = nanoid(8);
+        attempts += 1;
+      } while ((RESERVED.has(code.toLowerCase()) || await isShortCodeTaken(code)) && attempts < 5);
+      if (await isShortCodeTaken(code)) {
+        return res.status(500).json({ success: false, error: 'Failed to generate a unique short_code' });
+      }
+    }
 
-    const { baseUrl, domainId } = await resolveUserBaseUrl(userId);
+    const coreBase = coreBaseUrl();
+    let domainId: string | null = null;
+    let domainHost: string | null = null;
+
+    if (domain_id) {
+      const plan = await getEffectivePlan(userId, orgId);
+      if (!isPaidPlan(plan)) {
+        return res.status(403).json({ success: false, error: 'Custom domains require a paid plan' });
+      }
+
+      const { rows: domainRows } = await db.query(
+        `SELECT id, domain, is_active, verified
+           FROM domains
+          WHERE id = $1 AND org_id = $2
+          LIMIT 1`,
+        [domain_id, orgId],
+      );
+      if (!domainRows.length) {
+        return res.status(400).json({ success: false, error: 'Domain not found' });
+      }
+      const d = domainRows[0];
+      if (!d.is_active) return res.status(400).json({ success: false, error: 'Domain is not active' });
+      if (!d.verified) return res.status(400).json({ success: false, error: 'Domain is not verified' });
+      domainId = d.id;
+      domainHost = d.domain;
+    }
 
     const q = `
       INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, expires_at, active)
@@ -112,7 +166,7 @@ export async function createLink(req: UserReq, res: Response) {
     });
 
     try { await tryGrantReferralReward(userId, orgId); } catch (err) { console.error('referral reward error:', err); }
-    return res.status(201).json({ success: true, data: shapeLink(rows[0], baseUrl) });
+    return res.status(201).json({ success: true, data: shapeLink({ ...rows[0], domain: domainHost }, coreBase) });
   } catch (e: any) {
     if (e?.code === '23505') {
       return res.status(409).json({ success: false, error: 'short_code already exists' });
@@ -123,20 +177,64 @@ export async function createLink(req: UserReq, res: Response) {
 }
 
 /**
+ * GET /api/links/availability/:shortCode
+ * Check if a short code is available globally (for core domain).
+ */
+export async function checkAvailability(req: UserReq, res: Response) {
+  try {
+    const raw = String(req.params?.shortCode || '');
+    const code = normalizeShortCode(raw);
+    if (!code) {
+      return res.status(400).json({ success: false, error: 'short_code is required' });
+    }
+
+    const v = validateCustomCode(code);
+    if (!v.ok) {
+      return res.json({ success: true, data: { available: false, code, reason: v.error } });
+    }
+
+    const taken = await isShortCodeTaken(code);
+    if (taken) {
+      return res.json({ success: true, data: { available: false, code, reason: 'short_code already exists' } });
+    }
+
+    return res.json({ success: true, data: { available: true, code } });
+  } catch (e) {
+    console.error('checkAvailability error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/links/core-domain
+ */
+export async function getCoreDomain(req: UserReq, res: Response) {
+  const baseUrl = coreBaseUrl();
+  try {
+    const host = new URL(baseUrl).host;
+    return res.json({ success: true, data: { base_url: baseUrl, host } });
+  } catch {
+    return res.json({ success: true, data: { base_url: baseUrl, host: baseUrl.replace(/^https?:\/\//, '') } });
+  }
+}
+
+/**
  * GET /api/links
  */
 export async function getUserLinks(req: UserReq, res: Response) {
   try {
     const orgId = req.org.orgId;
-    const { baseUrl } = await resolveUserBaseUrl(req.user.userId);
+    const coreBase = coreBaseUrl();
     const { rows } = await db.query(
-      `SELECT id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active
-         FROM links
-        WHERE org_id = $1
-        ORDER BY created_at DESC`,
+      `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
+              d.domain AS domain
+         FROM links l
+         LEFT JOIN domains d ON d.id = l.domain_id
+        WHERE l.org_id = $1
+        ORDER BY l.created_at DESC`,
       [orgId]
     );
-    return res.json({ success: true, data: rows.map(r => shapeLink(r, baseUrl)) });
+    return res.json({ success: true, data: rows.map(r => shapeLink(r, coreBase)) });
   } catch (e) {
     console.error('getUserLinks error:', e);
     return res.status(500).json({ success: false, error: 'Internal server error' });
@@ -151,15 +249,17 @@ export async function getLinkDetails(req: UserReq, res: Response) {
     const orgId = req.org.orgId;
     const { shortCode } = req.params;
     const { rows } = await db.query(
-      `SELECT id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active
-         FROM links
-        WHERE org_id = $1 AND short_code = $2`,
+      `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
+              d.domain AS domain
+         FROM links l
+         LEFT JOIN domains d ON d.id = l.domain_id
+        WHERE l.org_id = $1 AND l.short_code = $2`,
       [orgId, shortCode]
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'Link not found' });
 
-    const { baseUrl } = await resolveUserBaseUrl(req.user.userId);
-    return res.json({ success: true, data: shapeLink(rows[0], baseUrl) });
+    const coreBase = coreBaseUrl();
+    return res.json({ success: true, data: shapeLink(rows[0], coreBase) });
   } catch (e) {
     console.error('getLinkDetails error:', e);
     return res.status(500).json({ success: false, error: 'Internal server error' });
@@ -182,6 +282,7 @@ export async function updateLink(req: UserReq, res: Response) {
       [orgId, shortCode]
     );
     if (!existing.length) return res.status(404).json({ success: false, error: 'Link not found' });
+    const linkId = existing[0].id;
 
     const sets: string[] = [];
     const vals: any[] = [];
@@ -198,9 +299,12 @@ export async function updateLink(req: UserReq, res: Response) {
     if (title !== undefined) { sets.push(`title = $${i++}`); vals.push(title); }
     if (expires_at !== undefined) { sets.push(`expires_at = $${i++}`); vals.push(expires_at); }
     if (short_code !== undefined) {
-      const newCode = String(short_code).trim();
+      const newCode = normalizeShortCode(short_code);
       const v = validateCustomCode(newCode);
       if (!v.ok) return res.status(400).json({ success: false, error: v.error });
+      if (await isShortCodeTaken(newCode, linkId)) {
+        return res.status(409).json({ success: false, error: 'short_code already exists' });
+      }
       sets.push(`short_code = $${i++}`); vals.push(newCode);
     }
 
@@ -213,7 +317,8 @@ export async function updateLink(req: UserReq, res: Response) {
       UPDATE links
          SET ${sets.join(', ')}
        WHERE org_id = $${i++} AND short_code = $${i++}
-      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active
+      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
+                (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain
     `;
     const { rows } = await db.query(q, vals);
 
@@ -226,8 +331,8 @@ export async function updateLink(req: UserReq, res: Response) {
       metadata: { short_code: rows[0].short_code },
     });
 
-    const { baseUrl } = await resolveUserBaseUrl(req.user.userId);
-    return res.json({ success: true, data: shapeLink(rows[0], baseUrl) });
+    const coreBase = coreBaseUrl();
+    return res.json({ success: true, data: shapeLink(rows[0], coreBase) });
   } catch (e: any) {
     if (e?.code === '23505') {
       return res.status(409).json({ success: false, error: 'short_code already exists' });
@@ -255,7 +360,8 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
       `UPDATE links
           SET active = $1
         WHERE org_id = $2 AND short_code = $3
-      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active`,
+      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
+                (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain`,
       [active, orgId, shortCode]
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'Link not found' });
@@ -269,8 +375,8 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
       metadata: { short_code: rows[0].short_code, active },
     });
 
-    const { baseUrl } = await resolveUserBaseUrl(req.user.userId);
-    return res.json({ success: true, data: shapeLink(rows[0], baseUrl) });
+    const coreBase = coreBaseUrl();
+    return res.json({ success: true, data: shapeLink(rows[0], coreBase) });
   } catch (e) {
     console.error('updateLinkStatus error:', e);
     return res.status(500).json({ success: false, error: 'Internal server error' });

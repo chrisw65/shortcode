@@ -5,6 +5,7 @@ import { promises as dns } from 'node:dns';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
 import { tryGrantReferralReward } from '../services/referrals';
+import { getEffectivePlan, isPaidPlan } from '../services/plan';
 
 // Local auth-aware request type (your middleware attaches req.user/org)
 type JwtUser = { userId: string; email?: string };
@@ -77,6 +78,11 @@ export async function createDomain(req: AuthedRequest, res: Response) {
     const userId = req.user.userId;
     const orgId = req.org.orgId;
     const { domain, make_default } = req.body ?? {};
+
+    const plan = await getEffectivePlan(userId, orgId);
+    if (!isPaidPlan(plan)) {
+      return res.status(403).json({ success: false, error: 'Custom domains require a paid plan' });
+    }
 
     if (!domain || typeof domain !== 'string') {
       return res.status(400).json({ success: false, error: 'domain is required' });

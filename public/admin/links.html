@@ -59,6 +59,13 @@
                   <input id="inCode" class="input" type="text" placeholder="letters, numbers, '-' '_'" autocomplete="off">
                 </label>
               </div>
+              <label>
+                Domain
+                <select id="inDomain" class="input"></select>
+              </label>
+              <div class="muted">Custom domains require a paid plan and verification.</div>
+              <div class="muted" id="codePreview">Short URL: https://okleaf.lnk/<span id="codePreviewValue">your-code</span></div>
+              <div id="codeStatus" class="status muted">Enter a custom code to check availability.</div>
               <div class="row" style="justify-content:flex-end">
                 <button id="btnCreate" class="btn">Create</button>
               </div>

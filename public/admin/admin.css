@@ -100,6 +100,11 @@ tr.sel{background:rgba(255,255,255,.03)}
 .empty{padding:10px;color:var(--muted)}
 .muted{color:var(--muted)}
 .small{font-size:12px}
+.status{font-size:12px;line-height:1.4}
+.status.ok{color:#78e08f}
+.status.bad{color:#f4a3a3}
+.status.warn{color:#e7c17a}
+.status.pending{color:#9db2ff}
 
 .code-block{background:#0c141c;border:1px solid rgba(224,177,90,.2);border-radius:14px;padding:16px;color:#f1e8d4;overflow:auto}
 .diff-block{max-height:320px}

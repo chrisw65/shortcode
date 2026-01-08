@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const addBtn   = document.getElementById('addBtn');
   const addMsg   = document.getElementById('addMsg');
   const tbody    = document.getElementById('tbody');
+  const whoami   = document.getElementById('whoami');
 
   // Hard assertions with helpful console output
   if (!domainEl || !addBtn || !addMsg || !tbody) {
@@ -22,9 +23,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   let list = [];
+  let effectivePlan = 'free';
+
+  function isPaid() {
+    return String(effectivePlan || '').toLowerCase() !== 'free';
+  }
 
   async function load() {
     try {
+      const me = await api('/api/auth/me');
+      const meData = me?.data || {};
+      effectivePlan = meData.effective_plan || meData.user?.plan || 'free';
+      if (whoami) {
+        whoami.textContent = `Plan: ${effectivePlan}`;
+      }
+
+      if (!isPaid()) {
+        addBtn.disabled = true;
+        addMsg.textContent = 'Custom domains require a paid plan.';
+      } else {
+        addBtn.disabled = false;
+        if (!addMsg.textContent.includes('Custom domains')) addMsg.textContent = '';
+      }
+
       const j = await api('/api/domains');
       list = Array.isArray(j.data) ? j.data : [];
       render();
@@ -83,6 +104,10 @@ document.addEventListener('DOMContentLoaded', () => {
   async function add() {
     addMsg.textContent = '';
     const domain = (domainEl.value || '').trim().toLowerCase();
+    if (!isPaid()) {
+      addMsg.textContent = 'Custom domains require a paid plan.';
+      return;
+    }
     if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domain)) {
       addMsg.textContent = 'Enter a valid domain';
       return;
@@ -108,4 +133,3 @@ document.addEventListener('DOMContentLoaded', () => {
   addBtn.addEventListener('click', add);
   load();
 });
-

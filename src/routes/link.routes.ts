@@ -19,6 +19,12 @@ router.use(perUser120rpm);
 // Create a new short link
 router.post('/', wrap(linkController.createLink));
 
+// Check short code availability
+router.get('/availability/:shortCode', wrap(linkController.checkAvailability));
+
+// Core domain (okleaf.lnk)
+router.get('/core-domain', wrap(linkController.getCoreDomain));
+
 // List current user's links
 router.get('/', wrap(linkController.getUserLinks));
 
