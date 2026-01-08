@@ -46,7 +46,11 @@ async function changePassword() {
 
   btnChange.disabled = true;
   try {
-    await api('/api/auth/change-password', { method: 'POST', body: { current_password, new_password } });
+    await api('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password, new_password })
+    });
     msg.textContent = 'Password updated.';
     curPass.value = '';
     newPass.value = '';
