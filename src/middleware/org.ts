@@ -34,3 +34,21 @@ export async function requireOrg(req: OrgRequest, res: Response, next: NextFunct
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
+
+const roleRank: Record<OrgRequest['org']['role'], number> = {
+  owner: 3,
+  admin: 2,
+  member: 1,
+};
+
+export function requireOrgRole(roles: Array<OrgRequest['org']['role']>) {
+  const minRank = Math.min(...roles.map((r) => roleRank[r]));
+  return (req: OrgRequest, res: Response, next: NextFunction) => {
+    const role = req.org?.role;
+    if (!role) return res.status(403).json({ success: false, error: 'No organization role' });
+    if (roleRank[role] < minRank) {
+      return res.status(403).json({ success: false, error: 'Insufficient role' });
+    }
+    return next();
+  };
+}

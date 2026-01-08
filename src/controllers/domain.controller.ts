@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { randomBytes } from 'crypto';
 import { promises as dns } from 'node:dns';
 import db from '../config/database';
+import { logAudit } from '../services/audit';
 
 // Local auth-aware request type (your middleware attaches req.user/org)
 type JwtUser = { userId: string; email?: string };
@@ -133,6 +134,15 @@ export async function createDomain(req: AuthedRequest, res: Response) {
       }
     }
 
+    await logAudit({
+      org_id: orgId,
+      user_id: req.user.userId,
+      action: 'domain.create',
+      entity_type: 'domain',
+      entity_id: row.id,
+      metadata: { domain: row.domain },
+    });
+
     return res.status(201).json({
       success: true,
       data: shape(row),
@@ -194,6 +204,14 @@ export async function verifyDomain(req: AuthedRequest, res: Response) {
           RETURNING id, user_id, domain, is_default, is_active, verified, verification_token, verified_at, created_at`,
         [row.id, orgId],
       );
+      await logAudit({
+        org_id: orgId,
+        user_id: req.user.userId,
+        action: 'domain.verify',
+        entity_type: 'domain',
+        entity_id: upd.rows[0].id,
+        metadata: { method: 'manual' },
+      });
       return res.json({ success: true, data: shape(upd.rows[0]), method: 'manual' });
     }
 
@@ -252,6 +270,14 @@ export async function verifyDomain(req: AuthedRequest, res: Response) {
       [row.id, orgId],
     );
 
+    await logAudit({
+      org_id: orgId,
+      user_id: req.user.userId,
+      action: 'domain.verify',
+      entity_type: 'domain',
+      entity_id: upd.rows[0].id,
+      metadata: { method },
+    });
     return res.json({ success: true, data: shape(upd.rows[0]), method, txts_sample: txts.slice(0, 5) });
   } catch (e) {
     console.error('verifyDomain error:', e);
@@ -294,6 +320,13 @@ export async function setDefaultDomain(req: AuthedRequest, res: Response) {
       [id, orgId],
     );
 
+    await logAudit({
+      org_id: orgId,
+      user_id: req.user.userId,
+      action: 'domain.set_default',
+      entity_type: 'domain',
+      entity_id: upd.rows[0].id,
+    });
     return res.json({ success: true, data: shape(upd.rows[0]) });
   } catch (e) {
     console.error('setDefaultDomain error:', e);
@@ -315,6 +348,14 @@ export async function deleteDomain(req: AuthedRequest, res: Response) {
     );
 
     const deleted = (result.rowCount ?? 0) > 0;
+    await logAudit({
+      org_id: orgId,
+      user_id: req.user.userId,
+      action: 'domain.delete',
+      entity_type: 'domain',
+      entity_id: id,
+      metadata: { deleted },
+    });
     return res.json({ success: true, data: { deleted } });
   } catch (e) {
     console.error('deleteDomain error:', e);

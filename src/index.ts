@@ -14,6 +14,7 @@ import domainRoutes from './routes/domain.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import qrRoutes from './routes/qr.routes';
 import redirectRoutes from './routes/redirect.routes';
+import apiKeysRoutes from './routes/apiKeys.routes';
 
 // Ensure DB connects on boot (side-effect import if you have it)
 import './config/database';
@@ -55,6 +56,7 @@ app.use('/api/links', linkRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/qr', qrRoutes);
+app.use('/api/api-keys', apiKeysRoutes);
 
 // Public redirect route (must come AFTER /api and static so it doesn’t swallow them)
 app.use('/', redirectRoutes);

@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import { nanoid } from 'nanoid';
 import db from '../config/database';
+import { logAudit } from '../services/audit';
 
 type UserReq = Request & { user: { userId: string }; org: { orgId: string } };
 
@@ -99,6 +100,15 @@ export async function createLink(req: UserReq, res: Response) {
       RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active
     `;
     const { rows } = await db.query(q, [orgId, userId, code, normalizedUrl, title ?? null, autoTitle, domainId, expires_at ?? null]);
+
+    await logAudit({
+      org_id: orgId,
+      user_id: userId,
+      action: 'link.create',
+      entity_type: 'link',
+      entity_id: rows[0].id,
+      metadata: { short_code: rows[0].short_code },
+    });
 
     return res.status(201).json({ success: true, data: shapeLink(rows[0], baseUrl) });
   } catch (e: any) {
@@ -205,6 +215,15 @@ export async function updateLink(req: UserReq, res: Response) {
     `;
     const { rows } = await db.query(q, vals);
 
+    await logAudit({
+      org_id: orgId,
+      user_id: req.user.userId,
+      action: 'link.update',
+      entity_type: 'link',
+      entity_id: rows[0].id,
+      metadata: { short_code: rows[0].short_code },
+    });
+
     const { baseUrl } = await resolveUserBaseUrl(req.user.userId);
     return res.json({ success: true, data: shapeLink(rows[0], baseUrl) });
   } catch (e: any) {
@@ -239,6 +258,15 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'Link not found' });
 
+    await logAudit({
+      org_id: orgId,
+      user_id: req.user.userId,
+      action: 'link.status',
+      entity_type: 'link',
+      entity_id: rows[0].id,
+      metadata: { short_code: rows[0].short_code, active },
+    });
+
     const { baseUrl } = await resolveUserBaseUrl(req.user.userId);
     return res.json({ success: true, data: shapeLink(rows[0], baseUrl) });
   } catch (e) {
@@ -258,6 +286,15 @@ export async function deleteLink(req: UserReq, res: Response) {
       `DELETE FROM links WHERE org_id = $1 AND short_code = $2`,
       [orgId, shortCode]
     );
+
+    await logAudit({
+      org_id: orgId,
+      user_id: req.user.userId,
+      action: 'link.delete',
+      entity_type: 'link',
+      entity_id: null,
+      metadata: { short_code: shortCode, deleted: (result.rowCount ?? 0) > 0 },
+    });
     return res.json({ success: true, data: { deleted: result.rowCount ? result.rowCount > 0 : false, short_code: shortCode } });
   } catch (e) {
     console.error('deleteLink error:', e);
