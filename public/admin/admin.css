@@ -125,6 +125,13 @@ tr.sel{background:rgba(255,255,255,.03)}
 .toast-error{border-color:rgba(244,163,163,.6)}
 @keyframes toastIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:1200}
+.modal.open{display:flex}
+.modal-backdrop{position:absolute;inset:0;background:rgba(7,10,15,.7);backdrop-filter:blur(2px)}
+.modal-card{position:relative;z-index:1;width:min(520px,92vw);background:#111824;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.modal-body{display:flex;align-items:center;justify-content:center;padding:18px}
+.modal-body img{max-width:100%;height:auto;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#fff;padding:10px}
+
 .code-block{background:#0c141c;border:1px solid rgba(224,177,90,.2);border-radius:14px;padding:16px;color:#f1e8d4;overflow:auto}
 .diff-block{max-height:320px}
 .diff-line{font-family:"Fraunces",monospace;font-size:12px;line-height:1.4;padding:0 8px;white-space:pre}

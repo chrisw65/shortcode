@@ -27,6 +27,12 @@ const els = {
   btnExport: document.getElementById('btnExport'),
   tbody:     document.getElementById('rows'),
   table:     document.getElementById('tbl'),
+  qrModal:   document.getElementById('qrModal'),
+  qrBackdrop:document.getElementById('qrBackdrop'),
+  qrClose:   document.getElementById('qrClose'),
+  qrImage:   document.getElementById('qrImage'),
+  qrTitle:   document.getElementById('qrTitle'),
+  qrDownload:document.getElementById('qrDownload'),
 };
 
 let allLinks = [];
@@ -131,8 +137,8 @@ function render() {
         <td>${clicks}</td>
         <td>${created}</td>
         <td class="row" style="gap:6px">
-          <a class="btn" href="/api/qr/${encodeURIComponent(code)}.png" target="_blank" rel="noopener">QR PNG</a>
-          <a class="btn" href="/api/qr/${encodeURIComponent(code)}.svg" target="_blank" rel="noopener">QR SVG</a>
+          <button class="btn btn-qr" data-type="png" data-code="${htmlesc(code)}">QR PNG</button>
+          <button class="btn btn-qr" data-type="svg" data-code="${htmlesc(code)}">QR SVG</button>
           <a class="btn" href="/admin/analytics.html?code=${encodeURIComponent(code)}">Analytics</a>
           <button class="btn danger btn-del">Delete</button>
         </td>
@@ -164,6 +170,14 @@ function render() {
       } catch (err) {
         alert(`Delete failed: ${err.message || err}`);
       }
+    });
+  });
+
+  els.tbody.querySelectorAll('.btn-qr').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.dataset.code || '';
+      const type = btn.dataset.type || 'png';
+      openQrModal(code, type);
     });
   });
 }
@@ -255,6 +269,27 @@ function exportCSV() {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 0);
 }
+
+function openQrModal(code, type) {
+  if (!els.qrModal || !els.qrImage) return;
+  const safeType = (type === 'svg') ? 'svg' : 'png';
+  const src = `/api/qr/${encodeURIComponent(code)}.${safeType}`;
+  els.qrImage.src = src;
+  if (els.qrTitle) els.qrTitle.textContent = `QR code (${code})`;
+  if (els.qrDownload) {
+    els.qrDownload.href = src;
+    els.qrDownload.download = `qr-${code}.${safeType}`;
+  }
+  els.qrModal.classList.add('open');
+  els.qrModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeQrModal() {
+  if (!els.qrModal) return;
+  els.qrModal.classList.remove('open');
+  els.qrModal.setAttribute('aria-hidden', 'true');
+  if (els.qrImage) els.qrImage.src = '';
+}
 function csvCell(v) {
   if (v == null) return '';
   const s = String(v).replaceAll('"','""');
@@ -326,6 +361,11 @@ els.inDomain?.addEventListener('change', () => {
 els.btnCreate.addEventListener('click', createLink);
 els.btnRefresh.addEventListener('click', load);
 els.btnExport.addEventListener('click', exportCSV);
+els.qrClose?.addEventListener('click', closeQrModal);
+els.qrBackdrop?.addEventListener('click', closeQrModal);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeQrModal();
+});
 
 // Go
 loadContext();
