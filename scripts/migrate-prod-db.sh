@@ -77,12 +77,27 @@ CREATE TABLE IF NOT EXISTS click_events (
 );
 
 DO $$
+DECLARE
+  ip_type text;
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'clicks') THEN
-    INSERT INTO click_events (link_id, ip, user_agent, referer, occurred_at)
-    SELECT link_id, ip_address, user_agent, referer, created_at
-    FROM clicks
-    ON CONFLICT DO NOTHING;
+    SELECT data_type INTO ip_type
+      FROM information_schema.columns
+     WHERE table_name = 'click_events' AND column_name = 'ip';
+
+    IF ip_type = 'inet' THEN
+      EXECUTE
+        'INSERT INTO click_events (link_id, ip, user_agent, referer, occurred_at)
+         SELECT link_id, NULLIF(ip_address, '''')::inet, user_agent, referer, created_at
+         FROM clicks
+         ON CONFLICT DO NOTHING';
+    ELSE
+      EXECUTE
+        'INSERT INTO click_events (link_id, ip, user_agent, referer, occurred_at)
+         SELECT link_id, NULLIF(ip_address, '''')::text, user_agent, referer, created_at
+         FROM clicks
+         ON CONFLICT DO NOTHING';
+    END IF;
   END IF;
 END $$;
 
