@@ -15,7 +15,11 @@ REGISTER_JSON=$(curl -fsS -X POST "${BASE_URL}/api/auth/register" \
   -H 'Content-Type: application/json' \
   -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}")
 
-TOKEN="$(printf '%s' "${REGISTER_JSON}" | sed -n 's/.*"token":"\\([^"]*\\)".*/\\1/p')"
+if command -v jq >/dev/null 2>&1; then
+  TOKEN="$(printf '%s' "${REGISTER_JSON}" | jq -r '.data.token // .token // empty')"
+else
+  TOKEN="$(printf '%s' "${REGISTER_JSON}" | sed -n 's/.*"token":"\\([^"]*\\)".*/\\1/p')"
+fi
 if [[ -z "${TOKEN}" ]]; then
   echo "Register did not return token. Response:"
   echo "${REGISTER_JSON}"
@@ -28,7 +32,11 @@ CREATE_JSON=$(curl -fsS -X POST "${BASE_URL}/api/links" \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://example.com","title":"Smoke Test"}')
 
-SHORT_CODE="$(printf '%s' "${CREATE_JSON}" | sed -n 's/.*"short_code":"\\([^"]*\\)".*/\\1/p')"
+if command -v jq >/dev/null 2>&1; then
+  SHORT_CODE="$(printf '%s' "${CREATE_JSON}" | jq -r '.data.short_code // empty')"
+else
+  SHORT_CODE="$(printf '%s' "${CREATE_JSON}" | sed -n 's/.*"short_code":"\\([^"]*\\)".*/\\1/p')"
+fi
 if [[ -z "${SHORT_CODE}" ]]; then
   echo "Create link did not return short_code. Response:"
   echo "${CREATE_JSON}"
