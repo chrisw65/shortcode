@@ -82,10 +82,7 @@ export function setHTML(el, html) {
 export function showToast(message, kind='ok') {
   const d = document.createElement('div');
   d.textContent = message;
-  d.className = [
-    'fixed','bottom-4','right-4','z-50','px-3','py-2','rounded','text-sm','shadow',
-    kind === 'error' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white'
-  ].join(' ');
+  d.className = `toast ${kind === 'error' ? 'toast-error' : 'toast-ok'}`;
   document.body.appendChild(d);
   setTimeout(() => d.remove(), 2400);
 }

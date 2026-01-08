@@ -106,6 +106,25 @@ tr.sel{background:rgba(255,255,255,.03)}
 .status.warn{color:#e7c17a}
 .status.pending{color:#9db2ff}
 
+.toast{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  z-index:1000;
+  padding:10px 14px;
+  border-radius:12px;
+  font-size:12px;
+  letter-spacing:.02em;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+  border:1px solid rgba(255,255,255,.12);
+  background:#0f1621;
+  color:#f6efe1;
+  animation:toastIn .2s ease-out;
+}
+.toast-ok{border-color:rgba(120,224,143,.4)}
+.toast-error{border-color:rgba(244,163,163,.6)}
+@keyframes toastIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
 .code-block{background:#0c141c;border:1px solid rgba(224,177,90,.2);border-radius:14px;padding:16px;color:#f1e8d4;overflow:auto}
 .diff-block{max-height:320px}
 .diff-line{font-family:"Fraunces",monospace;font-size:12px;line-height:1.4;padding:0 8px;white-space:pre}
