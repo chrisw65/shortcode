@@ -8,3 +8,5 @@ dist/
 coverage/
 .vscode/
 .idea/
+.droplet_ip
+scripts/set-env.sh
