@@ -25,7 +25,7 @@ export async function summary(req: ReqWithUser, res: Response) {
       WITH series AS (
         SELECT generate_series(
           date_trunc('hour', NOW()) - INTERVAL '23 hours',
-          date_trunc('hour', NOW'),
+          date_trunc('hour', NOW()),
           INTERVAL '1 hour'
         ) AS h
       )
