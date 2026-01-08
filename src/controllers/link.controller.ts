@@ -146,7 +146,7 @@ export async function getLinkDetails(req: UserReq, res: Response) {
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'Link not found' });
 
-    const { baseUrl } = await resolveUserBaseUrl(userId);
+    const { baseUrl } = await resolveUserBaseUrl(req.user.userId);
     return res.json({ success: true, data: shapeLink(rows[0], baseUrl) });
   } catch (e) {
     console.error('getLinkDetails error:', e);
@@ -205,7 +205,7 @@ export async function updateLink(req: UserReq, res: Response) {
     `;
     const { rows } = await db.query(q, vals);
 
-    const { baseUrl } = await resolveUserBaseUrl(userId);
+    const { baseUrl } = await resolveUserBaseUrl(req.user.userId);
     return res.json({ success: true, data: shapeLink(rows[0], baseUrl) });
   } catch (e: any) {
     if (e?.code === '23505') {
@@ -239,7 +239,7 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'Link not found' });
 
-    const { baseUrl } = await resolveUserBaseUrl(userId);
+    const { baseUrl } = await resolveUserBaseUrl(req.user.userId);
     return res.json({ success: true, data: shapeLink(rows[0], baseUrl) });
   } catch (e) {
     console.error('updateLinkStatus error:', e);
