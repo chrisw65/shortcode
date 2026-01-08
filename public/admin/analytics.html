@@ -137,6 +137,12 @@
                   <div class="muted">Referrers and devices below</div>
                 </div>
               </div>
+              <div class="row" style="margin-top:12px;gap:10px">
+                <select id="countryFilter" class="input" style="max-width:220px">
+                  <option value="">All countries</option>
+                </select>
+                <span class="muted">Filter link analytics by country.</span>
+              </div>
             </div>
 
             <div class="card">
@@ -167,6 +173,50 @@
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            <div class="grid grid-3">
+              <div class="card">
+                <h3>Browsers</h3>
+                <table style="margin-top:8px">
+                  <thead>
+                    <tr><th>Browser</th><th>Clicks</th></tr>
+                  </thead>
+                  <tbody id="browserBody">
+                    <tr><td class="empty" colspan="2">No data.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="card">
+                <h3>OS</h3>
+                <table style="margin-top:8px">
+                  <thead>
+                    <tr><th>OS</th><th>Clicks</th></tr>
+                  </thead>
+                  <tbody id="osBody">
+                    <tr><td class="empty" colspan="2">No data.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="card">
+                <h3>Devices (detail)</h3>
+                <table style="margin-top:8px">
+                  <thead>
+                    <tr><th>Type</th><th>Clicks</th></tr>
+                  </thead>
+                  <tbody id="deviceBody">
+                    <tr><td class="empty" colspan="2">No data.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Global map</h3>
+              <div class="world-map" id="worldMap">
+                <div class="world-dots" id="worldDots"></div>
+              </div>
+              <div class="muted" style="margin-top:8px">Dots represent recent clicks (size = volume).</div>
             </div>
 
             <div class="grid grid-2">

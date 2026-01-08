@@ -6,6 +6,8 @@ type GeoResult = {
   country_name?: string | null;
   region?: string | null;
   city?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 let readerPromise: Promise<any> | null = null;
@@ -43,11 +45,15 @@ export async function lookupGeo(ip: string | null): Promise<GeoResult | null> {
     const code = data.country?.iso_code ?? null;
     const city = data.city?.names?.en ?? null;
     const region = data.subdivisions?.[0]?.names?.en ?? null;
+    const latitude = typeof data.location?.latitude === 'number' ? data.location.latitude : null;
+    const longitude = typeof data.location?.longitude === 'number' ? data.location.longitude : null;
     return {
       country_code: code,
       country_name: country,
       region,
       city,
+      latitude,
+      longitude,
     };
   } catch {
     return null;

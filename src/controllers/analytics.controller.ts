@@ -1,5 +1,6 @@
 // src/controllers/analytics.controller.ts
 import { Request, Response } from 'express';
+import UAParser from 'ua-parser-js';
 import db from '../config/database';
 
 type ReqWithUser = Request & { user?: { userId?: string } };
@@ -11,6 +12,36 @@ function bucketUserAgent(ua: string | null): 'mobile' | 'desktop' | 'bot' | 'oth
   if (/(iphone|ipad|android|mobile)/.test(u)) return 'mobile';
   if (/(windows|macintosh|linux|x11)/.test(u)) return 'desktop';
   return 'other';
+}
+
+function buildUaDetails(rows: Array<{ ua: string | null; count: string | number }>) {
+  const browsers = new Map<string, number>();
+  const os = new Map<string, number>();
+  const devices = new Map<string, number>();
+
+  for (const row of rows) {
+    const count = Number(row.count || 0);
+    if (!row.ua) continue;
+    const parser = new UAParser(row.ua);
+    const b = parser.getBrowser().name || 'Other';
+    const o = parser.getOS().name || 'Other';
+    const d = parser.getDevice().type || 'desktop';
+    browsers.set(b, (browsers.get(b) || 0) + count);
+    os.set(o, (os.get(o) || 0) + count);
+    devices.set(d, (devices.get(d) || 0) + count);
+  }
+
+  const mapToList = (m: Map<string, number>) =>
+    Array.from(m.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+
+  return {
+    browsers: mapToList(browsers),
+    os: mapToList(os),
+    devices: mapToList(devices),
+  };
 }
 
 function rangeToInterval(rangeRaw: unknown): string | null {
@@ -28,6 +59,14 @@ function withRangeSql(prefix: string, rangeRaw: unknown, params: any[]) {
   if (!interval) return { sql: '', params };
   params.push(interval);
   return { sql: ` AND ${prefix}.occurred_at >= NOW() - $${params.length}::interval `, params };
+}
+
+function withCountrySql(prefix: string, countryRaw: unknown, params: any[]) {
+  const country = String(countryRaw || '').trim();
+  if (!country) return { sql: '', params };
+  params.push(country.toUpperCase());
+  params.push(country);
+  return { sql: ` AND (${prefix}.country_code = $${params.length - 1} OR ${prefix}.country_name = $${params.length}) `, params };
 }
 
 /**
@@ -139,6 +178,20 @@ export async function summary(req: ReqWithUser, res: Response) {
       acc[b] = (acc[b] ?? 0) + Number(row.count || 0);
       return acc;
     }, {});
+    const uaDetail = buildUaDetails(uas.rows);
+
+    const pointParams: any[] = [orgId];
+    const pointRange = withRangeSql('c', range, pointParams);
+    const points = await db.query<{ latitude: number; longitude: number; count: string }>(`
+      SELECT latitude, longitude, COUNT(*)::bigint AS count
+      FROM click_events c
+      JOIN links l ON l.id = c.link_id
+      WHERE l.org_id = $1 ${pointRange.sql}
+        AND latitude IS NOT NULL AND longitude IS NOT NULL
+      GROUP BY 1, 2
+      ORDER BY COUNT(*) DESC
+      LIMIT 300
+    `, pointRange.params);
 
     return res.json({
       success: true,
@@ -162,7 +215,13 @@ export async function summary(req: ReqWithUser, res: Response) {
           country: r.country ?? 'Unknown',
           count: Number(r.count),
         })),
+        geo_points: points.rows.map((p) => ({
+          lat: Number(p.latitude),
+          lon: Number(p.longitude),
+          count: Number(p.count),
+        })),
         user_agents: Object.entries(uaBuckets).map(([group, count]) => ({ group, count })),
+        ua_detail: uaDetail,
       },
     });
   } catch (e) {
@@ -179,6 +238,7 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     const orgId = (req as any).org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
     const range = req.query.range;
+    const country = req.query.country;
 
     const { shortCode } = req.params;
     const linkRow = await db.query<{ id: string; title: string | null }>(
@@ -191,6 +251,8 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     const linkId = linkRow.rows[0].id;
     const title = linkRow.rows[0].title ?? '';
 
+    const seriesParams: any[] = [linkId];
+    const seriesCountry = withCountrySql('c', country, seriesParams);
     const series = await db.query<{ h: string; count: string | number }>(`
       WITH series AS (
         SELECT generate_series(
@@ -204,10 +266,10 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
       FROM series s
       LEFT JOIN click_events c
         ON date_trunc('hour', c.occurred_at) = s.h
-       AND c.link_id = $1
+       AND c.link_id = $1 ${seriesCountry.sql}
       GROUP BY s.h
       ORDER BY s.h
-    `, [linkId]);
+    `, seriesCountry.params);
 
     const totals = await db.query<{ total_clicks: string; last_click_at: Date | null; clicks_24h: string }>(`
       SELECT COUNT(*)::bigint AS total_clicks,
@@ -220,11 +282,13 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     let clicksRange = Number(totals.rows[0]?.clicks_24h || 0);
     const rangeInterval = rangeToInterval(range);
     if (rangeInterval) {
+      const rangeParams: any[] = [linkId, rangeInterval];
+      const rangeCountry = withCountrySql('click_events', country, rangeParams);
       const rangeRes = await db.query<{ count: string }>(`
         SELECT COUNT(*)::bigint AS count
         FROM click_events
-        WHERE link_id = $1 AND occurred_at >= NOW() - $2::interval
-      `, [linkId, rangeInterval]);
+        WHERE link_id = $1 AND occurred_at >= NOW() - $2::interval ${rangeCountry.sql}
+      `, rangeCountry.params);
       clicksRange = Number(rangeRes.rows[0]?.count || 0);
     } else {
       clicksRange = Number(totals.rows[0]?.total_clicks || 0);
@@ -232,58 +296,76 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
 
     const refParams: any[] = [linkId];
     const refRange = withRangeSql('c', range, refParams);
+    const refCountry = withCountrySql('c', country, refRange.params);
     const referrers = await db.query<{ referrer: string | null; count: string }>(`
       SELECT COALESCE(NULLIF(TRIM(referer), ''), '(direct)') AS referrer,
              COUNT(*)::bigint AS count
       FROM click_events c
-      WHERE c.link_id = $1 ${refRange.sql}
+      WHERE c.link_id = $1 ${refRange.sql} ${refCountry.sql}
       GROUP BY 1
       ORDER BY COUNT(*) DESC
       LIMIT 10
-    `, refRange.params);
+    `, refCountry.params);
 
     const uaParams: any[] = [linkId];
     const uaRange = withRangeSql('c', range, uaParams);
+    const uaCountry = withCountrySql('c', country, uaRange.params);
     const uas = await db.query<{ ua: string | null; count: string }>(`
       SELECT user_agent AS ua, COUNT(*)::bigint AS count
       FROM click_events c
-      WHERE c.link_id = $1 ${uaRange.sql}
+      WHERE c.link_id = $1 ${uaRange.sql} ${uaCountry.sql}
       GROUP BY 1
       ORDER BY COUNT(*) DESC
       LIMIT 200
-    `, uaRange.params);
+    `, uaCountry.params);
 
     const geoParams: any[] = [linkId];
     const geoRange = withRangeSql('c', range, geoParams);
+    const geoCountry = withCountrySql('c', country, geoRange.params);
     const countries = await db.query<{ country: string | null; code: string | null; count: string }>(`
       SELECT COALESCE(country_name, 'Unknown') AS country,
              country_code AS code,
              COUNT(*)::bigint AS count
       FROM click_events c
-      WHERE link_id = $1 ${geoRange.sql}
+      WHERE link_id = $1 ${geoRange.sql} ${geoCountry.sql}
       GROUP BY 1, 2
       ORDER BY COUNT(*) DESC
       LIMIT 15
-    `, geoRange.params);
+    `, geoCountry.params);
 
     const cityParams: any[] = [linkId];
     const cityRange = withRangeSql('c', range, cityParams);
+    const cityCountry = withCountrySql('c', country, cityRange.params);
     const cities = await db.query<{ city: string | null; country: string | null; count: string }>(`
       SELECT COALESCE(city, 'Unknown') AS city,
              COALESCE(country_name, 'Unknown') AS country,
              COUNT(*)::bigint AS count
       FROM click_events c
-      WHERE link_id = $1 ${cityRange.sql}
+      WHERE link_id = $1 ${cityRange.sql} ${cityCountry.sql}
       GROUP BY 1, 2
       ORDER BY COUNT(*) DESC
       LIMIT 20
-    `, cityRange.params);
+    `, cityCountry.params);
+
+    const pointParams: any[] = [linkId];
+    const pointRange = withRangeSql('c', range, pointParams);
+    const pointCountry = withCountrySql('c', country, pointRange.params);
+    const points = await db.query<{ latitude: number; longitude: number; count: string }>(`
+      SELECT latitude, longitude, COUNT(*)::bigint AS count
+      FROM click_events c
+      WHERE c.link_id = $1 ${pointRange.sql} ${pointCountry.sql}
+        AND latitude IS NOT NULL AND longitude IS NOT NULL
+      GROUP BY 1, 2
+      ORDER BY COUNT(*) DESC
+      LIMIT 200
+    `, pointCountry.params);
 
     const uaBuckets = uas.rows.reduce<Record<string, number>>((acc, row) => {
       const b = bucketUserAgent(row.ua);
       acc[b] = (acc[b] ?? 0) + Number(row.count || 0);
       return acc;
     }, {});
+    const uaDetail = buildUaDetails(uas.rows);
 
     return res.json({
       success: true,
@@ -308,7 +390,13 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
           country: r.country ?? 'Unknown',
           count: Number(r.count),
         })),
+        geo_points: points.rows.map((p) => ({
+          lat: Number(p.latitude),
+          lon: Number(p.longitude),
+          count: Number(p.count),
+        })),
         user_agents: Object.entries(uaBuckets).map(([group, count]) => ({ group, count })),
+        ua_detail: uaDetail,
         sparkline: series.rows.map((r) => ({ t: r.h, y: Number(r.count) })),
       },
     });
@@ -329,6 +417,7 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
     const { shortCode } = req.params;
     const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 500);
     const range = req.query.range;
+    const country = req.query.country;
 
     const linkRow = await db.query<{ id: string }>(
       `SELECT id FROM links WHERE org_id = $1 AND short_code = $2`,
@@ -341,6 +430,7 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
 
     const evParams: any[] = [linkId, limit];
     const evRange = withRangeSql('click_events', range, evParams);
+    const evCountry = withCountrySql('click_events', country, evRange.params);
     const events = await db.query<{
       occurred_at: Date;
       ip: string | null;
@@ -352,10 +442,10 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
     }>(`
       SELECT occurred_at, ip::text AS ip, user_agent, referer, country_code, country_name, city
       FROM click_events
-      WHERE link_id = $1 ${evRange.sql}
+      WHERE link_id = $1 ${evRange.sql} ${evCountry.sql}
       ORDER BY occurred_at DESC
       LIMIT $2
-    `, evRange.params);
+    `, evCountry.params);
 
     return res.json({
       success: true,

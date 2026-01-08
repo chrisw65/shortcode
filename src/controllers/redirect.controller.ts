@@ -46,9 +46,20 @@ export class RedirectController {
       // Run in parallel
       void db.query(`UPDATE links SET click_count = COALESCE(click_count,0) + 1 WHERE id = $1`, [link.id]);
       void db.query(
-        `INSERT INTO click_events (link_id, ip, referer, user_agent, country_code, country_name, region, city)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [link.id, ip, referer, ua, geo?.country_code ?? null, geo?.country_name ?? null, geo?.region ?? null, geo?.city ?? null]
+        `INSERT INTO click_events (link_id, ip, referer, user_agent, country_code, country_name, region, city, latitude, longitude)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          link.id,
+          ip,
+          referer,
+          ua,
+          geo?.country_code ?? null,
+          geo?.country_name ?? null,
+          geo?.region ?? null,
+          geo?.city ?? null,
+          geo?.latitude ?? null,
+          geo?.longitude ?? null,
+        ]
       ).catch(() => {});
 
       const safeUrl = safeRedirectUrl(link.original_url);

@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS click_events (
   country_name VARCHAR(120),
   region VARCHAR(120),
   city VARCHAR(120),
+  latitude NUMERIC(9,6),
+  longitude NUMERIC(9,6),
   occurred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -68,6 +70,8 @@ ALTER TABLE click_events ADD COLUMN IF NOT EXISTS country_code VARCHAR(8);
 ALTER TABLE click_events ADD COLUMN IF NOT EXISTS country_name VARCHAR(120);
 ALTER TABLE click_events ADD COLUMN IF NOT EXISTS region VARCHAR(120);
 ALTER TABLE click_events ADD COLUMN IF NOT EXISTS city VARCHAR(120);
+ALTER TABLE click_events ADD COLUMN IF NOT EXISTS latitude NUMERIC(9,6);
+ALTER TABLE click_events ADD COLUMN IF NOT EXISTS longitude NUMERIC(9,6);
 
 CREATE TABLE IF NOT EXISTS orgs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

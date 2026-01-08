@@ -11,6 +11,9 @@ const statRangeLabel = document.getElementById('statRangeLabel');
 const statLast = document.getElementById('statLast');
 const refBody = document.getElementById('refBody');
 const uaBody = document.getElementById('uaBody');
+const browserBody = document.getElementById('browserBody');
+const osBody = document.getElementById('osBody');
+const deviceBody = document.getElementById('deviceBody');
 const countryBody = document.getElementById('countryBody');
 const cityBody = document.getElementById('cityBody');
 const evBody = document.getElementById('evBody');
@@ -22,9 +25,12 @@ const orgRangeLabel = document.getElementById('orgRangeLabel');
 const orgLast = document.getElementById('orgLast');
 const orgCountryBody = document.getElementById('orgCountryBody');
 const orgCityBody = document.getElementById('orgCityBody');
+const countryFilter = document.getElementById('countryFilter');
+const worldDots = document.getElementById('worldDots');
 
 let allLinks = [], selectedShort = null;
 let currentRange = rangeSelect ? rangeSelect.value : '7d';
+let currentCountry = '';
 
 function rangeLabel(range){
   if (range === '24h') return 'Clicks (24h)';
@@ -73,7 +79,9 @@ async function selectLink(short, meta) {
   currentLinkEl.textContent = `${meta?.short_url || short} — ${meta?.title || ''}`;
 
   let summary = {};
-  try { summary = (await api(`/api/analytics/links/${encodeURIComponent(short)}/summary?range=${encodeURIComponent(currentRange)}`)).data || {}; } catch {}
+  const params = new URLSearchParams({ range: currentRange });
+  if (currentCountry) params.set('country', currentCountry);
+  try { summary = (await api(`/api/analytics/links/${encodeURIComponent(short)}/summary?${params.toString()}`)).data || {}; } catch {}
   statTotal.textContent = summary?.total_clicks ?? '–';
   statRange.textContent = summary?.clicks_range ?? '–';
   statLast.textContent = fmtDate(summary?.last_click_at);
@@ -91,8 +99,18 @@ async function selectLink(short, meta) {
   const cities = summary?.top_cities || [];
   cityBody.innerHTML = cities.length ? cities.map(c=>`<tr><td>${htmlesc(c.city || 'Unknown')} ${c.country ? `<span class="muted">(${htmlesc(c.country)})</span>` : ''}</td><td>${c.count ?? 0}</td></tr>`).join('') : '<tr><td colspan="2" class="empty">No data.</td></tr>';
 
+  const uaDetail = summary?.ua_detail || {};
+  renderTable(browserBody, uaDetail.browsers, 'name');
+  renderTable(osBody, uaDetail.os, 'name');
+  renderTable(deviceBody, uaDetail.devices, 'name');
+
+  populateCountryFilter(countries);
+  plotGeoPoints(summary?.geo_points || []);
+
   let events = [];
-  try { events = (await api(`/api/analytics/links/${encodeURIComponent(short)}/events?limit=500&range=${encodeURIComponent(currentRange)}`)).data || []; } catch {}
+  const evParams = new URLSearchParams({ limit: '500', range: currentRange });
+  if (currentCountry) evParams.set('country', currentCountry);
+  try { events = (await api(`/api/analytics/links/${encodeURIComponent(short)}/events?${evParams.toString()}`)).data || []; } catch {}
   renderEvents(events); drawSparkline(events);
 }
 
@@ -125,11 +143,61 @@ function drawSparkline(events){
   ctx.stroke();
 }
 
+function renderTable(body, rows = [], field = 'name') {
+  if (!body) return;
+  body.innerHTML = rows.length
+    ? rows.map(r => `<tr><td>${htmlesc(r[field] || 'Other')}</td><td>${r.count ?? 0}</td></tr>`).join('')
+    : '<tr><td colspan="2" class="empty">No data.</td></tr>';
+}
+
+function populateCountryFilter(countries){
+  if (!countryFilter) return;
+  const current = currentCountry;
+  const options = ['<option value="">All countries</option>'].concat(
+    (countries || []).map(c => {
+      const val = c.code || c.country || '';
+      return `<option value="${htmlesc(val)}">${htmlesc(c.country || 'Unknown')}</option>`;
+    })
+  );
+  countryFilter.innerHTML = options.join('');
+  countryFilter.value = current;
+}
+
+function plotGeoPoints(points){
+  if (!worldDots) return;
+  worldDots.innerHTML = '';
+  if (!points.length) return;
+  const rect = worldDots.getBoundingClientRect();
+  const width = rect.width || 1;
+  const height = rect.height || 1;
+
+  const max = Math.max(...points.map(p => p.count || 1), 1);
+  points.forEach(p => {
+    const x = ((p.lon + 180) / 360) * width;
+    const y = ((90 - p.lat) / 180) * height;
+    const size = 4 + (p.count / max) * 10;
+    const dot = document.createElement('div');
+    dot.className = 'world-dot';
+    dot.style.left = `${x}px`;
+    dot.style.top = `${y}px`;
+    dot.style.width = `${size}px`;
+    dot.style.height = `${size}px`;
+    worldDots.appendChild(dot);
+  });
+}
+
 searchInput.addEventListener('input', ()=>renderLinks(filterLinks(searchInput.value)));
 refreshBtn.addEventListener('click', loadLinks);
 rangeSelect?.addEventListener('change', () => {
   currentRange = rangeSelect.value;
   loadOrgSummary();
+  if (selectedShort) {
+    const link = allLinks.find(l => l.short_code === selectedShort);
+    if (link) selectLink(selectedShort, link);
+  }
+});
+countryFilter?.addEventListener('change', () => {
+  currentCountry = countryFilter.value || '';
   if (selectedShort) {
     const link = allLinks.find(l => l.short_code === selectedShort);
     if (link) selectLink(selectedShort, link);
@@ -152,6 +220,7 @@ async function loadOrgSummary(){
   if (orgCityBody) {
     orgCityBody.innerHTML = cities.length ? cities.map(c=>`<tr><td>${htmlesc(c.city || 'Unknown')} ${c.country ? `<span class="muted">(${htmlesc(c.country)})</span>` : ''}</td><td>${c.count ?? 0}</td></tr>`).join('') : '<tr><td colspan="2" class="empty">No data.</td></tr>';
   }
+  plotGeoPoints(summary?.geo_points || []);
 }
 
 loadOrgSummary();
