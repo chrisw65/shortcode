@@ -4,8 +4,9 @@ import { RateLimiterRedis, RateLimiterMemory } from 'rate-limiter-flexible';
 import redisClient from '../config/redis';
 
 function ipv6SafeKey(req: Request): string {
+  const cfip = (req.headers['cf-connecting-ip'] as string | undefined)?.trim();
   const xfwd = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
-  return req.ip || xfwd || 'unknown';
+  return cfip || xfwd || req.ip || 'unknown';
 }
 
 function buildLimiter(points: number, duration: number, prefix: string) {
