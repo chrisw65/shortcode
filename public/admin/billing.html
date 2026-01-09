@@ -41,6 +41,85 @@
       </header>
 
       <main class="admin-content">
+        <section class="card" id="ownerBilling">
+          <div class="row-between">
+            <div>
+              <h3 class="m-0">Plan & upgrades</h3>
+              <p class="muted">Manage subscription and upgrade your org plan.</p>
+            </div>
+            <div class="row" style="gap:8px">
+              <select id="billingInterval" class="input" style="max-width:140px">
+                <option value="monthly" selected>Monthly</option>
+                <option value="annual">Annual</option>
+              </select>
+              <button id="manageBilling" class="btn ghost" type="button">Manage in Stripe</button>
+            </div>
+          </div>
+          <div class="muted" id="currentPlan" style="margin-top:6px">Current plan: -</div>
+          <div class="grid grid-3" id="planList" style="margin-top:12px"></div>
+          <div class="muted" id="billingMsg" style="margin-top:8px"></div>
+        </section>
+
+        <section class="card" id="stripeConfigSection" style="margin-top:18px;display:none">
+          <h3>Stripe connection</h3>
+          <div class="grid grid-2" style="margin-top:10px">
+            <div>
+              <label class="muted">Publishable key</label>
+              <input id="stripePublishable" class="input" placeholder="pk_live_...">
+            </div>
+            <div>
+              <label class="muted">Secret key</label>
+              <input id="stripeSecret" class="input" type="password" placeholder="sk_live_...">
+              <div class="muted small" id="stripeSecretHint"></div>
+            </div>
+            <div>
+              <label class="muted">Webhook secret</label>
+              <input id="stripeWebhook" class="input" type="password" placeholder="whsec_...">
+              <div class="muted small" id="stripeWebhookHint"></div>
+            </div>
+            <div>
+              <label class="muted">Checkout success URL</label>
+              <input id="stripeSuccessUrl" class="input" placeholder="https://okleaf.link/admin/billing.html?success=1">
+            </div>
+            <div>
+              <label class="muted">Checkout cancel URL</label>
+              <input id="stripeCancelUrl" class="input" placeholder="https://okleaf.link/admin/billing.html?canceled=1">
+            </div>
+            <div>
+              <label class="muted">Portal return URL</label>
+              <input id="stripeReturnUrl" class="input" placeholder="https://okleaf.link/admin/billing.html">
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button id="saveStripeConfig" class="btn">Save Stripe settings</button>
+            <span id="stripeConfigMsg" class="muted"></span>
+          </div>
+        </section>
+
+        <section class="card" id="planMappingSection" style="margin-top:18px;display:none">
+          <div class="row-between">
+            <h3 class="m-0">Stripe price mapping</h3>
+            <button id="reloadPlanMapping" class="btn ghost" type="button">Reload tiers</button>
+          </div>
+          <table style="margin-top:10px">
+            <thead>
+              <tr>
+                <th>Plan ID</th>
+                <th>Name</th>
+                <th>Monthly price ID</th>
+                <th>Annual price ID</th>
+              </tr>
+            </thead>
+            <tbody id="planMapBody">
+              <tr><td colspan="4" class="muted">Loading...</td></tr>
+            </tbody>
+          </table>
+          <div class="row" style="margin-top:12px">
+            <button id="savePlanMapping" class="btn">Save price mapping</button>
+            <span id="planMapMsg" class="muted"></span>
+          </div>
+        </section>
+
         <section class="card">
           <h3>Create coupon</h3>
           <div class="grid grid-2" style="margin-top:10px">

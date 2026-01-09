@@ -29,8 +29,8 @@ const DEFAULT_SITE_CONFIG = {
     billingNote: 'Save 20% with annual billing.',
     tiers: [
       {
-        id: 'starter',
-        name: 'Starter',
+        id: 'free',
+        name: 'Free',
         priceMonthly: 0,
         priceAnnual: 0,
         badge: 'Free',

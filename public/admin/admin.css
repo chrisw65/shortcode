@@ -149,13 +149,15 @@ tr.sel{background:rgba(255,255,255,.03)}
   background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px, auto;
   overflow:hidden;
 }
-.world-map::after{
-  content:'';
+.world-map-svg{
   position:absolute;
   inset:8%;
-  background:url('/admin/world-map.svg') center/contain no-repeat;
-  opacity:.3;
+  width:84%;
+  height:84%;
+  fill:rgba(255,255,255,.35);
   pointer-events:none;
+  display:block;
+  opacity:.35;
 }
 .world-dots{position:absolute;inset:0}
 .world-dot{
@@ -165,6 +167,45 @@ tr.sel{background:rgba(255,255,255,.03)}
   background:rgba(78,161,255,.85);
   box-shadow:0 0 12px rgba(78,161,255,.6);
   transform:translate(-50%,-50%);
+}
+.world-empty{
+  position:absolute;
+  inset:auto 0 16px 0;
+  text-align:center;
+  font-size:12px;
+  color:rgba(231,236,245,.6);
+  letter-spacing:.02em;
+}
+
+.plan-card{
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:16px;
+  padding:16px;
+  background:rgba(12,18,28,.6);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.plan-card .plan-title{
+  font-weight:700;
+  font-size:16px;
+}
+.plan-card .plan-price{
+  font-size:22px;
+  font-weight:700;
+}
+.plan-card .plan-note{
+  color:var(--muted);
+  font-size:12px;
+}
+.plan-card ul{
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:grid;
+  gap:6px;
+  color:var(--muted);
+  font-size:13px;
 }
 
 .code-block{background:#0c141c;border:1px solid rgba(224,177,90,.2);border-radius:14px;padding:16px;color:#f1e8d4;overflow:auto}

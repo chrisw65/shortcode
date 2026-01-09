@@ -1,4 +1,4 @@
-import {requireAuth, api, mountNav, htmlesc, fmtDate} from '/admin/admin-common.js';
+import {requireAuth, api, mountNav, htmlesc, fmtDate, getToken, showToast} from '/admin/admin-common.js';
 requireAuth(); mountNav('analytics');
 
 const searchInput = document.getElementById('search');
@@ -27,6 +27,9 @@ const orgCountryBody = document.getElementById('orgCountryBody');
 const orgCityBody = document.getElementById('orgCityBody');
 const countryFilter = document.getElementById('countryFilter');
 const worldDots = document.getElementById('worldDots');
+const worldEmpty = document.getElementById('worldEmpty');
+const exportOrgBtn = document.getElementById('exportOrgCsv');
+const exportLinkBtn = document.getElementById('exportLinkCsv');
 
 let allLinks = [], selectedShort = null;
 let currentRange = rangeSelect ? rangeSelect.value : '7d';
@@ -166,6 +169,7 @@ function populateCountryFilter(countries){
 function plotGeoPoints(points){
   if (!worldDots) return;
   worldDots.innerHTML = '';
+  if (worldEmpty) worldEmpty.style.display = points.length ? 'none' : 'block';
   if (!points.length) return;
   const rect = worldDots.getBoundingClientRect();
   const width = rect.width || 1;
@@ -186,6 +190,36 @@ function plotGeoPoints(points){
   });
 }
 
+async function downloadCsv(path, filename){
+  try {
+    const headers = {};
+    const tok = getToken();
+    if (tok) headers.Authorization = `Bearer ${tok}`;
+    const res = await fetch(path, { headers, credentials: 'same-origin' });
+    if (!res.ok) {
+      const text = await res.text();
+      let msg = text || `Download failed (${res.status})`;
+      try {
+        const parsed = JSON.parse(text);
+        msg = parsed?.error || parsed?.message || msg;
+      } catch {}
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('CSV downloaded');
+  } catch (e) {
+    showToast(e.message || 'Download failed', 'error');
+  }
+}
+
 searchInput.addEventListener('input', ()=>renderLinks(filterLinks(searchInput.value)));
 refreshBtn.addEventListener('click', loadLinks);
 rangeSelect?.addEventListener('change', () => {
@@ -202,6 +236,19 @@ countryFilter?.addEventListener('change', () => {
     const link = allLinks.find(l => l.short_code === selectedShort);
     if (link) selectLink(selectedShort, link);
   }
+});
+exportOrgBtn?.addEventListener('click', () => {
+  const params = new URLSearchParams({ range: currentRange });
+  const filename = `org-analytics-${currentRange}.csv`;
+  downloadCsv(`/api/analytics/export?${params.toString()}`, filename);
+});
+exportLinkBtn?.addEventListener('click', () => {
+  if (!selectedShort) return showToast('Select a link first', 'error');
+  const params = new URLSearchParams({ range: currentRange });
+  if (currentCountry) params.set('country', currentCountry);
+  const suffix = currentCountry ? `-${currentCountry.toLowerCase()}` : '';
+  const filename = `link-${selectedShort}-${currentRange}${suffix}.csv`;
+  downloadCsv(`/api/analytics/links/${encodeURIComponent(selectedShort)}/export?${params.toString()}`, filename);
 });
 
 async function loadOrgSummary(){

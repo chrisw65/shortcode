@@ -69,6 +69,22 @@ function withCountrySql(prefix: string, countryRaw: unknown, params: any[]) {
   return { sql: ` AND (${prefix}.country_code = $${params.length - 1} OR ${prefix}.country_name = $${params.length}) `, params };
 }
 
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const s = String(value);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function sendCsv(res: Response, filename: string, headers: string[], rows: Record<string, unknown>[]) {
+  const lines = [headers.join(',')];
+  for (const row of rows) {
+    lines.push(headers.map((h) => csvEscape(row[h])).join(','));
+  }
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(lines.join('\n'));
+}
+
 /**
  * GET /api/analytics/summary
  */
@@ -461,6 +477,199 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
     });
   } catch (e) {
     console.error('analytics.linkEvents error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/analytics/export?range=7d&country=US
+ */
+export async function exportOrgCsv(req: ReqWithUser, res: Response) {
+  try {
+    const orgId = (req as any).org?.orgId;
+    if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    const range = req.query.range;
+    const country = req.query.country;
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '5000'), 10) || 5000, 1), 20000);
+
+    const params: any[] = [orgId];
+    const rangeSql = withRangeSql('c', range, params);
+    const countrySql = withCountrySql('c', country, rangeSql.params);
+    countrySql.params.push(limit);
+    const limitIdx = countrySql.params.length;
+
+    const rows = await db.query<{
+      occurred_at: Date;
+      short_code: string;
+      title: string | null;
+      domain: string | null;
+      ip: string | null;
+      country_code: string | null;
+      country_name: string | null;
+      region: string | null;
+      city: string | null;
+      latitude: number | null;
+      longitude: number | null;
+      referer: string | null;
+      user_agent: string | null;
+    }>(`
+      SELECT c.occurred_at,
+             l.short_code,
+             l.title,
+             d.domain AS domain,
+             c.ip::text AS ip,
+             c.country_code,
+             c.country_name,
+             c.region,
+             c.city,
+             c.latitude,
+             c.longitude,
+             c.referer,
+             c.user_agent
+      FROM click_events c
+      JOIN links l ON l.id = c.link_id
+      LEFT JOIN domains d ON d.id = l.domain_id
+      WHERE l.org_id = $1 ${rangeSql.sql} ${countrySql.sql}
+      ORDER BY c.occurred_at DESC
+      LIMIT $${limitIdx}
+    `, countrySql.params);
+
+    const data = rows.rows.map((r) => ({
+      occurred_at: r.occurred_at?.toISOString(),
+      short_code: r.short_code,
+      title: r.title ?? '',
+      domain: r.domain ?? '',
+      ip: r.ip ?? '',
+      country_code: r.country_code ?? '',
+      country: r.country_name ?? '',
+      region: r.region ?? '',
+      city: r.city ?? '',
+      latitude: r.latitude ?? '',
+      longitude: r.longitude ?? '',
+      referer: r.referer ?? '',
+      user_agent: r.user_agent ?? '',
+    }));
+
+    const filename = `org-analytics-${String(range || '7d')}.csv`;
+    return sendCsv(res, filename, [
+      'occurred_at',
+      'short_code',
+      'title',
+      'domain',
+      'ip',
+      'country_code',
+      'country',
+      'region',
+      'city',
+      'latitude',
+      'longitude',
+      'referer',
+      'user_agent',
+    ], data);
+  } catch (e) {
+    console.error('analytics.exportOrgCsv error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/analytics/links/:shortCode/export?range=7d&country=US
+ */
+export async function exportLinkCsv(req: ReqWithUser, res: Response) {
+  try {
+    const orgId = (req as any).org?.orgId;
+    if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const { shortCode } = req.params;
+    const range = req.query.range;
+    const country = req.query.country;
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '5000'), 10) || 5000, 1), 20000);
+
+    const linkRow = await db.query<{ id: string; title: string | null; short_code: string }>(
+      `SELECT id, title, short_code FROM links WHERE org_id = $1 AND short_code = $2`,
+      [orgId, shortCode],
+    );
+    if (!linkRow.rowCount) {
+      return res.status(404).json({ success: false, error: 'Link not found' });
+    }
+    const linkId = linkRow.rows[0].id;
+
+    const params: any[] = [linkId];
+    const rangeSql = withRangeSql('c', range, params);
+    const countrySql = withCountrySql('c', country, rangeSql.params);
+    countrySql.params.push(limit);
+    const limitIdx = countrySql.params.length;
+
+    const rows = await db.query<{
+      occurred_at: Date;
+      short_code: string;
+      title: string | null;
+      domain: string | null;
+      ip: string | null;
+      country_code: string | null;
+      country_name: string | null;
+      region: string | null;
+      city: string | null;
+      latitude: number | null;
+      longitude: number | null;
+      referer: string | null;
+      user_agent: string | null;
+    }>(`
+      SELECT c.occurred_at,
+             l.short_code,
+             l.title,
+             d.domain AS domain,
+             c.ip::text AS ip,
+             c.country_code,
+             c.country_name,
+             c.region,
+             c.city,
+             c.latitude,
+             c.longitude,
+             c.referer,
+             c.user_agent
+      FROM click_events c
+      JOIN links l ON l.id = c.link_id
+      LEFT JOIN domains d ON d.id = l.domain_id
+      WHERE c.link_id = $1 ${rangeSql.sql} ${countrySql.sql}
+      ORDER BY c.occurred_at DESC
+      LIMIT $${limitIdx}
+    `, countrySql.params);
+
+    const data = rows.rows.map((r) => ({
+      occurred_at: r.occurred_at?.toISOString(),
+      short_code: r.short_code,
+      title: r.title ?? '',
+      domain: r.domain ?? '',
+      ip: r.ip ?? '',
+      country_code: r.country_code ?? '',
+      country: r.country_name ?? '',
+      region: r.region ?? '',
+      city: r.city ?? '',
+      latitude: r.latitude ?? '',
+      longitude: r.longitude ?? '',
+      referer: r.referer ?? '',
+      user_agent: r.user_agent ?? '',
+    }));
+
+    const filename = `link-${shortCode}-${String(range || '7d')}.csv`;
+    return sendCsv(res, filename, [
+      'occurred_at',
+      'short_code',
+      'title',
+      'domain',
+      'ip',
+      'country_code',
+      'country',
+      'region',
+      'city',
+      'latitude',
+      'longitude',
+      'referer',
+      'user_agent',
+    ], data);
+  } catch (e) {
+    console.error('analytics.exportLinkCsv error:', e);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

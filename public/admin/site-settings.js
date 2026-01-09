@@ -77,12 +77,22 @@ function renderTiers(tiers = []) {
     item.innerHTML = `
       <div class="row">
         <div style="flex:1">
+          <label class="muted">Plan ID (stable)</label>
+          <input class="input" data-field="id" value="${tier.id || ''}" placeholder="pro">
+        </div>
+        <div style="flex:1">
           <label class="muted">Name</label>
           <input class="input" data-field="name" value="${tier.name || ''}">
         </div>
+      </div>
+      <div class="row">
         <div style="flex:1">
           <label class="muted">Badge</label>
           <input class="input" data-field="badge" value="${tier.badge || ''}">
+        </div>
+        <div style="flex:1">
+          <label class="muted">CTA label</label>
+          <input class="input" data-field="ctaLabel" value="${tier.ctaLabel || ''}">
         </div>
       </div>
       <div class="row" style="margin-top:10px">
@@ -96,10 +106,6 @@ function renderTiers(tiers = []) {
         </div>
       </div>
       <div class="row" style="margin-top:10px">
-        <div style="flex:1">
-          <label class="muted">CTA label</label>
-          <input class="input" data-field="ctaLabel" value="${tier.ctaLabel || ''}">
-        </div>
         <div style="flex:1">
           <label class="muted">CTA URL</label>
           <input class="input" data-field="ctaHref" value="${tier.ctaHref || ''}">
@@ -151,6 +157,7 @@ function collectConfig() {
       currency: qs('#pricingCurrency').value.trim() || 'USD',
       billingNote: qs('#pricingNote').value.trim(),
       tiers: readList(qs('#tiersList'), (card) => ({
+        id: slugify(qs('[data-field="id"]', card).value.trim() || qs('[data-field="name"]', card).value.trim()),
         name: qs('[data-field="name"]', card).value.trim(),
         badge: qs('[data-field="badge"]', card).value.trim(),
         priceMonthly: normalizeNumber(qs('[data-field="priceMonthly"]', card).value.trim()),
@@ -179,6 +186,13 @@ function normalizeNumber(value) {
   if (!value) return null;
   const num = Number(value);
   return Number.isNaN(num) ? null : num;
+}
+
+function slugify(value) {
+  return (value || 'plan')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function bindRemove(containerSelector) {
@@ -488,12 +502,22 @@ function addTier() {
   item.innerHTML = `
     <div class="row">
       <div style="flex:1">
+        <label class="muted">Plan ID (stable)</label>
+        <input class="input" data-field="id" value="">
+      </div>
+      <div style="flex:1">
         <label class="muted">Name</label>
         <input class="input" data-field="name" value="">
       </div>
+    </div>
+    <div class="row" style="margin-top:10px">
       <div style="flex:1">
         <label class="muted">Badge</label>
         <input class="input" data-field="badge" value="">
+      </div>
+      <div style="flex:1">
+        <label class="muted">CTA label</label>
+        <input class="input" data-field="ctaLabel" value="">
       </div>
     </div>
     <div class="row" style="margin-top:10px">
@@ -507,10 +531,6 @@ function addTier() {
       </div>
     </div>
     <div class="row" style="margin-top:10px">
-      <div style="flex:1">
-        <label class="muted">CTA label</label>
-        <input class="input" data-field="ctaLabel" value="">
-      </div>
       <div style="flex:1">
         <label class="muted">CTA URL</label>
         <input class="input" data-field="ctaHref" value="">

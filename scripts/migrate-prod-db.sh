@@ -253,6 +253,29 @@ CREATE TABLE IF NOT EXISTS affiliate_payouts (
 );
 CREATE INDEX IF NOT EXISTS idx_affiliate_payouts_affiliate ON affiliate_payouts(affiliate_id);
 
+CREATE TABLE IF NOT EXISTS billing_customers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  stripe_customer_id VARCHAR(255) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_billing_customers_org ON billing_customers(org_id);
+
+CREATE TABLE IF NOT EXISTS billing_subscriptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  stripe_subscription_id VARCHAR(255) UNIQUE NOT NULL,
+  stripe_price_id VARCHAR(255),
+  plan_id VARCHAR(50),
+  status VARCHAR(40),
+  current_period_end TIMESTAMP NULL,
+  cancel_at_period_end BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_org ON billing_subscriptions(org_id);
+
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_superadmin BOOLEAN DEFAULT false;
 
 -- Backfill orgs and org memberships for existing users

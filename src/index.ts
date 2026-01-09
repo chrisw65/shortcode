@@ -22,6 +22,8 @@ import couponsRoutes from './routes/coupons.routes';
 import planGrantsRoutes from './routes/planGrants.routes';
 import affiliatesRoutes from './routes/affiliates.routes';
 import affiliateAuthRoutes from './routes/affiliateAuth.routes';
+import billingRoutes from './routes/billing.routes';
+import { stripeWebhook } from './controllers/billing.controller';
 
 // Ensure DB connects on boot (side-effect import if you have it)
 import './config/database';
@@ -39,6 +41,7 @@ app.use(
     credentials: true,
   })
 );
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use((req, res, next) => {
@@ -71,6 +74,7 @@ app.use('/api/coupons', couponsRoutes);
 app.use('/api/plan-grants', planGrantsRoutes);
 app.use('/api/affiliates', affiliatesRoutes);
 app.use('/api/affiliate', affiliateAuthRoutes);
+app.use('/api/billing', billingRoutes);
 
 // Public redirect route (must come AFTER /api and static so it doesn’t swallow them)
 app.use('/', redirectRoutes);
