@@ -5,6 +5,7 @@ import db from '../config/database';
 import { logAudit } from '../services/audit';
 import { tryGrantReferralReward } from '../services/referrals';
 import { getEffectivePlan, isPaidPlan } from '../services/plan';
+import { invalidateCachedLinks, setCachedLink } from '../services/linkCache';
 
 type UserReq = Request & { user: { userId: string }; org: { orgId: string } };
 
@@ -166,6 +167,12 @@ export async function createLink(req: UserReq, res: Response) {
     });
 
     try { await tryGrantReferralReward(userId, orgId); } catch (err) { console.error('referral reward error:', err); }
+    void setCachedLink(code, {
+      id: rows[0].id,
+      original_url: rows[0].original_url,
+      expires_at: rows[0].expires_at,
+      active: rows[0].active !== false,
+    });
     return res.status(201).json({ success: true, data: shapeLink({ ...rows[0], domain: domainHost }, coreBase) });
   } catch (e: any) {
     if (e?.code === '23505') {
@@ -298,6 +305,7 @@ export async function updateLink(req: UserReq, res: Response) {
     }
     if (title !== undefined) { sets.push(`title = $${i++}`); vals.push(title); }
     if (expires_at !== undefined) { sets.push(`expires_at = $${i++}`); vals.push(expires_at); }
+    let newCodeValue: string | null = null;
     if (short_code !== undefined) {
       const newCode = normalizeShortCode(short_code);
       const v = validateCustomCode(newCode);
@@ -306,6 +314,7 @@ export async function updateLink(req: UserReq, res: Response) {
         return res.status(409).json({ success: false, error: 'short_code already exists' });
       }
       sets.push(`short_code = $${i++}`); vals.push(newCode);
+      newCodeValue = newCode;
     }
 
     if (!sets.length) {
@@ -331,6 +340,8 @@ export async function updateLink(req: UserReq, res: Response) {
       metadata: { short_code: rows[0].short_code },
     });
 
+    const invalidate = newCodeValue ? [shortCode, newCodeValue] : [shortCode];
+    void invalidateCachedLinks(invalidate);
     const coreBase = coreBaseUrl();
     return res.json({ success: true, data: shapeLink(rows[0], coreBase) });
   } catch (e: any) {
@@ -375,6 +386,7 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
       metadata: { short_code: rows[0].short_code, active },
     });
 
+    void invalidateCachedLinks([shortCode]);
     const coreBase = coreBaseUrl();
     return res.json({ success: true, data: shapeLink(rows[0], coreBase) });
   } catch (e) {
@@ -403,6 +415,7 @@ export async function deleteLink(req: UserReq, res: Response) {
       entity_id: null,
       metadata: { short_code: shortCode, deleted: (result.rowCount ?? 0) > 0 },
     });
+    void invalidateCachedLinks([shortCode]);
     return res.json({ success: true, data: { deleted: result.rowCount ? result.rowCount > 0 : false, short_code: shortCode } });
   } catch (e) {
     console.error('deleteLink error:', e);

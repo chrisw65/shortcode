@@ -24,6 +24,8 @@ import affiliatesRoutes from './routes/affiliates.routes';
 import affiliateAuthRoutes from './routes/affiliateAuth.routes';
 import billingRoutes from './routes/billing.routes';
 import { stripeWebhook } from './controllers/billing.controller';
+import redisClient from './config/redis';
+import { startClickWorker } from './services/clickQueue';
 
 // Ensure DB connects on boot (side-effect import if you have it)
 import './config/database';
@@ -51,6 +53,18 @@ app.use((req, res, next) => {
 });
 const morganFormat = ':remote-addr :method :url :status :res[content-length] - :response-time ms :req[x-request-id]';
 app.use(morgan(morganFormat));
+
+async function initRedis() {
+  try {
+    if (!redisClient.isOpen) {
+      await redisClient.connect();
+    }
+    startClickWorker();
+  } catch (err) {
+    console.error('Redis init failed:', err);
+  }
+}
+initRedis().catch(() => {});
 
 // Serve static admin UI from /public
 app.use(express.static(path.join(__dirname, '..', 'public')));
