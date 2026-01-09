@@ -108,12 +108,56 @@ function renderFooterLinks(links = []) {
   )).join('');
 }
 
+const SOCIAL_ICON_SVGS = {
+  x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3l7.7 9.2L4.7 21H7.3l5-6 5.1 6H20l-7.9-9.5L19.1 3h-2.6l-4.7 5.6L6.2 3H4z" fill="currentColor"/></svg>',
+  twitter: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.9 7.4c0 .2 0 .4-.1.6-.5 5.9-4.6 10.1-10.2 10.1-2 0-3.9-.6-5.5-1.6h1c1.6 0 3.1-.5 4.3-1.4-1.5 0-2.8-1-3.2-2.4.5.1 1 .1 1.5-.1-1.6-.3-2.8-1.8-2.8-3.4v-.1c.5.3 1 .5 1.6.5-1-.7-1.5-2-1-3.2 1.7 2 4.3 3.4 7.2 3.5-.4-1.7.9-3.4 2.7-3.4.8 0 1.6.3 2.1.9.7-.1 1.3-.4 1.9-.7-.2.7-.7 1.2-1.3 1.6.6-.1 1.1-.2 1.6-.4-.4.6-.9 1.1-1.4 1.5z" fill="currentColor"/></svg>',
+  linkedin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.98 3.5c0 1-.8 1.8-1.8 1.8s-1.8-.8-1.8-1.8S2.2 1.7 3.2 1.7s1.8.8 1.8 1.8zM1.6 8.2h3.2V22H1.6V8.2zM8.7 8.2h3.1v1.9h.1c.4-.7 1.5-2.1 3.5-2.1 3.7 0 4.4 2.4 4.4 5.5V22h-3.2v-6.5c0-1.6 0-3.7-2.3-3.7s-2.6 1.7-2.6 3.6V22H8.7V8.2z" fill="currentColor"/></svg>',
+  facebook: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 9.2V7.2c0-.7.5-1.1 1.2-1.1h1.6V3.2h-2.2c-2.4 0-3.9 1.6-3.9 3.8v2.2H8v2.9h2.2V22h3.3v-9.9h2.7l.4-2.9h-3.1z" fill="currentColor"/></svg>',
+  instagram: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7zm5 3.2A3.8 3.8 0 1 1 8.2 12 3.8 3.8 0 0 1 12 8.2zm0 2a1.8 1.8 0 1 0 1.8 1.8A1.8 1.8 0 0 0 12 10.2zM17.6 6.3a.9.9 0 1 1-.9-.9.9.9 0 0 1 .9.9z" fill="currentColor"/></svg>',
+  youtube: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12s0-3.3-.4-4.8c-.2-.8-.9-1.5-1.7-1.7C18.4 5 12 5 12 5s-6.4 0-7.9.5c-.8.2-1.5.9-1.7 1.7C2 8.7 2 12 2 12s0 3.3.4 4.8c.2.8.9 1.5 1.7 1.7C5.6 19 12 19 12 19s6.4 0 7.9-.5c.8-.2 1.5-.9 1.7-1.7.4-1.5.4-4.8.4-4.8zM10 15.3V8.7l5.2 3.3L10 15.3z" fill="currentColor"/></svg>',
+  github: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.6 2.9 8.5 6.9 9.9.5.1.7-.2.7-.5v-2c-2.8.6-3.4-1.2-3.4-1.2-.5-1.3-1.2-1.6-1.2-1.6-1-.7.1-.7.1-.7 1.1.1 1.7 1.2 1.7 1.2 1 .1 2-.7 2.3-1.3.1-.7.4-1.2.7-1.5-2.2-.3-4.6-1.1-4.6-5a4 4 0 0 1 1-2.8 3.7 3.7 0 0 1 .1-2.8s.9-.3 2.9 1a10 10 0 0 1 5.2 0c2-1.3 2.9-1 2.9-1a3.7 3.7 0 0 1 .1 2.8 4 4 0 0 1 1 2.8c0 3.9-2.4 4.7-4.7 5 .4.3.8 1 .8 2.1v3.1c0 .3.2.6.7.5 4-1.4 6.9-5.3 6.9-9.9C22 6.6 17.5 2 12 2z" fill="currentColor"/></svg>',
+  tiktok: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2h2.1c.3 2 1.7 3.6 3.7 3.9V8c-1.6 0-3.1-.6-4.2-1.6v7.4a5.2 5.2 0 1 1-4.4-5.1v2.3a2.9 2.9 0 1 0 2.3 2.8V2z" fill="currentColor"/></svg>',
+};
+
+const SOCIAL_ALIASES = {
+  twitter: 'x',
+  x: 'x',
+  linkedin: 'linkedin',
+  facebook: 'facebook',
+  instagram: 'instagram',
+  youtube: 'youtube',
+  github: 'github',
+  tiktok: 'tiktok',
+};
+
+function resolveSocialKey(link = {}) {
+  const rawIcon = String(link.icon || '').trim().toLowerCase();
+  if (rawIcon && rawIcon !== 'auto') return SOCIAL_ALIASES[rawIcon] || rawIcon;
+  const label = String(link.label || '').trim().toLowerCase();
+  const href = String(link.href || '').trim().toLowerCase();
+  if (href.includes('linkedin')) return 'linkedin';
+  if (href.includes('x.com') || href.includes('twitter.com')) return 'x';
+  if (href.includes('facebook.com')) return 'facebook';
+  if (href.includes('instagram.com')) return 'instagram';
+  if (href.includes('youtube.com') || href.includes('youtu.be')) return 'youtube';
+  if (href.includes('github.com')) return 'github';
+  if (href.includes('tiktok.com')) return 'tiktok';
+  if (label) return SOCIAL_ALIASES[label] || label;
+  return '';
+}
+
 function renderSocialLinks(links = []) {
   const wrap = qs('[data-social-links]');
   if (!wrap || !links.length) return;
-  wrap.innerHTML = links.map((link) => (
-    `<a href="${link.href || '#'}" target="_blank" rel="noreferrer">${link.label || ''}</a>`
-  )).join('');
+  wrap.innerHTML = links.map((link) => {
+    const href = link.href || '#';
+    const label = link.label || 'Social';
+    const key = resolveSocialKey(link);
+    const icon = key && SOCIAL_ICON_SVGS[key] ? SOCIAL_ICON_SVGS[key] : '';
+    const iconHtml = icon ? `<span class="social-icon" aria-hidden="true">${icon}</span>` : '';
+    const labelHtml = `<span class="social-label">${label}</span>`;
+    return `<a class="social-link" href="${href}" target="_blank" rel="noreferrer" aria-label="${label}">${iconHtml}${labelHtml}</a>`;
+  }).join('');
 }
 
 function applyBrandLogo(brand = {}) {

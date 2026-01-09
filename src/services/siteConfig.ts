@@ -143,8 +143,8 @@ export const DEFAULT_SITE_CONFIG = {
       { label: 'Status', href: '/docs.html' },
     ],
     social: [
-      { label: 'LinkedIn', href: 'https://linkedin.com' },
-      { label: 'Twitter', href: 'https://x.com' },
+      { label: 'LinkedIn', href: 'https://linkedin.com', icon: 'linkedin' },
+      { label: 'X', href: 'https://x.com', icon: 'x' },
     ],
   },
   emails: {

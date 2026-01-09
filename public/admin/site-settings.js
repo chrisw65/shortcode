@@ -115,8 +115,8 @@ const PREMIUM_PRESET = {
       { label: 'Status', href: '/docs.html' },
     ],
     social: [
-      { label: 'LinkedIn', href: 'https://linkedin.com' },
-      { label: 'Twitter', href: 'https://x.com' },
+      { label: 'LinkedIn', href: 'https://linkedin.com', icon: 'linkedin' },
+      { label: 'X', href: 'https://x.com', icon: 'x' },
     ],
   },
 };
@@ -236,10 +236,23 @@ function renderSocialLinks(links = []) {
     item.innerHTML = `
       <label class="muted">Label</label>
       <input class="input" data-field="label" value="${link.label || ''}">
+      <label class="muted" style="margin-top:10px">Icon</label>
+      <select class="input" data-field="icon">
+        <option value="auto">Auto-detect</option>
+        <option value="x">X</option>
+        <option value="linkedin">LinkedIn</option>
+        <option value="facebook">Facebook</option>
+        <option value="instagram">Instagram</option>
+        <option value="youtube">YouTube</option>
+        <option value="github">GitHub</option>
+        <option value="tiktok">TikTok</option>
+      </select>
       <label class="muted" style="margin-top:10px">URL</label>
       <input class="input" data-field="href" value="${link.href || ''}">
       <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
     `;
+    const select = qs('[data-field="icon"]', item);
+    if (select) select.value = link.icon || 'auto';
     list.appendChild(item);
   });
 }
@@ -606,6 +619,7 @@ function collectConfig() {
       })),
       social: readList(qs('#socialLinksList'), (card) => ({
         label: qs('[data-field="label"]', card).value.trim(),
+        icon: qs('[data-field="icon"]', card).value.trim(),
         href: qs('[data-field="href"]', card).value.trim(),
       })),
     },
@@ -1054,6 +1068,17 @@ function addSocialLink() {
   item.innerHTML = `
     <label class="muted">Label</label>
     <input class="input" data-field="label" value="">
+    <label class="muted" style="margin-top:10px">Icon</label>
+    <select class="input" data-field="icon">
+      <option value="auto">Auto-detect</option>
+      <option value="x">X</option>
+      <option value="linkedin">LinkedIn</option>
+      <option value="facebook">Facebook</option>
+      <option value="instagram">Instagram</option>
+      <option value="youtube">YouTube</option>
+      <option value="github">GitHub</option>
+      <option value="tiktok">TikTok</option>
+    </select>
     <label class="muted" style="margin-top:10px">URL</label>
     <input class="input" data-field="href" value="">
     <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
