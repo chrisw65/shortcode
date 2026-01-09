@@ -302,6 +302,22 @@ async function init() {
         const notice = qs('#contactNotice');
         if (notice) notice.textContent = page.formSuccess;
       }
+      if (page.captchaQuestion) {
+        const label = qs('[data-page-captcha-question]');
+        const wrap = qs('#contactCaptchaWrap');
+        if (label) label.textContent = page.captchaQuestion;
+        if (wrap) wrap.style.display = '';
+      } else {
+        const wrap = qs('#contactCaptchaWrap');
+        if (wrap) wrap.style.display = 'none';
+      }
+      if (page.meta) {
+        if (page.meta.title) document.title = page.meta.title;
+        setMeta('meta[name="description"]', page.meta.description || '');
+        setMeta('meta[property="og:title"]', page.meta.ogTitle || page.meta.title || '');
+        setMeta('meta[property="og:description"]', page.meta.ogDescription || page.meta.description || '');
+        setMeta('meta[property="og:image"]', page.meta.ogImage || '');
+      }
       if (Array.isArray(page.faqs)) renderFaqs(page.faqs);
     }
 

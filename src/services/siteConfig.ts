@@ -198,6 +198,15 @@ export const DEFAULT_SITE_CONFIG = {
       formSubject: 'New contact request from OkLeaf',
       formSubmitLabel: 'Send message',
       formSuccess: 'Thanks! We will get back to you within 1 business day.',
+      captchaQuestion: 'What is 3 + 4?',
+      captchaAnswer: '7',
+      meta: {
+        title: 'OkLeaf - Contact',
+        description: 'Contact OkLeaf for enterprise plans, demos, and support.',
+        ogTitle: 'Contact OkLeaf',
+        ogDescription: 'Get in touch with OkLeaf sales or support.',
+        ogImage: '/favicon.ico',
+      },
     },
     about: {
       title: 'Built for teams who care about brand control',
@@ -211,6 +220,13 @@ export const DEFAULT_SITE_CONFIG = {
         { title: 'Insightful analytics', text: 'Actionable insights across domains, teams, and campaigns.' },
         { title: 'Built for teams', text: 'Role-based access, audit trails, and clear ownership.' },
       ],
+      meta: {
+        title: 'OkLeaf - About',
+        description: 'OkLeaf builds enterprise-grade URL shorteners with brand control and analytics.',
+        ogTitle: 'About OkLeaf',
+        ogDescription: 'Learn why OkLeaf exists and how it supports enterprise-grade short links.',
+        ogImage: '/favicon.ico',
+      },
     },
     caseStudies: {
       title: 'Case studies',
@@ -220,6 +236,13 @@ export const DEFAULT_SITE_CONFIG = {
         { title: 'SignalWave Media', text: 'Improved campaign performance by tracking channel ROI in minutes.' },
         { title: 'Bluefin Digital', text: 'Unified branded domains across global campaigns.' },
       ],
+      meta: {
+        title: 'OkLeaf - Case Studies',
+        description: 'Case studies from teams using OkLeaf to manage branded links and analytics.',
+        ogTitle: 'OkLeaf Case Studies',
+        ogDescription: 'See how teams use OkLeaf to standardize link operations and analytics.',
+        ogImage: '/favicon.ico',
+      },
     },
     useCases: {
       title: 'Use cases',
@@ -229,6 +252,13 @@ export const DEFAULT_SITE_CONFIG = {
         { title: 'Sales enablement', text: 'Track link performance by persona and region.' },
         { title: 'Customer success', text: 'Give every team a branded domain with clear analytics.' },
       ],
+      meta: {
+        title: 'OkLeaf - Use Cases',
+        description: 'Use cases for teams using OkLeaf to manage branded links and analytics.',
+        ogTitle: 'OkLeaf Use Cases',
+        ogDescription: 'See common ways teams use OkLeaf to launch and track campaigns.',
+        ogImage: '/favicon.ico',
+      },
     },
   },
   ui: {

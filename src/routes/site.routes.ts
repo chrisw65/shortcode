@@ -1,6 +1,7 @@
 // src/routes/site.routes.ts
 import { Router } from 'express';
 import { authenticate, requireSuperadmin } from '../middleware/auth';
+import { perIp20rpmRedis } from '../middleware/redisRateLimit';
 import {
   getAdminSiteConfig,
   getPublicSiteConfig,
@@ -15,7 +16,7 @@ import {
 const router = Router();
 
 router.get('/public/site-config', getPublicSiteConfig);
-router.post('/public/contact', sendContactMessage);
+router.post('/public/contact', perIp20rpmRedis, sendContactMessage);
 router.get('/site-config', authenticate, requireSuperadmin, getAdminSiteConfig);
 router.put('/site-config', authenticate, requireSuperadmin, updateSiteConfig);
 router.post('/site-config/publish', authenticate, requireSuperadmin, publishSiteConfig);

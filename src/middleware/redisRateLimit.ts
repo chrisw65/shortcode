@@ -61,6 +61,8 @@ export const perIp600rpmRedis = makeMiddleware(scaled(600), 60, 'rl:ip:600', (re
 
 export const perIp60rpmRedis = makeMiddleware(scaled(60), 60, 'rl:ip:60', (req) => ipv6SafeKey(req), 'json');
 
+export const perIp20rpmRedis = makeMiddleware(scaled(20), 60, 'rl:ip:20', (req) => ipv6SafeKey(req), 'json');
+
 export const perAuth300rpmRedis = makeMiddleware(scaled(300), 60, 'rl:auth:300', (req) => authKey(req), 'json');
 
 export const perUser120rpmRedis = makeMiddleware(

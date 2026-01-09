@@ -268,6 +268,7 @@ function renderPageCards(cards = []) {
     const item = document.createElement('div');
     item.className = 'card';
     item.innerHTML = `
+      <div class="drag-handle" draggable="true" title="Drag to reorder">↕</div>
       <label class="muted">Title</label>
       <input class="input" data-field="title" value="${card.title || ''}">
       <label class="muted" style="margin-top:10px">Text</label>
@@ -276,6 +277,7 @@ function renderPageCards(cards = []) {
     `;
     list.appendChild(item);
   });
+  enableDrag(list);
 }
 
 function renderPageBody(body = []) {
@@ -285,12 +287,14 @@ function renderPageBody(body = []) {
     const item = document.createElement('div');
     item.className = 'card';
     item.innerHTML = `
+      <div class="drag-handle" draggable="true" title="Drag to reorder">↕</div>
       <label class="muted">Paragraph</label>
       <textarea class="input" data-field="text" rows="3">${paragraph || ''}</textarea>
       <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
     `;
     list.appendChild(item);
   });
+  enableDrag(list);
 }
 
 function renderPageFaqs(faqs = []) {
@@ -300,6 +304,7 @@ function renderPageFaqs(faqs = []) {
     const item = document.createElement('div');
     item.className = 'card';
     item.innerHTML = `
+      <div class="drag-handle" draggable="true" title="Drag to reorder">↕</div>
       <label class="muted">Question</label>
       <input class="input" data-field="q" value="${faq.q || ''}">
       <label class="muted" style="margin-top:10px">Answer</label>
@@ -307,6 +312,36 @@ function renderPageFaqs(faqs = []) {
       <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
     `;
     list.appendChild(item);
+  });
+  enableDrag(list);
+}
+
+let dragItem = null;
+
+function enableDrag(list) {
+  if (!list || list.dataset.dragReady) return;
+  list.dataset.dragReady = '1';
+  list.addEventListener('dragstart', (event) => {
+    const handle = event.target.closest('.drag-handle');
+    if (!handle) return;
+    dragItem = handle.closest('.card');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', 'drag');
+  });
+  list.addEventListener('dragover', (event) => {
+    if (!dragItem) return;
+    event.preventDefault();
+    const over = event.target.closest('.card');
+    if (!over || over === dragItem) return;
+    const rect = over.getBoundingClientRect();
+    const after = (event.clientY - rect.top) > rect.height / 2;
+    list.insertBefore(dragItem, after ? over.nextSibling : over);
+  });
+  list.addEventListener('dragend', () => {
+    dragItem = null;
+  });
+  list.addEventListener('drop', () => {
+    dragItem = null;
   });
 }
 
@@ -1135,6 +1170,13 @@ function applyPageEditor(key) {
   qs('#pageContactSubject').value = page.formSubject || '';
   qs('#pageContactSubmit').value = page.formSubmitLabel || '';
   qs('#pageContactSuccess').value = page.formSuccess || '';
+  qs('#pageCaptchaQuestion').value = page.captchaQuestion || '';
+  qs('#pageCaptchaAnswer').value = page.captchaAnswer || '';
+  qs('#pageMetaTitle').value = page.meta?.title || '';
+  qs('#pageMetaDescription').value = page.meta?.description || '';
+  qs('#pageOgTitle').value = page.meta?.ogTitle || '';
+  qs('#pageOgDescription').value = page.meta?.ogDescription || '';
+  qs('#pageOgImage').value = page.meta?.ogImage || '';
   renderPageCards(page.cards || []);
   renderPageBody(page.body || []);
   renderPageFaqs(page.faqs || []);
@@ -1170,6 +1212,15 @@ function savePageEditor() {
   page.formSubject = qs('#pageContactSubject').value.trim();
   page.formSubmitLabel = qs('#pageContactSubmit').value.trim();
   page.formSuccess = qs('#pageContactSuccess').value.trim();
+  page.captchaQuestion = qs('#pageCaptchaQuestion').value.trim();
+  page.captchaAnswer = qs('#pageCaptchaAnswer').value.trim();
+  page.meta = {
+    title: qs('#pageMetaTitle').value.trim(),
+    description: qs('#pageMetaDescription').value.trim(),
+    ogTitle: qs('#pageOgTitle').value.trim(),
+    ogDescription: qs('#pageOgDescription').value.trim(),
+    ogImage: qs('#pageOgImage').value.trim(),
+  };
   page.cards = readList(qs('#pageCardsList'), (card) => ({
     title: qs('[data-field="title"]', card).value.trim(),
     text: qs('[data-field="text"]', card).value.trim(),
@@ -1238,6 +1289,25 @@ async function sendInviteTest() {
   showToast('Test email sent');
 }
 
+function initTabs() {
+  const tabs = Array.from(document.querySelectorAll('#siteTabs .tab-btn'));
+  const sections = Array.from(document.querySelectorAll('[data-tab]'));
+  if (!tabs.length || !sections.length) return;
+  const setTab = (tab) => {
+    tabs.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
+    sections.forEach((section) => {
+      section.classList.toggle('is-hidden', section.dataset.tab !== tab);
+    });
+    localStorage.setItem('siteSettingsTab', tab);
+  };
+  const stored = localStorage.getItem('siteSettingsTab') || 'content';
+  const available = tabs.some((btn) => btn.dataset.tab === stored) ? stored : 'content';
+  setTab(available);
+  tabs.forEach((btn) => {
+    btn.addEventListener('click', () => setTab(btn.dataset.tab));
+  });
+}
+
 async function init() {
   try {
     state.config = await loadConfig();
@@ -1245,6 +1315,8 @@ async function init() {
   } catch (err) {
     showError(err, 'Unable to load site settings');
   }
+
+  initTabs();
 
   qs('#saveBtn').addEventListener('click', saveConfig);
   qs('#publishBtn').addEventListener('click', publishConfig);
@@ -1266,6 +1338,7 @@ async function init() {
     const item = document.createElement('div');
     item.className = 'card';
     item.innerHTML = `
+      <div class="drag-handle" draggable="true" title="Drag to reorder">↕</div>
       <label class="muted">Title</label>
       <input class="input" data-field="title" value="">
       <label class="muted" style="margin-top:10px">Text</label>
@@ -1273,23 +1346,27 @@ async function init() {
       <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
     `;
     list.appendChild(item);
+    enableDrag(list);
   });
   qs('#addPageBodyBtn').addEventListener('click', () => {
     const list = qs('#pageBodyList');
     const item = document.createElement('div');
     item.className = 'card';
     item.innerHTML = `
+      <div class="drag-handle" draggable="true" title="Drag to reorder">↕</div>
       <label class="muted">Paragraph</label>
       <textarea class="input" data-field="text" rows="3"></textarea>
       <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
     `;
     list.appendChild(item);
+    enableDrag(list);
   });
   qs('#addPageFaqBtn').addEventListener('click', () => {
     const list = qs('#pageFaqsList');
     const item = document.createElement('div');
     item.className = 'card';
     item.innerHTML = `
+      <div class="drag-handle" draggable="true" title="Drag to reorder">↕</div>
       <label class="muted">Question</label>
       <input class="input" data-field="q" value="">
       <label class="muted" style="margin-top:10px">Answer</label>
@@ -1297,6 +1374,7 @@ async function init() {
       <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
     `;
     list.appendChild(item);
+    enableDrag(list);
   });
   qs('#pageEditorSelect').addEventListener('change', (event) => {
     savePageEditor();

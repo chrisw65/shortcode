@@ -1,8 +1,11 @@
 async function sendContact() {
   const name = document.getElementById('name')?.value.trim();
   const company = document.getElementById('company')?.value.trim();
+  const org = document.getElementById('org')?.value.trim();
   const email = document.getElementById('email')?.value.trim();
   const message = document.getElementById('message')?.value.trim();
+  const website = document.getElementById('website')?.value.trim();
+  const captchaAnswer = document.getElementById('captchaAnswer')?.value.trim();
   const notice = document.getElementById('contactNotice');
 
   if (!name || !email || !message) {
@@ -14,7 +17,7 @@ async function sendContact() {
     const res = await fetch('/api/public/contact', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, company, email, message }),
+      body: JSON.stringify({ name, company, org, email, message, website, captchaAnswer }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(data?.error || 'Failed to send');
