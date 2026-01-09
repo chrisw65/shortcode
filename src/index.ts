@@ -74,6 +74,11 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, env: process.env.NODE_ENV || 'development' });
 });
 
+// Serve favicon explicitly to avoid hitting redirect/rate-limit path
+app.get('/favicon.ico', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'favicon.ico'));
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/links', linkRoutes);
