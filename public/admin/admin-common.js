@@ -3,11 +3,17 @@
 
 // ========================= Auth =========================
 const TOKEN_KEY = 'admin_token';
+const ORG_KEY = 'active_org_id';
 const API_BASE = ''; // same-origin
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY) || '';
 export const setToken = (t) => localStorage.setItem(TOKEN_KEY, t || '');
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+export const getActiveOrgId = () => localStorage.getItem(ORG_KEY) || '';
+export const setActiveOrgId = (orgId) => {
+  if (orgId) localStorage.setItem(ORG_KEY, orgId);
+  else localStorage.removeItem(ORG_KEY);
+};
 
 export function requireAuth() {
   if (!getToken()) {
@@ -33,6 +39,8 @@ export async function apiFetch(path, opts = {}) {
   const headers = { ...(opts.headers || {}) };
   const tok = getToken();
   if (tok) headers.Authorization = `Bearer ${tok}`;
+  const orgId = getActiveOrgId();
+  if (orgId) headers['X-Org-Id'] = orgId;
 
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'same-origin',

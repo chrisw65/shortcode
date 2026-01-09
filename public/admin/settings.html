@@ -64,6 +64,26 @@
         </section>
 
         <section class="card" style="max-width:720px;margin-top:18px">
+          <h3>Organization</h3>
+          <label class="muted">Active organization</label>
+          <select id="orgSelect" class="input"></select>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Organization name</label>
+              <input id="orgName" class="input" type="text" placeholder="Org name" />
+            </div>
+            <div>
+              <label class="muted">Your role</label>
+              <input id="orgRole" class="input" type="text" disabled />
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button id="orgSaveBtn" class="btn">Save org</button>
+            <span id="orgMsg" class="muted"></span>
+          </div>
+        </section>
+
+        <section class="card" style="max-width:720px;margin-top:18px">
           <h3>Change password</h3>
           <label class="muted">Current password</label>
           <input id="curPass" class="input" type="password" placeholder="Current password" />

@@ -16,14 +16,22 @@ export async function requireOrg(req: OrgRequest, res: Response, next: NextFunct
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
-    const { rows } = await db.query<{ org_id: string; role: 'owner' | 'admin' | 'member' }>(
-      `SELECT org_id, role
-         FROM org_memberships
-        WHERE user_id = $1
-        ORDER BY (role = 'owner') DESC, created_at ASC
-        LIMIT 1`,
-      [userId],
-    );
+    const requestedOrgId = String(req.headers['x-org-id'] || req.query.org_id || '').trim();
+    const params: Array<string> = [userId];
+    let sql = `
+      SELECT org_id, role
+        FROM org_memberships
+       WHERE user_id = $1
+    `;
+    if (requestedOrgId) {
+      params.push(requestedOrgId);
+      sql += ' AND org_id = $2';
+    } else {
+      sql += ' ORDER BY (role = \'owner\') DESC, created_at ASC';
+    }
+    sql += ' LIMIT 1';
+
+    const { rows } = await db.query<{ org_id: string; role: 'owner' | 'admin' | 'member' }>(sql, params);
 
     if (!rows.length) {
       return res.status(403).json({ success: false, error: 'No organization membership' });

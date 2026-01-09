@@ -1,4 +1,4 @@
-import { requireAuth, api, htmlesc, copyText } from '/admin/admin-common.js?v=20260111';
+import { requireAuth, api, htmlesc, copyText } from '/admin/admin-common.js?v=20260112';
 
 requireAuth();
 

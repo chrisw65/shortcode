@@ -119,3 +119,69 @@ export async function removeMember(req: OrgRequest, res: Response) {
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
+
+export async function getOrg(req: OrgRequest, res: Response) {
+  try {
+    const orgId = req.org!.orgId;
+    const { rows } = await db.query(
+      `SELECT id, name, owner_user_id, created_at
+         FROM orgs
+        WHERE id = $1
+        LIMIT 1`,
+      [orgId]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'Org not found' });
+    return res.json({ success: true, data: rows[0] });
+  } catch (e) {
+    console.error('getOrg error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+export async function updateOrg(req: OrgRequest, res: Response) {
+  try {
+    const orgId = req.org!.orgId;
+    const actorId = req.user?.userId ?? null;
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) return res.status(400).json({ success: false, error: 'name is required' });
+
+    const { rows } = await db.query(
+      `UPDATE orgs SET name = $1 WHERE id = $2 RETURNING id, name, owner_user_id, created_at`,
+      [name, orgId]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'Org not found' });
+
+    await logAudit({
+      org_id: orgId,
+      user_id: actorId,
+      action: 'org.update',
+      entity_type: 'org',
+      entity_id: orgId,
+      metadata: { name },
+    });
+
+    return res.json({ success: true, data: rows[0] });
+  } catch (e) {
+    console.error('updateOrg error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+export async function listUserOrgs(req: OrgRequest, res: Response) {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    const { rows } = await db.query(
+      `SELECT o.id, o.name, o.owner_user_id, o.created_at, m.role
+         FROM org_memberships m
+         JOIN orgs o ON o.id = m.org_id
+        WHERE m.user_id = $1
+        ORDER BY o.created_at ASC`,
+      [userId]
+    );
+    return res.json({ success: true, data: rows });
+  } catch (e) {
+    console.error('listUserOrgs error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}

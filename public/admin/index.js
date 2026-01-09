@@ -1,5 +1,5 @@
 // v8 — login page logic
-import { setToken, getToken } from '/admin/admin-common.js?v=20260111';
+import { setToken, getToken } from '/admin/admin-common.js?v=20260112';
 
 const form = document.getElementById('login-form');
 const emailEl = document.getElementById('email');
