@@ -8,8 +8,12 @@ import { requireOrg } from '../middleware/org';
 const router = Router();
 const authController = new AuthController();
 
-router.post('/register', perAuth300rpmRedis, authController.register);
-router.post('/login', perAuth300rpmRedis, authController.login);
+const authLimiter = process.env.RATE_LIMIT_AUTH_DISABLED === '1'
+  ? ((_req: any, _res: any, next: any) => next())
+  : perAuth300rpmRedis;
+
+router.post('/register', authLimiter, authController.register);
+router.post('/login', authLimiter, authController.login);
 router.get('/me', authenticate, requireOrg, authController.me);
 router.post('/change-password', authenticate, authController.changePassword);
 
