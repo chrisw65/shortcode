@@ -97,10 +97,55 @@ Billing & entitlements
 Security, compliance, and audit
 - No immutable audit log UI or export
 - No data retention policies, GDPR tooling, or SOC2-ready controls
+- No IP anonymization option
+- No terms-of-service acceptance tracking
 
 CMS / docs
 - Docs are CMS HTML-driven but lack a WYSIWYG editor
 - Some pages still have hardcoded sections (reduced, but not eliminated)
+
+Product & growth features
+- No bulk link create/delete/export tools
+- No link tags/categories
+- No UTM parameter builder
+- No link groups/campaigns
+- No deep-linking support for mobile apps
+- No A/B testing or split routing
+- No password-protected links
+
+Analytics & reporting
+- No real-time analytics (no live updates)
+- No click maps/heatmaps
+- No analytics export (CSV/PDF)
+- No conversion tracking (pixel/webhook)
+
+Organization & team
+- Invitation email is sent, but there is no acceptance flow UI and no pending-invites management screen
+- No multi-org switching (user is pinned to first org)
+- No org-level settings panel
+- No activity feed UI
+- Limited permissions model (owner/admin/member only)
+
+Custom domains
+- No SSL certificate management guidance or status
+- No CNAME verification alternative (TXT only)
+- No wildcard/subdomain tooling
+- No automated domain health monitoring
+
+API & integrations
+- No webhooks
+- No rate limit headers (X-RateLimit-*)
+- No API versioning (e.g., /api/v1)
+- No OpenAPI/Swagger docs
+- No third-party integrations (Zapier/Slack/etc.)
+- No browser extension or bookmarklet
+
+User experience
+- No dark/light theme toggle (public site is fixed)
+- Mobile responsiveness is basic
+- No link preview (OG/meta) before shortening
+- Search is basic (no full-text search)
+- Links list pagination may not handle large volumes
 
 ## Recommended next steps (short)
 
