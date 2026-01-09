@@ -75,7 +75,17 @@ async function applyAdminTheme() {
     const res = await fetch('/api/public/site-config', { credentials: 'same-origin' });
     const data = await res.json().catch(() => null);
     const theme = data?.data?.ui?.adminTheme || 'noir';
+    const tokens = data?.data?.ui?.adminThemeTokens || {};
     document.body.classList.add(`theme-${theme}`);
+    const root = document.documentElement;
+    if (tokens.bg) root.style.setProperty('--bg', tokens.bg);
+    if (tokens.bg) root.style.setProperty('--bg-2', tokens.bg);
+    if (tokens.panel) root.style.setProperty('--panel', tokens.panel);
+    if (tokens.text) root.style.setProperty('--text', tokens.text);
+    if (tokens.muted) root.style.setProperty('--muted', tokens.muted);
+    if (tokens.accent) root.style.setProperty('--accent', tokens.accent);
+    if (tokens.accent2) root.style.setProperty('--accent-2', tokens.accent2);
+    if (tokens.border) root.style.setProperty('--border', tokens.border);
   } catch (err) {
     console.warn('admin theme load failed', err);
   }

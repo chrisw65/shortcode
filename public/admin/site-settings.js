@@ -12,7 +12,114 @@ const THEMES = [
   { id: 'luna', label: 'Luna', accent: '#7fd3ff', accent2: '#4b8bff', bg: '#0b1019' },
   { id: 'sierra', label: 'Sierra', accent: '#ffb359', accent2: '#ff7a59', bg: '#110c08' },
   { id: 'marina', label: 'Marina', accent: '#3dd6b8', accent2: '#49a0ff', bg: '#071217' },
+  { id: 'atlas', label: 'Atlas', accent: '#f4b7ff', accent2: '#4fe3c1', bg: '#0c0c18' },
+  { id: 'verdant', label: 'Verdant', accent: '#6ee7b7', accent2: '#22c55e', bg: '#0a140f' },
 ];
+
+const PREMIUM_PRESET = {
+  brand: {
+    name: 'OkLeaf',
+    tagline: 'Short links, enterprise control.',
+  },
+  hero: {
+    headline: 'Enterprise short links with brand control baked in.',
+    subheadline: 'Govern domains, launch campaigns, and see every click with crystal-clear analytics and team-grade permissions.',
+    primaryCta: { label: 'Start free', href: '/register.html' },
+    secondaryCta: { label: 'Talk to sales', href: '/contact.html' },
+  },
+  stats: [
+    { label: 'Links routed', value: '9.4M+' },
+    { label: 'Teams onboarded', value: '1,900+' },
+    { label: 'Avg. latency', value: '35ms' },
+  ],
+  features: [
+    { title: 'Domain governance', text: 'Verify and manage every branded domain with org-level access policies.' },
+    { title: 'Actionable analytics', text: 'Click maps, geo trends, and device insights for every link and campaign.' },
+    { title: 'Team collaboration', text: 'Owners, admins, and members with clear permissions and audit trails.' },
+    { title: 'Reliability at scale', text: 'Fast redirects backed by caching and resilient infrastructure.' },
+  ],
+  logos: [
+    { label: 'Oakleaf Ventures' },
+    { label: 'Northbridge Labs' },
+    { label: 'SignalWave Media' },
+    { label: 'Bluefin Digital' },
+  ],
+  pricing: {
+    currency: 'USD',
+    billingNote: 'Save 20% with annual billing.',
+    tiers: [
+      {
+        id: 'free',
+        name: 'Free',
+        priceMonthly: 0,
+        priceAnnual: 0,
+        badge: 'Free',
+        highlight: false,
+        ctaLabel: 'Start free',
+        ctaHref: '/register.html',
+        features: [
+          '1 branded domain',
+          'Up to 1,000 links',
+          'Basic analytics',
+          'Community support',
+        ],
+      },
+      {
+        id: 'pro',
+        name: 'Pro',
+        priceMonthly: 29,
+        priceAnnual: 24,
+        badge: 'Most popular',
+        highlight: true,
+        ctaLabel: 'Upgrade to Pro',
+        ctaHref: '/register.html',
+        features: [
+          '5 branded domains',
+          'Unlimited links',
+          'Team access (up to 10)',
+          'Advanced analytics',
+          'Webhook exports',
+        ],
+      },
+      {
+        id: 'enterprise',
+        name: 'Enterprise',
+        priceMonthly: null,
+        priceAnnual: null,
+        badge: 'Custom',
+        highlight: false,
+        ctaLabel: 'Talk to sales',
+        ctaHref: '/contact.html',
+        features: [
+          'Unlimited domains',
+          'Unlimited team members',
+          'SLA + priority support',
+          'Dedicated success lead',
+          'Custom data retention',
+        ],
+      },
+    ],
+  },
+  faqs: [
+    { q: 'Can I bring my own domain?', a: 'Yes. Verify any domain you own and route traffic through OkLeaf.' },
+    { q: 'Do you support teams and roles?', a: 'Yes. Owners can add admins and members with clear permissions.' },
+    { q: 'Is there an API?', a: 'Yes. Automate link creation and analytics exports with API keys.' },
+  ],
+  footer: {
+    company: 'OkLeaf',
+    email: 'support@okleaf.link',
+    address: 'Amsterdam • Remote-first',
+    links: [
+      { label: 'Privacy', href: '/docs.html' },
+      { label: 'Terms', href: '/docs.html' },
+      { label: 'Status', href: '/docs.html' },
+    ],
+    social: [
+      { label: 'LinkedIn', href: 'https://linkedin.com' },
+      { label: 'Twitter', href: 'https://x.com' },
+    ],
+  },
+};
 
 function makeInput(label, value, placeholder = '') {
   const wrap = document.createElement('div');
@@ -225,6 +332,24 @@ function applyAdminThemePreview(themeId) {
   if (themeId) document.body.classList.add(`theme-${themeId}`);
 }
 
+function mergeDeep(base, override) {
+  if (Array.isArray(base)) {
+    return Array.isArray(override) ? override : base;
+  }
+  if (base && typeof base === 'object') {
+    const out = { ...base };
+    Object.entries(override || {}).forEach(([key, value]) => {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        out[key] = mergeDeep(base[key] || {}, value);
+      } else {
+        out[key] = value;
+      }
+    });
+    return out;
+  }
+  return override === undefined ? base : override;
+}
+
 function readList(container, mapper) {
   return qsa('.card', container).map(mapper).filter(Boolean);
 }
@@ -336,6 +461,24 @@ function collectConfig() {
     ui: {
       adminTheme: qs('#adminTheme').value,
       affiliateTheme: qs('#affiliateTheme').value,
+      adminThemeTokens: {
+        bg: qs('#adminThemeBg').value.trim(),
+        panel: qs('#adminThemePanel').value.trim(),
+        text: qs('#adminThemeText').value.trim(),
+        muted: qs('#adminThemeMuted').value.trim(),
+        accent: qs('#adminThemeAccent').value.trim(),
+        accent2: qs('#adminThemeAccent2').value.trim(),
+        border: qs('#adminThemeBorder').value.trim(),
+      },
+      affiliateThemeTokens: {
+        bg: qs('#affiliateThemeBg').value.trim(),
+        surface: qs('#affiliateThemeSurface').value.trim(),
+        text: qs('#affiliateThemeText').value.trim(),
+        muted: qs('#affiliateThemeMuted').value.trim(),
+        accent: qs('#affiliateThemeAccent').value.trim(),
+        accent2: qs('#affiliateThemeAccent2').value.trim(),
+        line: qs('#affiliateThemeLine').value.trim(),
+      },
     },
   };
 
@@ -413,6 +556,20 @@ function applyConfig(config) {
   qs('#inviteHtml').value = config.emails?.invite?.html || '';
   renderThemeOptions(qs('#adminTheme'), config.ui?.adminTheme);
   renderThemeOptions(qs('#affiliateTheme'), config.ui?.affiliateTheme);
+  qs('#adminThemeBg').value = config.ui?.adminThemeTokens?.bg || '';
+  qs('#adminThemePanel').value = config.ui?.adminThemeTokens?.panel || '';
+  qs('#adminThemeText').value = config.ui?.adminThemeTokens?.text || '';
+  qs('#adminThemeMuted').value = config.ui?.adminThemeTokens?.muted || '';
+  qs('#adminThemeAccent').value = config.ui?.adminThemeTokens?.accent || '';
+  qs('#adminThemeAccent2').value = config.ui?.adminThemeTokens?.accent2 || '';
+  qs('#adminThemeBorder').value = config.ui?.adminThemeTokens?.border || '';
+  qs('#affiliateThemeBg').value = config.ui?.affiliateThemeTokens?.bg || '';
+  qs('#affiliateThemeSurface').value = config.ui?.affiliateThemeTokens?.surface || '';
+  qs('#affiliateThemeText').value = config.ui?.affiliateThemeTokens?.text || '';
+  qs('#affiliateThemeMuted').value = config.ui?.affiliateThemeTokens?.muted || '';
+  qs('#affiliateThemeAccent').value = config.ui?.affiliateThemeTokens?.accent || '';
+  qs('#affiliateThemeAccent2').value = config.ui?.affiliateThemeTokens?.accent2 || '';
+  qs('#affiliateThemeLine').value = config.ui?.affiliateThemeTokens?.line || '';
   const adminPicker = qs('#adminThemePicker');
   const affiliatePicker = qs('#affiliateThemePicker');
   const onAdminSelect = (themeId) => {
@@ -928,6 +1085,17 @@ async function init() {
       renderAffiliatePicker(next);
     });
     renderAffiliatePicker(event.target.value);
+  });
+  qs('#previewRefreshBtn').addEventListener('click', () => {
+    const frame = qs('#previewFrame');
+    frame.src = `/index.html?preview=1&ts=${Date.now()}`;
+  });
+  qs('#seedPremiumBtn').addEventListener('click', () => {
+    const ok = window.confirm('Load the premium preset? This will replace your current draft values in the form (not published yet).');
+    if (!ok) return;
+    const base = state.config?.draft || {};
+    applyConfig(mergeDeep(base, PREMIUM_PRESET));
+    showToast('Premium preset loaded. Save to keep.');
   });
 
   bindRemove('#statsList');

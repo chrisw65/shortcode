@@ -39,12 +39,25 @@
         </div>
         <div class="row" style="gap:10px">
           <a class="btn ghost" id="previewBtn" href="/index.html?preview=1" target="_blank" rel="noreferrer">Preview</a>
+          <button class="btn ghost" id="seedPremiumBtn" type="button">Load premium preset</button>
           <button class="btn" id="publishBtn" type="button">Publish</button>
           <button class="btn ghost" id="saveBtn" type="button">Save draft</button>
         </div>
       </header>
 
       <main class="admin-content">
+        <section class="card" style="margin-bottom:18px">
+          <div class="row-between">
+            <div>
+              <h3 class="m-0">Live preview</h3>
+              <div class="muted small">Shows the public site using your current draft.</div>
+            </div>
+            <button class="btn ghost" id="previewRefreshBtn" type="button">Refresh preview</button>
+          </div>
+          <div style="margin-top:12px;border-radius:16px;overflow:hidden;border:1px solid var(--border)">
+            <iframe id="previewFrame" title="Site preview" src="/index.html?preview=1" style="width:100%;height:480px;border:0;background:#0b0d10"></iframe>
+          </div>
+        </section>
         <section class="grid grid-2">
           <div class="card">
             <h3>Brand</h3>
@@ -114,12 +127,32 @@
             <label class="muted">Admin dashboard theme</label>
             <select class="input" id="adminTheme"></select>
             <div id="adminThemePicker" class="theme-picker" style="margin-top:12px"></div>
+            <div class="muted small" style="margin-top:12px">Custom override (optional)</div>
+            <div class="grid" style="margin-top:8px">
+              <input class="input" id="adminThemeBg" placeholder="Background (#0b0d10)">
+              <input class="input" id="adminThemePanel" placeholder="Panel (#151c26)">
+              <input class="input" id="adminThemeText" placeholder="Text (#f5f1e8)">
+              <input class="input" id="adminThemeMuted" placeholder="Muted (#b8b3a9)">
+              <input class="input" id="adminThemeAccent" placeholder="Accent (#e0b15a)">
+              <input class="input" id="adminThemeAccent2" placeholder="Accent 2 (#2fb7b2)">
+              <input class="input" id="adminThemeBorder" placeholder="Border (#2a2f3a)">
+            </div>
           </div>
           <div class="card">
             <h3>Affiliate theme</h3>
             <label class="muted">Affiliate portal theme</label>
             <select class="input" id="affiliateTheme"></select>
             <div id="affiliateThemePicker" class="theme-picker" style="margin-top:12px"></div>
+            <div class="muted small" style="margin-top:12px">Custom override (optional)</div>
+            <div class="grid" style="margin-top:8px">
+              <input class="input" id="affiliateThemeBg" placeholder="Background (#0b0d10)">
+              <input class="input" id="affiliateThemeSurface" placeholder="Surface (#151c26)">
+              <input class="input" id="affiliateThemeText" placeholder="Text (#f5f1e8)">
+              <input class="input" id="affiliateThemeMuted" placeholder="Muted (#b8b3a9)">
+              <input class="input" id="affiliateThemeAccent" placeholder="Accent (#e0b15a)">
+              <input class="input" id="affiliateThemeAccent2" placeholder="Accent 2 (#2fb7b2)">
+              <input class="input" id="affiliateThemeLine" placeholder="Line (#2a2f3a)">
+            </div>
           </div>
         </section>
 

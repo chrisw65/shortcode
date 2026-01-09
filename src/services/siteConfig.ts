@@ -193,6 +193,8 @@ export const DEFAULT_SITE_CONFIG = {
   ui: {
     adminTheme: 'noir',
     affiliateTheme: 'noir',
+    adminThemeTokens: {},
+    affiliateThemeTokens: {},
   },
 };
 

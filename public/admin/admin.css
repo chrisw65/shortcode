@@ -46,6 +46,28 @@ body.theme-marina{
   --accent-2:#49a0ff;
   --border:#1f3944;
 }
+body.theme-atlas{
+  --bg:#0c0c18;
+  --bg-2:#15142b;
+  --panel:#1c1b33;
+  --panel-2:#141326;
+  --text:#f2f0ff;
+  --muted:#bcb7dd;
+  --accent:#f4b7ff;
+  --accent-2:#4fe3c1;
+  --border:#2b2948;
+}
+body.theme-verdant{
+  --bg:#0a140f;
+  --bg-2:#13221a;
+  --panel:#182820;
+  --panel-2:#111d17;
+  --text:#e7f5ee;
+  --muted:#a9c2b7;
+  --accent:#6ee7b7;
+  --accent-2:#22c55e;
+  --border:#20362b;
+}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{
