@@ -221,6 +221,24 @@ function renderAuthBullets(items = []) {
   wrap.innerHTML = items.map((item) => `<li>${item}</li>`).join('');
 }
 
+function renderHomeCardMetrics(metrics = []) {
+  const wrap = qs('[data-home-card-metrics]');
+  if (!wrap) return;
+  const items = metrics.filter((metric) => metric.label || metric.value);
+  if (!items.length) {
+    wrap.innerHTML = '';
+    return;
+  }
+  const rows = [];
+  for (let i = 0; i < items.length; i += 2) {
+    const pair = items.slice(i, i + 2).map((metric) => (
+      `<div><div class="muted">${metric.label || ''}</div><strong>${metric.value || ''}</strong></div>`
+    )).join('');
+    rows.push(`<div class="row" style="margin-top:14px">${pair}</div>`);
+  }
+  wrap.innerHTML = rows.join('');
+}
+
 function sanitizeDocsHtml(html) {
   if (!html) return '';
   const allowedTags = new Set([
@@ -419,6 +437,15 @@ async function init() {
       if (pageKey === 'docs') {
         const docsWrap = qs('[data-docs-html]');
         if (docsWrap && page.html) docsWrap.innerHTML = sanitizeDocsHtml(page.html);
+      }
+      if (pageKey === 'home') {
+        const cardTitle = qs('[data-home-card-title]');
+        if (cardTitle && page.homeCard?.title) cardTitle.textContent = page.homeCard.title;
+        const cardTag = qs('[data-home-card-tag]');
+        if (cardTag && page.homeCard?.tag) cardTag.textContent = page.homeCard.tag;
+        const cardLine = qs('[data-home-card-line]');
+        if (cardLine && page.homeCard?.line) cardLine.textContent = page.homeCard.line;
+        renderHomeCardMetrics(page.homeCard?.metrics || []);
       }
       if (pageKey === 'login' || pageKey === 'register') {
         renderAuthBullets(page.bullets || []);

@@ -199,6 +199,25 @@ export const DEFAULT_SITE_CONFIG = {
     },
   },
   pages: {
+    home: {
+      hero: {
+        headline: 'Enterprise short links with brand control baked in.',
+        subheadline: 'Govern domains, launch campaigns, and see every click with crystal-clear analytics and team-grade permissions.',
+        primaryCta: { label: 'Start free', href: '/register.html' },
+        secondaryCta: { label: 'Book a demo', href: '/contact.html' },
+      },
+      homeCard: {
+        title: 'Campaign control, at a glance',
+        tag: 'Realtime',
+        line: 'okleaf.link/launch - 48,201 clicks - 62% mobile - 3.4% CTR',
+        metrics: [
+          { label: 'Top region', value: 'Netherlands' },
+          { label: 'Best referrer', value: 'LinkedIn' },
+          { label: 'Active domains', value: '5' },
+          { label: 'Team seats', value: '12' },
+        ],
+      },
+    },
     features: {
       title: 'The modern link stack for fast-moving teams',
       subtitle: 'From branded links to org-level analytics, OkLeaf keeps every campaign in a single system.',

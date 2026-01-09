@@ -300,6 +300,39 @@ function renderPageCards(cards = []) {
   enableDrag(list);
 }
 
+function renderHomeMetrics(metrics = []) {
+  const list = qs('#pageHomeMetricsList');
+  if (!list) return;
+  list.innerHTML = '';
+  metrics.forEach((metric) => {
+    const item = document.createElement('div');
+    item.className = 'card';
+    item.innerHTML = `
+      <label class="muted">Label</label>
+      <input class="input" data-field="label" value="${metric.label || ''}">
+      <label class="muted" style="margin-top:10px">Value</label>
+      <input class="input" data-field="value" value="${metric.value || ''}">
+      <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function addHomeMetric() {
+  const list = qs('#pageHomeMetricsList');
+  if (!list) return;
+  const item = document.createElement('div');
+  item.className = 'card';
+  item.innerHTML = `
+    <label class="muted">Label</label>
+    <input class="input" data-field="label" value="">
+    <label class="muted" style="margin-top:10px">Value</label>
+    <input class="input" data-field="value" value="">
+    <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+  `;
+  list.appendChild(item);
+}
+
 function renderPageBody(body = []) {
   const list = qs('#pageBodyList');
   list.innerHTML = '';
@@ -1243,6 +1276,9 @@ function applyPageEditor(key) {
   qs('#pagePricingAnnualLabel').value = page.pricing?.annualLabel || '';
   qs('#pagePricingFaqTitle').value = page.pricing?.faqTitle || '';
   qs('#pagePricingFaqSubtitle').value = page.pricing?.faqSubtitle || '';
+  qs('#pageHomeCardTitle').value = page.homeCard?.title || '';
+  qs('#pageHomeCardTag').value = page.homeCard?.tag || '';
+  qs('#pageHomeCardLine').value = page.homeCard?.line || '';
   setDocsEditorHtml(page.html || '');
   qs('#pageAuthBullets').value = (page.bullets || []).join('\n');
   qs('#pageMetaTitle').value = page.meta?.title || '';
@@ -1253,6 +1289,7 @@ function applyPageEditor(key) {
   renderPageCards(page.cards || []);
   renderPageBody(page.body || []);
   renderPageFaqs(page.faqs || []);
+  renderHomeMetrics(page.homeCard?.metrics || []);
 }
 
 function savePageEditor() {
@@ -1274,6 +1311,15 @@ function savePageEditor() {
       subheadline: subtitle,
       primaryCta: ctaPrimary,
       secondaryCta: ctaSecondary,
+    };
+    page.homeCard = {
+      title: qs('#pageHomeCardTitle').value.trim(),
+      tag: qs('#pageHomeCardTag').value.trim(),
+      line: qs('#pageHomeCardLine').value.trim(),
+      metrics: readList(qs('#pageHomeMetricsList'), (card) => ({
+        label: qs('[data-field="label"]', card).value.trim(),
+        value: qs('[data-field="value"]', card).value.trim(),
+      })),
     };
   } else {
     page.title = title;
@@ -1574,6 +1620,8 @@ async function init() {
     list.appendChild(item);
     enableDrag(list);
   });
+  const addHomeMetricBtn = qs('#addHomeMetricBtn');
+  if (addHomeMetricBtn) addHomeMetricBtn.addEventListener('click', addHomeMetric);
   qs('#pageEditorSelect').addEventListener('change', (event) => {
     savePageEditor();
     applyPageEditor(event.target.value);
@@ -1801,6 +1849,7 @@ async function init() {
   bindRemove('#pageCardsList');
   bindRemove('#pageBodyList');
   bindRemove('#pageFaqsList');
+  bindRemove('#pageHomeMetricsList');
 
   qs('#historyList').addEventListener('click', (event) => {
     const btn = event.target.closest('button[data-action]');
