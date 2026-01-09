@@ -7,6 +7,13 @@ const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 const state = { config: null, history: [] };
 
+const THEMES = [
+  { id: 'noir', label: 'Noir (default)' },
+  { id: 'luna', label: 'Luna' },
+  { id: 'sierra', label: 'Sierra' },
+  { id: 'marina', label: 'Marina' },
+];
+
 function makeInput(label, value, placeholder = '') {
   const wrap = document.createElement('div');
   wrap.className = 'grid';
@@ -191,6 +198,13 @@ function renderTiers(tiers = []) {
   });
 }
 
+function renderThemeOptions(selectEl, value) {
+  selectEl.innerHTML = THEMES.map((theme) => (
+    `<option value="${theme.id}">${theme.label}</option>`
+  )).join('');
+  selectEl.value = value || THEMES[0].id;
+}
+
 function readList(container, mapper) {
   return qsa('.card', container).map(mapper).filter(Boolean);
 }
@@ -299,6 +313,10 @@ function collectConfig() {
         html: qs('#inviteHtml').value,
       },
     },
+    ui: {
+      adminTheme: qs('#adminTheme').value,
+      affiliateTheme: qs('#affiliateTheme').value,
+    },
   };
 
   return config;
@@ -373,6 +391,8 @@ function applyConfig(config) {
   qs('#inviteSubject').value = config.emails?.invite?.subject || '';
   qs('#inviteText').value = config.emails?.invite?.text || '';
   qs('#inviteHtml').value = config.emails?.invite?.html || '';
+  renderThemeOptions(qs('#adminTheme'), config.ui?.adminTheme);
+  renderThemeOptions(qs('#affiliateTheme'), config.ui?.affiliateTheme);
 
   renderStats(config.stats || []);
   renderFeatures(config.features || []);
@@ -768,6 +788,61 @@ function addFaq() {
   list.appendChild(item);
 }
 
+function renderTemplate(template, vars) {
+  return String(template || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key) => (
+    key in vars ? vars[key] : match
+  ));
+}
+
+function buildInvitePreviewVars() {
+  return {
+    brandName: qs('#brandName').value.trim() || 'OkLeaf',
+    supportEmail: qs('#footerEmail').value.trim() || 'support@okleaf.link',
+    inviter: 'Admin Preview',
+    inviteUrl: `${window.location.origin}/register.html?invite=example`,
+  };
+}
+
+function showInvitePreview() {
+  const panel = qs('#invitePreviewPanel');
+  const previewText = qs('#invitePreviewText');
+  const previewHtml = qs('#invitePreviewHtml');
+  const vars = buildInvitePreviewVars();
+  const subject = qs('#inviteSubject').value.trim();
+  const text = qs('#inviteText').value;
+  const html = qs('#inviteHtml').value;
+
+  const renderedText = renderTemplate(text || '', vars);
+  const renderedHtml = renderTemplate(html || '', vars);
+  const renderedSubject = renderTemplate(subject || '', vars);
+
+  previewText.textContent = `Subject: ${renderedSubject}\n\n${renderedText}`;
+  previewHtml.innerHTML = renderedHtml || '<div class="muted">No HTML template provided.</div>';
+  panel.style.display = 'block';
+}
+
+async function sendInviteTest() {
+  const to = qs('#inviteTestTo').value.trim();
+  if (!to) {
+    showToast('Test email address is required', 'error');
+    return;
+  }
+  const payload = {
+    to,
+    template: {
+      subject: qs('#inviteSubject').value.trim(),
+      text: qs('#inviteText').value,
+      html: qs('#inviteHtml').value,
+    },
+  };
+  await apiFetch('/api/site-config/email-test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  showToast('Test email sent');
+}
+
 async function init() {
   try {
     state.config = await loadConfig();
@@ -791,6 +866,17 @@ async function init() {
   qs('#addFaqBtn').addEventListener('click', addFaq);
   qs('#addFooterLinkBtn').addEventListener('click', addFooterLink);
   qs('#addSocialLinkBtn').addEventListener('click', addSocialLink);
+  qs('#invitePreviewBtn').addEventListener('click', showInvitePreview);
+  qs('#invitePreviewCloseBtn').addEventListener('click', () => {
+    qs('#invitePreviewPanel').style.display = 'none';
+  });
+  qs('#inviteSendTestBtn').addEventListener('click', async () => {
+    try {
+      await sendInviteTest();
+    } catch (err) {
+      showError(err, 'Failed to send test email');
+    }
+  });
 
   bindRemove('#statsList');
   bindRemove('#featuresList');

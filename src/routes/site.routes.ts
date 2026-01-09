@@ -8,6 +8,7 @@ import {
   publishSiteConfig,
   getSiteHistory,
   rollbackSiteConfig,
+  sendSiteEmailTest,
 } from '../controllers/site.controller';
 
 const router = Router();
@@ -18,5 +19,6 @@ router.put('/site-config', authenticate, requireSuperadmin, updateSiteConfig);
 router.post('/site-config/publish', authenticate, requireSuperadmin, publishSiteConfig);
 router.get('/site-config/history', authenticate, requireSuperadmin, getSiteHistory);
 router.post('/site-config/rollback', authenticate, requireSuperadmin, rollbackSiteConfig);
+router.post('/site-config/email-test', authenticate, requireSuperadmin, sendSiteEmailTest);
 
 export default router;

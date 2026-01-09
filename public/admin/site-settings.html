@@ -110,6 +110,19 @@
 
         <section class="grid grid-2" style="margin-top:18px">
           <div class="card">
+            <h3>Admin theme</h3>
+            <label class="muted">Admin dashboard theme</label>
+            <select class="input" id="adminTheme"></select>
+          </div>
+          <div class="card">
+            <h3>Affiliate theme</h3>
+            <label class="muted">Affiliate portal theme</label>
+            <select class="input" id="affiliateTheme"></select>
+          </div>
+        </section>
+
+        <section class="grid grid-2" style="margin-top:18px">
+          <div class="card">
             <h3>SEO Metadata</h3>
             <label class="muted">Page title</label>
             <input class="input" id="metaTitle" placeholder="OkLeaf - Enterprise-grade URL shortener">
@@ -225,6 +238,27 @@
           <textarea class="input" id="inviteText" rows="6"></textarea>
           <label class="muted" style="margin-top:10px">Invite HTML</label>
           <textarea class="input" id="inviteHtml" rows="8"></textarea>
+          <div class="row" style="margin-top:12px;gap:10px">
+            <input class="input" id="inviteTestTo" placeholder="Test email address">
+            <button class="btn ghost" id="invitePreviewBtn" type="button">Preview</button>
+            <button class="btn" id="inviteSendTestBtn" type="button">Send test</button>
+          </div>
+          <div id="invitePreviewPanel" class="card" style="margin-top:12px;display:none">
+            <div class="row-between">
+              <h4 class="m-0">Invite preview</h4>
+              <button class="btn ghost" id="invitePreviewCloseBtn" type="button">Close</button>
+            </div>
+            <div class="grid grid-2" style="margin-top:12px">
+              <div>
+                <div class="muted small">Text</div>
+                <pre class="code-block" id="invitePreviewText"></pre>
+              </div>
+              <div>
+                <div class="muted small">HTML</div>
+                <div class="card" id="invitePreviewHtml"></div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section class="card" style="margin-top:18px">

@@ -70,6 +70,21 @@ export function onReady(fn) {
   else document.addEventListener('DOMContentLoaded', fn, { once:true });
 }
 
+async function applyAdminTheme() {
+  try {
+    const res = await fetch('/api/public/site-config', { credentials: 'same-origin' });
+    const data = await res.json().catch(() => null);
+    const theme = data?.data?.ui?.adminTheme || 'noir';
+    document.body.classList.add(`theme-${theme}`);
+  } catch (err) {
+    console.warn('admin theme load failed', err);
+  }
+}
+
+onReady(() => {
+  applyAdminTheme();
+});
+
 export function setText(el, value) {
   const node = typeof el === 'string' ? $(el) : el;
   if (node) node.textContent = value ?? '';

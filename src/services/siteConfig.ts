@@ -166,6 +166,10 @@ export const DEFAULT_SITE_CONFIG = {
       ].join(''),
     },
   },
+  ui: {
+    adminTheme: 'noir',
+    affiliateTheme: 'noir',
+  },
 };
 
 export async function getSiteSetting(key: string) {

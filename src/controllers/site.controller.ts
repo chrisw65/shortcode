@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import db from '../config/database';
 import redisClient from '../config/redis';
 import { DEFAULT_SITE_CONFIG, getSiteSetting, mergeConfig } from '../services/siteConfig';
+import { sendMail } from '../services/mailer';
 
 const SITE_PUBLIC_CACHE_KEY = 'site:public-config';
 
@@ -162,6 +163,54 @@ export async function rollbackSiteConfig(req: Request, res: Response) {
     return res.json({ success: true, data: value });
   } catch (err) {
     console.error('site.rollbackSiteConfig error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+const APP_URL = process.env.PUBLIC_HOST || process.env.BASE_URL || 'https://okleaf.link';
+
+function renderTemplate(template: string, vars: Record<string, string>) {
+  return String(template || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key) => (
+    key in vars ? vars[key] : match
+  ));
+}
+
+export async function sendSiteEmailTest(req: Request, res: Response) {
+  try {
+    const to = String(req.body?.to || '').trim();
+    if (!to) {
+      return res.status(400).json({ success: false, error: 'to is required' });
+    }
+    const template = req.body?.template || {};
+    const draftRaw = await getSiteSetting('marketing_draft');
+    const draft = mergeConfig(DEFAULT_SITE_CONFIG, draftRaw || {});
+    const brandName = draft?.brand?.name || 'OkLeaf';
+    const supportEmail = draft?.footer?.email || 'support@okleaf.link';
+    const inviter = (req as any).user?.email || 'Admin';
+    const inviteUrl = `${APP_URL}/register.html?invite=example`;
+
+    const vars = { brandName, supportEmail, inviter, inviteUrl };
+    const subject = renderTemplate(
+      template.subject || draft?.emails?.invite?.subject || 'You are invited to {{brandName}}',
+      vars
+    );
+    const text = renderTemplate(
+      template.text || draft?.emails?.invite?.text || '',
+      vars
+    );
+    const html = renderTemplate(
+      template.html || draft?.emails?.invite?.html || '',
+      vars
+    );
+
+    const result = await sendMail({ to, subject, text, html });
+    if (!result.sent) {
+      return res.status(400).json({ success: false, error: result.reason || 'Email not sent' });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('site.sendSiteEmailTest error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
