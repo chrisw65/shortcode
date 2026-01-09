@@ -18,10 +18,10 @@
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="/">
-        <span class="brand-badge">O</span>
-        <span id="brandName">OkLeaf</span>
+        <span class="brand-badge" data-brand-badge>O</span>
+        <span id="brandName" data-bind="brandName">OkLeaf</span>
       </a>
-      <nav class="nav-links">
+      <nav class="nav-links" data-nav-links>
         <a href="/features.html">Features</a>
         <a href="/pricing.html">Pricing</a>
         <a href="/docs.html">Docs</a>
@@ -30,7 +30,7 @@
         <a href="/about.html">About</a>
         <a href="/contact.html">Contact</a>
       </nav>
-      <div class="nav-cta">
+      <div class="nav-cta" data-nav-ctas>
         <a class="btn ghost small" href="/login.html">Login</a>
       </div>
     </div>
@@ -57,12 +57,20 @@
   <footer class="footer">
     <div class="container row">
       <div>
-        <strong id="footerCompany">OkLeaf</strong>
-        <div id="footerAddress">Amsterdam - Remote-first</div>
+        <strong id="footerCompany" data-bind="footerCompany">OkLeaf</strong>
+        <div id="footerAddress" data-bind="footerAddress">Amsterdam - Remote-first</div>
       </div>
       <div>
         <div>Support</div>
-        <div id="footerEmail">support@okleaf.link</div>
+        <div id="footerEmail" data-bind="footerEmail">support@okleaf.link</div>
+      </div>
+      <div>
+        <div>Company</div>
+        <div class="footer-links" data-footer-links></div>
+      </div>
+      <div>
+        <div>Social</div>
+        <div class="footer-social" data-social-links></div>
       </div>
     </div>
   </footer>

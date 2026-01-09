@@ -30,9 +30,101 @@ function setText(id, value) {
   if (el) el.textContent = value ?? '';
 }
 
+function setTextBind(key, value) {
+  const nodes = Array.from(document.querySelectorAll(`[data-bind="${key}"]`));
+  if (!nodes.length) return;
+  nodes.forEach((node) => {
+    node.textContent = value ?? '';
+  });
+}
+
 function setHref(id, value) {
   const el = byId(id);
   if (el && value) el.href = value;
+}
+
+function setMeta(selector, value, attr = 'content') {
+  const el = document.querySelector(selector);
+  if (el && value) el.setAttribute(attr, value);
+}
+
+function applyTheme(theme = {}) {
+  const root = document.documentElement;
+  const map = {
+    bg: '--bg',
+    bg2: '--bg-2',
+    surface: '--surface',
+    text: '--text',
+    muted: '--muted',
+    accent: '--accent',
+    accent2: '--accent-2',
+    line: '--line',
+  };
+  Object.entries(map).forEach(([key, cssVar]) => {
+    const value = theme[key];
+    if (value) root.style.setProperty(cssVar, value);
+  });
+}
+
+function renderNavLinks(links = []) {
+  const nav = qs('[data-nav-links]');
+  if (!nav || !links.length) return;
+  nav.innerHTML = links.map((link) => (
+    `<a href="${link.href || '#'}">${link.label || ''}</a>`
+  )).join('');
+}
+
+function renderNavCtas(ctas = {}) {
+  const wrap = qs('[data-nav-ctas]');
+  if (!wrap) return;
+  const primary = ctas.primary || {};
+  const secondary = ctas.secondary || {};
+  const primaryLabel = primary.label || 'Start free';
+  const primaryHref = primary.href || '/register.html';
+  const secondaryLabel = secondary.label || 'Login';
+  const secondaryHref = secondary.href || '/login.html';
+  wrap.innerHTML = `
+    <a class="btn ghost small" href="${secondaryHref}">${secondaryLabel}</a>
+    <a class="btn primary small" href="${primaryHref}">${primaryLabel}</a>
+  `;
+}
+
+function renderLogos(logos = []) {
+  const wrap = qs('[data-logos]');
+  if (!wrap || !logos.length) return;
+  wrap.innerHTML = logos.map((logo) => {
+    if (logo.imageUrl) {
+      return `<img src="${logo.imageUrl}" alt="${logo.label || 'Logo'}">`;
+    }
+    return `<span>${logo.label || ''}</span>`;
+  }).join('');
+}
+
+function renderFooterLinks(links = []) {
+  const wrap = qs('[data-footer-links]');
+  if (!wrap || !links.length) return;
+  wrap.innerHTML = links.map((link) => (
+    `<a href="${link.href || '#'}">${link.label || ''}</a>`
+  )).join('');
+}
+
+function renderSocialLinks(links = []) {
+  const wrap = qs('[data-social-links]');
+  if (!wrap || !links.length) return;
+  wrap.innerHTML = links.map((link) => (
+    `<a href="${link.href || '#'}" target="_blank" rel="noreferrer">${link.label || ''}</a>`
+  )).join('');
+}
+
+function applyBrandLogo(brand = {}) {
+  const badge = qs('[data-brand-badge]');
+  if (!badge) return;
+  if (brand.logoUrl) {
+    const alt = brand.logoAlt || brand.name || 'Logo';
+    badge.innerHTML = `<img src="${brand.logoUrl}" alt="${alt}">`;
+  } else if (brand.name) {
+    badge.textContent = brand.name.slice(0, 1).toUpperCase();
+  }
 }
 
 function renderStats(stats = []) {
@@ -123,8 +215,13 @@ function bindToggle() {
 async function init() {
   try {
     const config = await fetchConfig();
-    setText('brandName', config.brand?.name || 'OkLeaf');
-    setText('brandTagline', config.brand?.tagline || '');
+    setTextBind('brandName', config.brand?.name || 'OkLeaf');
+    setTextBind('brandTagline', config.brand?.tagline || '');
+    applyBrandLogo(config.brand || {});
+    applyTheme(config.theme || {});
+    renderNavLinks(config.nav?.links || []);
+    renderNavCtas(config.nav?.ctas || {});
+    renderLogos(config.logos || []);
     setText('heroHeadline', config.hero?.headline || '');
     setText('heroSub', config.hero?.subheadline || '');
     setHref('ctaPrimary', config.hero?.primaryCta?.href || '/register.html');
@@ -137,9 +234,17 @@ async function init() {
     renderPricing(config.pricing || {});
     renderFaqs(config.faqs || []);
 
-    setText('footerCompany', config.footer?.company || 'OkLeaf');
-    setText('footerEmail', config.footer?.email || '');
-    setText('footerAddress', config.footer?.address || '');
+    setTextBind('footerCompany', config.footer?.company || 'OkLeaf');
+    setTextBind('footerEmail', config.footer?.email || '');
+    setTextBind('footerAddress', config.footer?.address || '');
+    renderFooterLinks(config.footer?.links || []);
+    renderSocialLinks(config.footer?.social || []);
+
+    if (config.meta?.title) document.title = config.meta.title;
+    setMeta('meta[name="description"]', config.meta?.description);
+    setMeta('meta[property="og:title"]', config.meta?.ogTitle || config.meta?.title);
+    setMeta('meta[property="og:description"]', config.meta?.ogDescription || config.meta?.description);
+    setMeta('meta[property="og:image"]', config.meta?.ogImage);
 
     bindToggle();
   } catch (err) {

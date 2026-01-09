@@ -79,6 +79,70 @@
           </div>
         </section>
 
+        <section class="grid grid-2" style="margin-top:18px">
+          <div class="card">
+            <h3>Brand Assets</h3>
+            <label class="muted">Logo URL</label>
+            <input class="input" id="brandLogoUrl" placeholder="https://cdn.yoursite/logo.svg">
+            <label class="muted" style="margin-top:10px">Logo alt text</label>
+            <input class="input" id="brandLogoAlt" placeholder="OkLeaf">
+          </div>
+          <div class="card">
+            <h3>Theme Tokens</h3>
+            <label class="muted">Accent</label>
+            <input class="input" id="themeAccent" placeholder="#e0b15a">
+            <label class="muted" style="margin-top:10px">Accent 2</label>
+            <input class="input" id="themeAccent2" placeholder="#2fb7b2">
+            <label class="muted" style="margin-top:10px">Background</label>
+            <input class="input" id="themeBg" placeholder="#0b0d10">
+            <label class="muted" style="margin-top:10px">Background 2</label>
+            <input class="input" id="themeBg2" placeholder="#0f141b">
+            <label class="muted" style="margin-top:10px">Surface</label>
+            <input class="input" id="themeSurface" placeholder="#151c26">
+            <label class="muted" style="margin-top:10px">Text</label>
+            <input class="input" id="themeText" placeholder="#f5f1e8">
+            <label class="muted" style="margin-top:10px">Muted</label>
+            <input class="input" id="themeMuted" placeholder="#b8b3a9">
+            <label class="muted" style="margin-top:10px">Line</label>
+            <input class="input" id="themeLine" placeholder="#2a2f3a">
+          </div>
+        </section>
+
+        <section class="grid grid-2" style="margin-top:18px">
+          <div class="card">
+            <h3>SEO Metadata</h3>
+            <label class="muted">Page title</label>
+            <input class="input" id="metaTitle" placeholder="OkLeaf - Enterprise-grade URL shortener">
+            <label class="muted" style="margin-top:10px">Description</label>
+            <input class="input" id="metaDescription" placeholder="Enterprise-grade short links with branded domains, analytics, and team governance.">
+            <label class="muted" style="margin-top:10px">OG title</label>
+            <input class="input" id="metaOgTitle" placeholder="OkLeaf - Enterprise-grade URL shortener">
+            <label class="muted" style="margin-top:10px">OG description</label>
+            <input class="input" id="metaOgDescription" placeholder="Branded short links, org analytics, and team control in one platform.">
+            <label class="muted" style="margin-top:10px">OG image URL</label>
+            <input class="input" id="metaOgImage" placeholder="/favicon.ico">
+          </div>
+          <div class="card">
+            <h3>Navigation</h3>
+            <label class="muted">Primary CTA label</label>
+            <input class="input" id="navPrimaryLabel" placeholder="Start free">
+            <label class="muted" style="margin-top:10px">Primary CTA URL</label>
+            <input class="input" id="navPrimaryHref" placeholder="/register.html">
+            <label class="muted" style="margin-top:10px">Secondary CTA label</label>
+            <input class="input" id="navSecondaryLabel" placeholder="Login">
+            <label class="muted" style="margin-top:10px">Secondary CTA URL</label>
+            <input class="input" id="navSecondaryHref" placeholder="/login.html">
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <h3 class="m-0">Navigation links</h3>
+            <button class="btn ghost" id="addNavLinkBtn" type="button">Add nav link</button>
+          </div>
+          <div id="navLinksList" class="grid" style="margin-top:12px"></div>
+        </section>
+
         <section class="card" style="margin-top:18px">
           <div class="row-between">
             <h3 class="m-0">Stats</h3>
@@ -93,6 +157,14 @@
             <button class="btn ghost" id="addFeatureBtn" type="button">Add feature</button>
           </div>
           <div id="featuresList" class="grid" style="margin-top:12px"></div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <h3 class="m-0">Logos</h3>
+            <button class="btn ghost" id="addLogoBtn" type="button">Add logo</button>
+          </div>
+          <div id="logosList" class="grid" style="margin-top:12px"></div>
         </section>
 
         <section class="card" style="margin-top:18px">
@@ -132,6 +204,27 @@
           <input class="input" id="footerEmail" placeholder="support@okleaf.link">
           <label class="muted" style="margin-top:10px">Address line</label>
           <input class="input" id="footerAddress" placeholder="Amsterdam - Remote-first">
+          <div class="row-between" style="margin-top:16px">
+            <h4 class="m-0">Footer links</h4>
+            <button class="btn ghost" id="addFooterLinkBtn" type="button">Add footer link</button>
+          </div>
+          <div id="footerLinksList" class="grid" style="margin-top:12px"></div>
+          <div class="row-between" style="margin-top:16px">
+            <h4 class="m-0">Social links</h4>
+            <button class="btn ghost" id="addSocialLinkBtn" type="button">Add social link</button>
+          </div>
+          <div id="socialLinksList" class="grid" style="margin-top:12px"></div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <h3>Email templates</h3>
+          <div class="muted small">Variables: {{brandName}}, {{supportEmail}}, {{inviter}}, {{inviteUrl}}</div>
+          <label class="muted" style="margin-top:12px">Invite subject</label>
+          <input class="input" id="inviteSubject" placeholder="You are invited to {{brandName}}">
+          <label class="muted" style="margin-top:10px">Invite text (plain)</label>
+          <textarea class="input" id="inviteText" rows="6"></textarea>
+          <label class="muted" style="margin-top:10px">Invite HTML</label>
+          <textarea class="input" id="inviteHtml" rows="8"></textarea>
         </section>
 
         <section class="card" style="margin-top:18px">

@@ -51,6 +51,74 @@ function renderFeatures(features = []) {
   });
 }
 
+function renderNavLinks(links = []) {
+  const list = qs('#navLinksList');
+  list.innerHTML = '';
+  links.forEach((link) => {
+    const item = document.createElement('div');
+    item.className = 'card';
+    item.innerHTML = `
+      <label class="muted">Label</label>
+      <input class="input" data-field="label" value="${link.label || ''}">
+      <label class="muted" style="margin-top:10px">URL</label>
+      <input class="input" data-field="href" value="${link.href || ''}">
+      <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function renderLogos(logos = []) {
+  const list = qs('#logosList');
+  list.innerHTML = '';
+  logos.forEach((logo) => {
+    const item = document.createElement('div');
+    item.className = 'card';
+    item.innerHTML = `
+      <label class="muted">Label</label>
+      <input class="input" data-field="label" value="${logo.label || ''}">
+      <label class="muted" style="margin-top:10px">Image URL (optional)</label>
+      <input class="input" data-field="imageUrl" value="${logo.imageUrl || ''}">
+      <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function renderFooterLinks(links = []) {
+  const list = qs('#footerLinksList');
+  list.innerHTML = '';
+  links.forEach((link) => {
+    const item = document.createElement('div');
+    item.className = 'card';
+    item.innerHTML = `
+      <label class="muted">Label</label>
+      <input class="input" data-field="label" value="${link.label || ''}">
+      <label class="muted" style="margin-top:10px">URL</label>
+      <input class="input" data-field="href" value="${link.href || ''}">
+      <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function renderSocialLinks(links = []) {
+  const list = qs('#socialLinksList');
+  list.innerHTML = '';
+  links.forEach((link) => {
+    const item = document.createElement('div');
+    item.className = 'card';
+    item.innerHTML = `
+      <label class="muted">Label</label>
+      <input class="input" data-field="label" value="${link.label || ''}">
+      <label class="muted" style="margin-top:10px">URL</label>
+      <input class="input" data-field="href" value="${link.href || ''}">
+      <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
 function renderFaqs(faqs = []) {
   const list = qs('#faqsList');
   list.innerHTML = '';
@@ -132,6 +200,41 @@ function collectConfig() {
     brand: {
       name: qs('#brandName').value.trim(),
       tagline: qs('#brandTagline').value.trim(),
+      logoUrl: qs('#brandLogoUrl').value.trim(),
+      logoAlt: qs('#brandLogoAlt').value.trim(),
+    },
+    theme: {
+      accent: qs('#themeAccent').value.trim(),
+      accent2: qs('#themeAccent2').value.trim(),
+      bg: qs('#themeBg').value.trim(),
+      bg2: qs('#themeBg2').value.trim(),
+      surface: qs('#themeSurface').value.trim(),
+      text: qs('#themeText').value.trim(),
+      muted: qs('#themeMuted').value.trim(),
+      line: qs('#themeLine').value.trim(),
+    },
+    meta: {
+      title: qs('#metaTitle').value.trim(),
+      description: qs('#metaDescription').value.trim(),
+      ogTitle: qs('#metaOgTitle').value.trim(),
+      ogDescription: qs('#metaOgDescription').value.trim(),
+      ogImage: qs('#metaOgImage').value.trim(),
+    },
+    nav: {
+      ctas: {
+        primary: {
+          label: qs('#navPrimaryLabel').value.trim(),
+          href: qs('#navPrimaryHref').value.trim(),
+        },
+        secondary: {
+          label: qs('#navSecondaryLabel').value.trim(),
+          href: qs('#navSecondaryHref').value.trim(),
+        },
+      },
+      links: readList(qs('#navLinksList'), (card) => ({
+        label: qs('[data-field="label"]', card).value.trim(),
+        href: qs('[data-field="href"]', card).value.trim(),
+      })),
     },
     hero: {
       headline: qs('#heroHeadline').value.trim(),
@@ -152,6 +255,10 @@ function collectConfig() {
     features: readList(qs('#featuresList'), (card) => ({
       title: qs('[data-field="title"]', card).value.trim(),
       text: qs('[data-field="text"]', card).value.trim(),
+    })),
+    logos: readList(qs('#logosList'), (card) => ({
+      label: qs('[data-field="label"]', card).value.trim(),
+      imageUrl: qs('[data-field="imageUrl"]', card).value.trim(),
     })),
     pricing: {
       currency: qs('#pricingCurrency').value.trim() || 'USD',
@@ -176,6 +283,21 @@ function collectConfig() {
       company: qs('#footerCompany').value.trim(),
       email: qs('#footerEmail').value.trim(),
       address: qs('#footerAddress').value.trim(),
+      links: readList(qs('#footerLinksList'), (card) => ({
+        label: qs('[data-field="label"]', card).value.trim(),
+        href: qs('[data-field="href"]', card).value.trim(),
+      })),
+      social: readList(qs('#socialLinksList'), (card) => ({
+        label: qs('[data-field="label"]', card).value.trim(),
+        href: qs('[data-field="href"]', card).value.trim(),
+      })),
+    },
+    emails: {
+      invite: {
+        subject: qs('#inviteSubject').value.trim(),
+        text: qs('#inviteText').value,
+        html: qs('#inviteHtml').value,
+      },
     },
   };
 
@@ -213,6 +335,8 @@ async function loadConfig() {
 function applyConfig(config) {
   qs('#brandName').value = config.brand?.name || '';
   qs('#brandTagline').value = config.brand?.tagline || '';
+  qs('#brandLogoUrl').value = config.brand?.logoUrl || '';
+  qs('#brandLogoAlt').value = config.brand?.logoAlt || '';
   qs('#heroHeadline').value = config.hero?.headline || '';
   qs('#heroSub').value = config.hero?.subheadline || '';
   qs('#ctaPrimaryLabel').value = config.hero?.primaryCta?.label || '';
@@ -220,17 +344,44 @@ function applyConfig(config) {
   qs('#ctaSecondaryLabel').value = config.hero?.secondaryCta?.label || '';
   qs('#ctaSecondaryHref').value = config.hero?.secondaryCta?.href || '';
 
+  qs('#themeAccent').value = config.theme?.accent || '';
+  qs('#themeAccent2').value = config.theme?.accent2 || '';
+  qs('#themeBg').value = config.theme?.bg || '';
+  qs('#themeBg2').value = config.theme?.bg2 || '';
+  qs('#themeSurface').value = config.theme?.surface || '';
+  qs('#themeText').value = config.theme?.text || '';
+  qs('#themeMuted').value = config.theme?.muted || '';
+  qs('#themeLine').value = config.theme?.line || '';
+
+  qs('#metaTitle').value = config.meta?.title || '';
+  qs('#metaDescription').value = config.meta?.description || '';
+  qs('#metaOgTitle').value = config.meta?.ogTitle || '';
+  qs('#metaOgDescription').value = config.meta?.ogDescription || '';
+  qs('#metaOgImage').value = config.meta?.ogImage || '';
+
+  qs('#navPrimaryLabel').value = config.nav?.ctas?.primary?.label || '';
+  qs('#navPrimaryHref').value = config.nav?.ctas?.primary?.href || '';
+  qs('#navSecondaryLabel').value = config.nav?.ctas?.secondary?.label || '';
+  qs('#navSecondaryHref').value = config.nav?.ctas?.secondary?.href || '';
+
   qs('#pricingCurrency').value = config.pricing?.currency || 'USD';
   qs('#pricingNote').value = config.pricing?.billingNote || '';
 
   qs('#footerCompany').value = config.footer?.company || '';
   qs('#footerEmail').value = config.footer?.email || '';
   qs('#footerAddress').value = config.footer?.address || '';
+  qs('#inviteSubject').value = config.emails?.invite?.subject || '';
+  qs('#inviteText').value = config.emails?.invite?.text || '';
+  qs('#inviteHtml').value = config.emails?.invite?.html || '';
 
   renderStats(config.stats || []);
   renderFeatures(config.features || []);
+  renderNavLinks(config.nav?.links || []);
+  renderLogos(config.logos || []);
   renderTiers(config.pricing?.tiers || []);
   renderFaqs(config.faqs || []);
+  renderFooterLinks(config.footer?.links || []);
+  renderSocialLinks(config.footer?.social || []);
 }
 
 async function saveConfig() {
@@ -495,6 +646,62 @@ function addFeature() {
   list.appendChild(item);
 }
 
+function addNavLink() {
+  const list = qs('#navLinksList');
+  const item = document.createElement('div');
+  item.className = 'card';
+  item.innerHTML = `
+    <label class="muted">Label</label>
+    <input class="input" data-field="label" value="">
+    <label class="muted" style="margin-top:10px">URL</label>
+    <input class="input" data-field="href" value="">
+    <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+  `;
+  list.appendChild(item);
+}
+
+function addLogo() {
+  const list = qs('#logosList');
+  const item = document.createElement('div');
+  item.className = 'card';
+  item.innerHTML = `
+    <label class="muted">Label</label>
+    <input class="input" data-field="label" value="">
+    <label class="muted" style="margin-top:10px">Image URL (optional)</label>
+    <input class="input" data-field="imageUrl" value="">
+    <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+  `;
+  list.appendChild(item);
+}
+
+function addFooterLink() {
+  const list = qs('#footerLinksList');
+  const item = document.createElement('div');
+  item.className = 'card';
+  item.innerHTML = `
+    <label class="muted">Label</label>
+    <input class="input" data-field="label" value="">
+    <label class="muted" style="margin-top:10px">URL</label>
+    <input class="input" data-field="href" value="">
+    <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+  `;
+  list.appendChild(item);
+}
+
+function addSocialLink() {
+  const list = qs('#socialLinksList');
+  const item = document.createElement('div');
+  item.className = 'card';
+  item.innerHTML = `
+    <label class="muted">Label</label>
+    <input class="input" data-field="label" value="">
+    <label class="muted" style="margin-top:10px">URL</label>
+    <input class="input" data-field="href" value="">
+    <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+  `;
+  list.appendChild(item);
+}
+
 function addTier() {
   const list = qs('#tiersList');
   const item = document.createElement('div');
@@ -578,13 +785,21 @@ async function init() {
   });
   qs('#addStatBtn').addEventListener('click', addStat);
   qs('#addFeatureBtn').addEventListener('click', addFeature);
+  qs('#addNavLinkBtn').addEventListener('click', addNavLink);
+  qs('#addLogoBtn').addEventListener('click', addLogo);
   qs('#addTierBtn').addEventListener('click', addTier);
   qs('#addFaqBtn').addEventListener('click', addFaq);
+  qs('#addFooterLinkBtn').addEventListener('click', addFooterLink);
+  qs('#addSocialLinkBtn').addEventListener('click', addSocialLink);
 
   bindRemove('#statsList');
   bindRemove('#featuresList');
+  bindRemove('#navLinksList');
+  bindRemove('#logosList');
   bindRemove('#tiersList');
   bindRemove('#faqsList');
+  bindRemove('#footerLinksList');
+  bindRemove('#socialLinksList');
 
   qs('#historyList').addEventListener('click', (event) => {
     const btn = event.target.closest('button[data-action]');
