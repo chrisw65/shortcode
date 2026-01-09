@@ -221,6 +221,53 @@ function renderAuthBullets(items = []) {
   wrap.innerHTML = items.map((item) => `<li>${item}</li>`).join('');
 }
 
+function sanitizeDocsHtml(html) {
+  if (!html) return '';
+  const allowedTags = new Set([
+    'section', 'div', 'h1', 'h2', 'h3', 'h4', 'p', 'ul', 'ol', 'li', 'strong',
+    'em', 'b', 'i', 'u', 'a', 'pre', 'code', 'span', 'br',
+  ]);
+  const allowedAttrs = new Set(['class', 'href', 'target', 'rel']);
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
+  const root = doc.body.firstElementChild;
+  if (!root) return '';
+
+  const isSafeHref = (value) => (
+    value.startsWith('/') ||
+    value.startsWith('#') ||
+    value.startsWith('mailto:') ||
+    value.startsWith('http://') ||
+    value.startsWith('https://')
+  );
+
+  const walk = (node) => {
+    const children = Array.from(node.children);
+    children.forEach((child) => {
+      const tag = child.tagName.toLowerCase();
+      if (!allowedTags.has(tag)) {
+        child.replaceWith(...Array.from(child.childNodes));
+        return;
+      }
+      Array.from(child.attributes).forEach((attr) => {
+        if (!allowedAttrs.has(attr.name)) {
+          child.removeAttribute(attr.name);
+          return;
+        }
+        if (attr.name === 'href' && !isSafeHref(attr.value.trim())) {
+          child.removeAttribute('href');
+        }
+      });
+      if (tag === 'a') {
+        if (!child.getAttribute('rel')) child.setAttribute('rel', 'noreferrer');
+      }
+      walk(child);
+    });
+  };
+  walk(root);
+  return root.innerHTML;
+}
+
 function formatPrice(value, currency) {
   if (value === null || value === undefined) return 'Custom';
   if (Number(value) === 0) return 'Free';
@@ -371,7 +418,7 @@ async function init() {
       }
       if (pageKey === 'docs') {
         const docsWrap = qs('[data-docs-html]');
-        if (docsWrap && page.html) docsWrap.innerHTML = page.html;
+        if (docsWrap && page.html) docsWrap.innerHTML = sanitizeDocsHtml(page.html);
       }
       if (pageKey === 'login' || pageKey === 'register') {
         renderAuthBullets(page.bullets || []);
