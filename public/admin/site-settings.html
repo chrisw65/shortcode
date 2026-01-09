@@ -529,35 +529,6 @@
   </div>
 
   <script type="module" src="/admin/admin-common.js"></script>
-  <script>
-    (function () {
-      function initSiteTabs() {
-        const tabs = Array.from(document.querySelectorAll('#siteTabs .tab-btn'));
-        const sections = Array.from(document.querySelectorAll('.admin-content [data-tab]'));
-        if (!tabs.length || !sections.length) return;
-        const setTab = (tab) => {
-          tabs.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
-          sections.forEach((section) => {
-            const active = section.dataset.tab === tab;
-            section.style.display = active ? '' : 'none';
-          });
-          try { localStorage.setItem('siteSettingsTab', tab); } catch {}
-        };
-        let stored = 'content';
-        try { stored = localStorage.getItem('siteSettingsTab') || 'content'; } catch {}
-        const available = tabs.some((btn) => btn.dataset.tab === stored) ? stored : 'content';
-        setTab(available);
-        tabs.forEach((btn) => {
-          btn.addEventListener('click', () => setTab(btn.dataset.tab));
-        });
-      }
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSiteTabs);
-      } else {
-        initSiteTabs();
-      }
-    })();
-  </script>
-  <script type="module" src="/admin/site-settings.js?v=20260109"></script>
+  <script type="module" src="/admin/site-settings.js?v=20260110"></script>
 </body>
 </html>

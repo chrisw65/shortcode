@@ -445,8 +445,8 @@ function mergeDeep(base, override) {
   return override === undefined ? base : override;
 }
 
-function slugify(value) {
-  return (value || 'theme')
+function slugify(value, fallback = 'theme') {
+  return (value || fallback)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
@@ -581,7 +581,7 @@ function collectConfig() {
       currency: qs('#pricingCurrency').value.trim() || 'USD',
       billingNote: qs('#pricingNote').value.trim(),
       tiers: readList(qs('#tiersList'), (card) => ({
-        id: slugify(qs('[data-field="id"]', card).value.trim() || qs('[data-field="name"]', card).value.trim()),
+        id: slugify(qs('[data-field="id"]', card).value.trim() || qs('[data-field="name"]', card).value.trim(), 'plan'),
         name: qs('[data-field="name"]', card).value.trim(),
         badge: qs('[data-field="badge"]', card).value.trim(),
         priceMonthly: normalizeNumber(qs('[data-field="priceMonthly"]', card).value.trim()),
@@ -649,13 +649,6 @@ function normalizeNumber(value) {
   if (!value) return null;
   const num = Number(value);
   return Number.isNaN(num) ? null : num;
-}
-
-function slugify(value) {
-  return (value || 'plan')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 }
 
 function bindRemove(containerSelector) {
@@ -1495,7 +1488,7 @@ async function init() {
       showToast('Theme name is required', 'error');
       return;
     }
-    const id = slugify(name);
+    const id = slugify(name, 'theme');
     const adminTokens = {
       bg: qs('#adminThemeBg').value.trim(),
       panel: qs('#adminThemePanel').value.trim(),
