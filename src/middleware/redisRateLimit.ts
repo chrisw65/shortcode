@@ -34,6 +34,15 @@ function makeMiddleware(
   mode: 'json' | 'text'
 ) {
   const limiter = buildLimiter(points, duration, prefix);
+  const setRateHeaders = (res: Response, remaining: number, msBeforeNext: number) => {
+    const reset = Math.ceil((Date.now() + msBeforeNext) / 1000);
+    res.setHeader('X-RateLimit-Limit', String(points));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(0, remaining)));
+    res.setHeader('X-RateLimit-Reset', String(reset));
+    if (msBeforeNext > 0) {
+      res.setHeader('Retry-After', String(Math.ceil(msBeforeNext / 1000)));
+    }
+  };
   return async (req: Request, res: Response, next: NextFunction) => {
     const bypassToken = process.env.RATE_LIMIT_BYPASS_TOKEN;
     if (bypassToken && req.headers['x-rate-bypass'] === bypassToken) {
@@ -42,9 +51,13 @@ function makeMiddleware(
     const key = keyer(req);
     const useRedis = redisClient.isReady;
     try {
-      await (useRedis ? limiter.redis : limiter.memory).consume(key);
+      const result = await (useRedis ? limiter.redis : limiter.memory).consume(key);
+      setRateHeaders(res, result.remainingPoints ?? 0, result.msBeforeNext ?? 0);
       return next();
-    } catch {
+    } catch (err: any) {
+      const remaining = err?.remainingPoints ?? 0;
+      const msBeforeNext = err?.msBeforeNext ?? Math.ceil(duration * 1000);
+      setRateHeaders(res, remaining, msBeforeNext);
       if (mode === 'json') {
         return res.status(429).json({ success: false, error: 'Too many requests' });
       }

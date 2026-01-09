@@ -24,6 +24,7 @@ import planGrantsRoutes from './routes/planGrants.routes';
 import affiliatesRoutes from './routes/affiliates.routes';
 import affiliateAuthRoutes from './routes/affiliateAuth.routes';
 import billingRoutes from './routes/billing.routes';
+import openapiRoutes from './routes/openapi.routes';
 import { stripeWebhook } from './controllers/billing.controller';
 import redisClient from './config/redis';
 import { startClickWorker } from './services/clickQueue';
@@ -45,6 +46,7 @@ app.use(
   })
 );
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use((req, res, next) => {
@@ -85,20 +87,26 @@ app.get('/favicon.ico', (_req, res) => {
 });
 
 // API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/links', linkRoutes);
-app.use('/api/domains', domainRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/qr', qrRoutes);
-app.use('/api/api-keys', apiKeysRoutes);
-app.use('/api/org/invites', invitesRoutes);
-app.use('/api/org', orgRoutes);
-app.use('/api', siteRoutes);
-app.use('/api/coupons', couponsRoutes);
-app.use('/api/plan-grants', planGrantsRoutes);
-app.use('/api/affiliates', affiliatesRoutes);
-app.use('/api/affiliate', affiliateAuthRoutes);
-app.use('/api/billing', billingRoutes);
+const registerApi = (base: string) => {
+  app.use(`${base}/auth`, authRoutes);
+  app.use(`${base}/links`, linkRoutes);
+  app.use(`${base}/domains`, domainRoutes);
+  app.use(`${base}/analytics`, analyticsRoutes);
+  app.use(`${base}/qr`, qrRoutes);
+  app.use(`${base}/api-keys`, apiKeysRoutes);
+  app.use(`${base}/org/invites`, invitesRoutes);
+  app.use(`${base}/org`, orgRoutes);
+  app.use(base, siteRoutes);
+  app.use(`${base}/coupons`, couponsRoutes);
+  app.use(`${base}/plan-grants`, planGrantsRoutes);
+  app.use(`${base}/affiliates`, affiliatesRoutes);
+  app.use(`${base}/affiliate`, affiliateAuthRoutes);
+  app.use(`${base}/billing`, billingRoutes);
+  app.use(base, openapiRoutes);
+};
+
+registerApi('/api');
+registerApi('/api/v1');
 
 // Public redirect route (must come AFTER /api and static so it doesn’t swallow them)
 app.use('/', redirectRoutes);
