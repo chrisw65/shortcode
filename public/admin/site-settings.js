@@ -1170,8 +1170,13 @@ function applyPageEditor(key) {
   qs('#pageContactSubject').value = page.formSubject || '';
   qs('#pageContactSubmit').value = page.formSubmitLabel || '';
   qs('#pageContactSuccess').value = page.formSuccess || '';
-  qs('#pageCaptchaQuestion').value = page.captchaQuestion || '';
-  qs('#pageCaptchaAnswer').value = page.captchaAnswer || '';
+  const captcha = page.captcha || {};
+  qs('#pageCaptchaQuestion').value = captcha.question || page.captchaQuestion || '';
+  qs('#pageCaptchaAnswer').value = captcha.answer || page.captchaAnswer || '';
+  qs('#pageCaptchaProvider').value = captcha.provider || page.captchaProvider || 'simple';
+  qs('#pageCaptchaTheme').value = captcha.theme || 'dark';
+  qs('#pageCaptchaSiteKey').value = captcha.siteKey || '';
+  qs('#pageCaptchaSecret').value = captcha.secret || page.captchaSecret || '';
   qs('#pageMetaTitle').value = page.meta?.title || '';
   qs('#pageMetaDescription').value = page.meta?.description || '';
   qs('#pageOgTitle').value = page.meta?.ogTitle || '';
@@ -1212,8 +1217,14 @@ function savePageEditor() {
   page.formSubject = qs('#pageContactSubject').value.trim();
   page.formSubmitLabel = qs('#pageContactSubmit').value.trim();
   page.formSuccess = qs('#pageContactSuccess').value.trim();
-  page.captchaQuestion = qs('#pageCaptchaQuestion').value.trim();
-  page.captchaAnswer = qs('#pageCaptchaAnswer').value.trim();
+  page.captcha = {
+    provider: qs('#pageCaptchaProvider').value,
+    theme: qs('#pageCaptchaTheme').value,
+    siteKey: qs('#pageCaptchaSiteKey').value.trim(),
+    secret: qs('#pageCaptchaSecret').value.trim(),
+    question: qs('#pageCaptchaQuestion').value.trim(),
+    answer: qs('#pageCaptchaAnswer').value.trim(),
+  };
   page.meta = {
     title: qs('#pageMetaTitle').value.trim(),
     description: qs('#pageMetaDescription').value.trim(),

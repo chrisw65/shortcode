@@ -198,8 +198,14 @@ export const DEFAULT_SITE_CONFIG = {
       formSubject: 'New contact request from OkLeaf',
       formSubmitLabel: 'Send message',
       formSuccess: 'Thanks! We will get back to you within 1 business day.',
-      captchaQuestion: 'What is 3 + 4?',
-      captchaAnswer: '7',
+      captcha: {
+        provider: 'simple',
+        question: 'What is 3 + 4?',
+        answer: '7',
+        siteKey: '',
+        secret: '',
+        theme: 'dark',
+      },
       meta: {
         title: 'OkLeaf - Contact',
         description: 'Contact OkLeaf for enterprise plans, demos, and support.',

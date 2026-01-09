@@ -320,6 +320,34 @@
           </div>
           <div class="grid grid-2" style="margin-top:12px">
             <div>
+              <label class="muted">Captcha provider</label>
+              <select class="input" id="pageCaptchaProvider">
+                <option value="off">Off</option>
+                <option value="simple">Simple question</option>
+                <option value="turnstile">Cloudflare Turnstile</option>
+              </select>
+            </div>
+            <div>
+              <label class="muted">Turnstile theme</label>
+              <select class="input" id="pageCaptchaTheme">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="auto">Auto</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Turnstile site key</label>
+              <input class="input" id="pageCaptchaSiteKey" placeholder="0x4AAAAAAA...">
+            </div>
+            <div>
+              <label class="muted">Turnstile secret key</label>
+              <input class="input" id="pageCaptchaSecret" placeholder="0x4AAAAAAA...">
+            </div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
               <label class="muted">Meta title</label>
               <input class="input" id="pageMetaTitle" placeholder="OkLeaf - About">
             </div>

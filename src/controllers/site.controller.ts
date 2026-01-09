@@ -47,8 +47,9 @@ export async function getPublicSiteConfig(req: Request, res: Response) {
     const draft = await getSiteSetting('marketing_draft');
     const base = published || draft || {};
     const config = mergeConfig(DEFAULT_SITE_CONFIG, base);
-    await setCachedPublicConfig(config);
-    return res.json({ success: true, data: config });
+    const safe = sanitizePublicConfig(config);
+    await setCachedPublicConfig(safe);
+    return res.json({ success: true, data: safe });
   } catch (err) {
     console.error('site.getPublicSiteConfig error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
@@ -234,13 +235,39 @@ export async function sendContactMessage(req: Request, res: Response) {
     const to = contact.supportEmail || config.footer?.email || 'support@okleaf.link';
     const subject = contact.formSubject || 'New contact request';
     const successMessage = contact.formSuccess || 'Thanks! We will get back to you within 1 business day.';
-    const captchaExpected = String(contact.captchaAnswer || '').trim();
+    const captcha = contact.captcha || {};
+    const captchaExpected = String(captcha.answer || contact.captchaAnswer || '').trim();
+    const captchaProvider = String(captcha.provider || contact.captchaProvider || 'simple').trim();
+    const captchaSecret = String(captcha.secret || contact.captchaSecret || '').trim();
+    const captchaToken = String(req.body?.captchaToken || '').trim();
 
     if (website) {
       return res.json({ success: true, message: successMessage });
     }
-    if (captchaExpected && captchaAnswer !== captchaExpected) {
-      return res.status(400).json({ success: false, error: 'Captcha verification failed' });
+    if (captchaProvider === 'turnstile') {
+      if (!captchaSecret) {
+        return res.status(400).json({ success: false, error: 'Captcha not configured' });
+      }
+      if (!captchaToken) {
+        return res.status(400).json({ success: false, error: 'Captcha verification failed' });
+      }
+      const verify = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          secret: captchaSecret,
+          response: captchaToken,
+          remoteip: (req.headers['cf-connecting-ip'] as string | undefined) || req.ip || '',
+        }).toString(),
+      });
+      const verifyData = await verify.json().catch(() => ({}));
+      if (!verify.ok || !verifyData?.success) {
+        return res.status(400).json({ success: false, error: 'Captcha verification failed' });
+      }
+    } else if (captchaProvider === 'simple') {
+      if (captchaExpected && captchaAnswer !== captchaExpected) {
+        return res.status(400).json({ success: false, error: 'Captcha verification failed' });
+      }
     }
 
     const text = [
@@ -272,6 +299,17 @@ export async function sendContactMessage(req: Request, res: Response) {
     console.error('site.sendContactMessage error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
+}
+
+function sanitizePublicConfig(config: any) {
+  const safe = JSON.parse(JSON.stringify(config || {}));
+  if (safe?.pages?.contact?.captcha?.secret) {
+    delete safe.pages.contact.captcha.secret;
+  }
+  if (safe?.pages?.contact?.captchaSecret) {
+    delete safe.pages.contact.captchaSecret;
+  }
+  return safe;
 }
 
 export { DEFAULT_SITE_CONFIG };

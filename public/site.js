@@ -143,19 +143,14 @@ function renderFeatures(features = []) {
   )).join('');
 }
 
-function renderPageCards(cards = []) {
+function renderPageCards(cards = [], variant = 'feature') {
   const wrap = qs('[data-page-cards]');
   if (!wrap) return;
+  const isCase = variant === 'case';
   wrap.innerHTML = cards.map((card) => (
-    `<div class="feature-card"><h4>${card.title || ''}</h4><p>${card.text || ''}</p></div>`
-  )).join('');
-}
-
-function renderCaseCards(cards = []) {
-  const wrap = qs('[data-page-cards]');
-  if (!wrap) return;
-  wrap.innerHTML = cards.map((card) => (
-    `<div class="case-card"><h3>${card.title || ''}</h3><p>${card.text || ''}</p></div>`
+    isCase
+      ? `<div class="case-card"><h3>${card.title || ''}</h3><p>${card.text || ''}</p></div>`
+      : `<div class="feature-card"><h4>${card.title || ''}</h4><p>${card.text || ''}</p></div>`
   )).join('');
 }
 
@@ -291,8 +286,8 @@ async function init() {
       if (pageCtaSecondary && page.ctaSecondary?.href && pageCtaSecondary.tagName === 'A') {
         pageCtaSecondary.href = page.ctaSecondary.href;
       }
-      if (page.cards && pageKey === 'about') renderPageCards(page.cards);
-      if (page.cards && (pageKey === 'caseStudies' || pageKey === 'useCases')) renderCaseCards(page.cards);
+      if (page.cards && pageKey === 'about') renderPageCards(page.cards, 'feature');
+      if (page.cards && (pageKey === 'caseStudies' || pageKey === 'useCases')) renderPageCards(page.cards, 'case');
       if (page.body) renderPageBody(page.body);
       if (page.formSubmitLabel) {
         const btn = qs('[data-page-cta-primary]');
@@ -302,14 +297,50 @@ async function init() {
         const notice = qs('#contactNotice');
         if (notice) notice.textContent = page.formSuccess;
       }
-      if (page.captchaQuestion) {
+      const captcha = page.captcha || {};
+      const captchaProvider = captcha.provider || page.captchaProvider || (captcha.question || page.captchaQuestion ? 'simple' : 'off');
+      if (captchaProvider === 'simple') {
         const label = qs('[data-page-captcha-question]');
         const wrap = qs('#contactCaptchaWrap');
-        if (label) label.textContent = page.captchaQuestion;
-        if (wrap) wrap.style.display = '';
+        if (label) label.textContent = captcha.question || page.captchaQuestion || '';
+        if (wrap) {
+          wrap.style.display = '';
+          wrap.dataset.provider = 'simple';
+          const widget = qs('#turnstileWidget');
+          if (widget) widget.innerHTML = '';
+          const answer = qs('#captchaAnswer');
+          if (answer) answer.style.display = '';
+          if (label) label.style.display = '';
+        }
+      } else if (captchaProvider === 'turnstile') {
+        const wrap = qs('#contactCaptchaWrap');
+        const widget = qs('#turnstileWidget');
+        const siteKey = captcha.siteKey || '';
+        if (wrap) {
+          wrap.style.display = siteKey ? '' : 'none';
+          wrap.dataset.provider = 'turnstile';
+        }
+        const label = qs('[data-page-captcha-question]');
+        const answer = qs('#captchaAnswer');
+        if (label) label.style.display = 'none';
+        if (answer) answer.style.display = 'none';
+        if (widget && siteKey) {
+          widget.innerHTML = `<div class="cf-turnstile" data-sitekey="${siteKey}" data-theme="${captcha.theme || 'dark'}"></div>`;
+          if (!document.querySelector('script[data-turnstile]')) {
+            const script = document.createElement('script');
+            script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+            script.async = true;
+            script.defer = true;
+            script.dataset.turnstile = '1';
+            document.body.appendChild(script);
+          }
+        }
       } else {
         const wrap = qs('#contactCaptchaWrap');
-        if (wrap) wrap.style.display = 'none';
+        if (wrap) {
+          wrap.style.display = 'none';
+          wrap.dataset.provider = 'off';
+        }
       }
       if (page.meta) {
         if (page.meta.title) document.title = page.meta.title;

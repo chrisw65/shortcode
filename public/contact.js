@@ -6,10 +6,20 @@ async function sendContact() {
   const message = document.getElementById('message')?.value.trim();
   const website = document.getElementById('website')?.value.trim();
   const captchaAnswer = document.getElementById('captchaAnswer')?.value.trim();
+  const captchaProvider = document.getElementById('contactCaptchaWrap')?.dataset?.provider || 'simple';
+  const captchaToken = document.querySelector('input[name="cf-turnstile-response"]')?.value || '';
   const notice = document.getElementById('contactNotice');
 
   if (!name || !email || !message) {
     if (notice) notice.textContent = 'Name, email, and message are required.';
+    return;
+  }
+  if (captchaProvider === 'simple' && !captchaAnswer) {
+    if (notice) notice.textContent = 'Captcha answer is required.';
+    return;
+  }
+  if (captchaProvider === 'turnstile' && !captchaToken) {
+    if (notice) notice.textContent = 'Captcha verification is required.';
     return;
   }
 
@@ -17,7 +27,7 @@ async function sendContact() {
     const res = await fetch('/api/public/contact', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, company, org, email, message, website, captchaAnswer }),
+      body: JSON.stringify({ name, company, org, email, message, website, captchaAnswer, captchaToken }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(data?.error || 'Failed to send');
