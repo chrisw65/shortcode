@@ -1277,8 +1277,16 @@ function applyPageEditor(key) {
   qs('#pagePricingFaqTitle').value = page.pricing?.faqTitle || '';
   qs('#pagePricingFaqSubtitle').value = page.pricing?.faqSubtitle || '';
   qs('#pageHomeCardTitle').value = page.homeCard?.title || '';
-  qs('#pageHomeCardTag').value = page.homeCard?.tag || '';
+  const badges = page.homeCard?.badges || (page.homeCard?.tag ? [page.homeCard.tag] : []);
+  qs('#pageHomeCardBadges').value = badges.join('\n');
   qs('#pageHomeCardLine').value = page.homeCard?.line || '';
+  qs('#pageHomePrimaryLabel').value = page.homeCard?.primary?.label || '';
+  qs('#pageHomePrimaryValue').value = page.homeCard?.primary?.value || '';
+  qs('#pageHomePrimarySubtext').value = page.homeCard?.primary?.subtext || '';
+  qs('#pageHomeTrendLabel').value = page.homeCard?.trend?.label || '';
+  qs('#pageHomeTrendValue').value = page.homeCard?.trend?.value || '';
+  qs('#pageHomeTrendDirection').value = page.homeCard?.trend?.direction || 'up';
+  qs('#pageHomeSparkline').value = (page.homeCard?.sparkline || []).join(', ');
   setDocsEditorHtml(page.html || '');
   qs('#pageAuthBullets').value = (page.bullets || []).join('\n');
   qs('#pageMetaTitle').value = page.meta?.title || '';
@@ -1314,8 +1322,25 @@ function savePageEditor() {
     };
     page.homeCard = {
       title: qs('#pageHomeCardTitle').value.trim(),
-      tag: qs('#pageHomeCardTag').value.trim(),
+      badges: qs('#pageHomeCardBadges').value
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean),
       line: qs('#pageHomeCardLine').value.trim(),
+      primary: {
+        label: qs('#pageHomePrimaryLabel').value.trim(),
+        value: qs('#pageHomePrimaryValue').value.trim(),
+        subtext: qs('#pageHomePrimarySubtext').value.trim(),
+      },
+      trend: {
+        label: qs('#pageHomeTrendLabel').value.trim(),
+        value: qs('#pageHomeTrendValue').value.trim(),
+        direction: qs('#pageHomeTrendDirection').value,
+      },
+      sparkline: qs('#pageHomeSparkline').value
+        .split(',')
+        .map((item) => Number(item.trim()))
+        .filter((num) => Number.isFinite(num)),
       metrics: readList(qs('#pageHomeMetricsList'), (card) => ({
         label: qs('[data-field="label"]', card).value.trim(),
         value: qs('[data-field="value"]', card).value.trim(),

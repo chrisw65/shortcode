@@ -229,14 +229,46 @@ function renderHomeCardMetrics(metrics = []) {
     wrap.innerHTML = '';
     return;
   }
-  const rows = [];
-  for (let i = 0; i < items.length; i += 2) {
-    const pair = items.slice(i, i + 2).map((metric) => (
-      `<div><div class="muted">${metric.label || ''}</div><strong>${metric.value || ''}</strong></div>`
-    )).join('');
-    rows.push(`<div class="row" style="margin-top:14px">${pair}</div>`);
+  wrap.innerHTML = items.map((metric) => (
+    `<div class="hero-tile"><div class="muted">${metric.label || ''}</div><strong>${metric.value || ''}</strong></div>`
+  )).join('');
+}
+
+function renderHomeBadges(badges = []) {
+  const wrap = qs('[data-home-card-badges]');
+  if (!wrap) return;
+  const items = badges.filter(Boolean);
+  if (!items.length) {
+    wrap.innerHTML = '';
+    return;
   }
-  wrap.innerHTML = rows.join('');
+  wrap.innerHTML = items.map((badge) => `<span class="pill">${badge}</span>`).join('');
+}
+
+function renderSparkline(points = []) {
+  const wrap = qs('[data-home-sparkline]');
+  if (!wrap) return;
+  const values = points.filter((num) => Number.isFinite(num));
+  if (!values.length) {
+    wrap.innerHTML = '';
+    return;
+  }
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const width = 100;
+  const height = 40;
+  const step = width / (values.length - 1 || 1);
+  const path = values.map((val, idx) => {
+    const x = idx * step;
+    const y = height - ((val - min) / range) * height;
+    return `${idx === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(' ');
+  wrap.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+      <path d="${path}" fill="none" stroke="currentColor" stroke-width="2" />
+    </svg>
+  `;
 }
 
 function sanitizeDocsHtml(html) {
@@ -441,10 +473,26 @@ async function init() {
       if (pageKey === 'home') {
         const cardTitle = qs('[data-home-card-title]');
         if (cardTitle && page.homeCard?.title) cardTitle.textContent = page.homeCard.title;
-        const cardTag = qs('[data-home-card-tag]');
-        if (cardTag && page.homeCard?.tag) cardTag.textContent = page.homeCard.tag;
+        const badges = page.homeCard?.badges || (page.homeCard?.tag ? [page.homeCard.tag] : []);
+        renderHomeBadges(badges);
         const cardLine = qs('[data-home-card-line]');
         if (cardLine && page.homeCard?.line) cardLine.textContent = page.homeCard.line;
+        const primaryLabel = qs('[data-home-primary-label]');
+        if (primaryLabel && page.homeCard?.primary?.label) primaryLabel.textContent = page.homeCard.primary.label;
+        const primaryValue = qs('[data-home-primary-value]');
+        if (primaryValue && page.homeCard?.primary?.value) primaryValue.textContent = page.homeCard.primary.value;
+        const primarySub = qs('[data-home-primary-subtext]');
+        if (primarySub && page.homeCard?.primary?.subtext) primarySub.textContent = page.homeCard.primary.subtext;
+        const trendWrap = qs('[data-home-trend]');
+        const trendLabel = trendWrap?.querySelector('.trend-label');
+        const trendValue = trendWrap?.querySelector('.trend-value');
+        if (trendLabel && page.homeCard?.trend?.label) trendLabel.textContent = page.homeCard.trend.label;
+        if (trendValue && page.homeCard?.trend?.value) trendValue.textContent = page.homeCard.trend.value;
+        if (trendWrap) {
+          trendWrap.classList.remove('up', 'down', 'flat');
+          trendWrap.classList.add(page.homeCard?.trend?.direction || 'up');
+        }
+        renderSparkline(page.homeCard?.sparkline || []);
         renderHomeCardMetrics(page.homeCard?.metrics || []);
       }
       if (pageKey === 'login' || pageKey === 'register') {

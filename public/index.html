@@ -52,12 +52,24 @@
       <div class="hero-card reveal" data-home-card>
         <div class="row">
           <h3 data-home-card-title>Campaign control, at a glance</h3>
-          <span class="pill" data-home-card-tag>Realtime</span>
+          <div class="pill-row" data-home-card-badges></div>
         </div>
         <div class="mock" data-home-card-line>
           okleaf.link/launch - 48,201 clicks - 62% mobile - 3.4% CTR
         </div>
-        <div data-home-card-metrics></div>
+        <div class="hero-card-main">
+          <div class="hero-primary">
+            <div class="muted" data-home-primary-label>Total clicks</div>
+            <div class="hero-primary-value" data-home-primary-value>48,201</div>
+            <div class="hero-primary-sub" data-home-primary-subtext>Last 30 days</div>
+            <div class="hero-trend" data-home-trend>
+              <span class="trend-label">Trend</span>
+              <span class="trend-value">+12.4%</span>
+            </div>
+          </div>
+          <div class="hero-sparkline" data-home-sparkline></div>
+        </div>
+        <div class="hero-card-tiles" data-home-card-metrics></div>
       </div>
     </section>
 
@@ -119,6 +131,6 @@
       </div>
     </footer>
 
-  <script src="/site.js?v=20260115"></script>
+  <script src="/site.js?v=20260116"></script>
 </body>
 </html>

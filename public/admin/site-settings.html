@@ -276,7 +276,7 @@
           <div style="margin-top:12px" data-page-only="home">
             <div class="row-between">
               <h4 class="m-0">Analytics card</h4>
-              <button class="btn ghost" id="addHomeMetricBtn" type="button">Add metric</button>
+              <button class="btn ghost" id="addHomeMetricBtn" type="button">Add KPI tile</button>
             </div>
             <div class="grid grid-2" style="margin-top:10px">
               <div>
@@ -284,12 +284,50 @@
                 <input class="input" id="pageHomeCardTitle" placeholder="Campaign control, at a glance">
               </div>
               <div>
-                <label class="muted">Status pill</label>
-                <input class="input" id="pageHomeCardTag" placeholder="Realtime">
+                <label class="muted">Status badges (one per line)</label>
+                <textarea class="input" id="pageHomeCardBadges" rows="3" placeholder="Realtime&#10;99.9% uptime&#10;+14% MoM"></textarea>
               </div>
             </div>
             <label class="muted" style="margin-top:10px">Highlight line</label>
             <input class="input" id="pageHomeCardLine" placeholder="okleaf.link/launch - 48,201 clicks - 62% mobile - 3.4% CTR">
+            <div class="grid grid-3" style="margin-top:12px">
+              <div>
+                <label class="muted">Primary metric label</label>
+                <input class="input" id="pageHomePrimaryLabel" placeholder="Total clicks">
+              </div>
+              <div>
+                <label class="muted">Primary metric value</label>
+                <input class="input" id="pageHomePrimaryValue" placeholder="48,201">
+              </div>
+              <div>
+                <label class="muted">Primary metric subtext</label>
+                <input class="input" id="pageHomePrimarySubtext" placeholder="Last 30 days">
+              </div>
+            </div>
+            <div class="grid grid-3" style="margin-top:12px">
+              <div>
+                <label class="muted">Trend label</label>
+                <input class="input" id="pageHomeTrendLabel" placeholder="Trend">
+              </div>
+              <div>
+                <label class="muted">Trend value</label>
+                <input class="input" id="pageHomeTrendValue" placeholder="+12.4%">
+              </div>
+              <div>
+                <label class="muted">Trend direction</label>
+                <select class="input" id="pageHomeTrendDirection">
+                  <option value="up">Up</option>
+                  <option value="down">Down</option>
+                  <option value="flat">Flat</option>
+                </select>
+              </div>
+            </div>
+            <label class="muted" style="margin-top:10px">Sparkline values (comma separated)</label>
+            <input class="input" id="pageHomeSparkline" placeholder="12,18,26,22,35,40,48,46">
+            <div class="row-between" style="margin-top:12px">
+              <h4 class="m-0">KPI tiles</h4>
+              <span class="muted small">Label + value pairs</span>
+            </div>
             <div id="pageHomeMetricsList" class="grid" style="margin-top:12px"></div>
           </div>
           <div class="grid grid-2" style="margin-top:12px" data-page-only="features">
@@ -623,6 +661,6 @@
   </div>
 
   <script type="module" src="/admin/admin-common.js?v=20260111"></script>
-  <script type="module" src="/admin/site-settings.js?v=20260115"></script>
+  <script type="module" src="/admin/site-settings.js?v=20260116"></script>
 </body>
 </html>

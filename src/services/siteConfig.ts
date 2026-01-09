@@ -208,8 +208,19 @@ export const DEFAULT_SITE_CONFIG = {
       },
       homeCard: {
         title: 'Campaign control, at a glance',
-        tag: 'Realtime',
+        badges: ['Realtime', '99.9% uptime', '+14% MoM'],
         line: 'okleaf.link/launch - 48,201 clicks - 62% mobile - 3.4% CTR',
+        primary: {
+          label: 'Total clicks',
+          value: '48,201',
+          subtext: 'Last 30 days',
+        },
+        trend: {
+          label: 'Trend',
+          value: '+12.4%',
+          direction: 'up',
+        },
+        sparkline: [12, 18, 26, 22, 35, 40, 48, 46],
         metrics: [
           { label: 'Top region', value: 'Netherlands' },
           { label: 'Best referrer', value: 'LinkedIn' },
