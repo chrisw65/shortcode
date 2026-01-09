@@ -8,10 +8,10 @@ const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const state = { config: null, history: [] };
 
 const THEMES = [
-  { id: 'noir', label: 'Noir (default)' },
-  { id: 'luna', label: 'Luna' },
-  { id: 'sierra', label: 'Sierra' },
-  { id: 'marina', label: 'Marina' },
+  { id: 'noir', label: 'Noir (default)', accent: '#e0b15a', accent2: '#2fb7b2', bg: '#0b0d10' },
+  { id: 'luna', label: 'Luna', accent: '#7fd3ff', accent2: '#4b8bff', bg: '#0b1019' },
+  { id: 'sierra', label: 'Sierra', accent: '#ffb359', accent2: '#ff7a59', bg: '#110c08' },
+  { id: 'marina', label: 'Marina', accent: '#3dd6b8', accent2: '#49a0ff', bg: '#071217' },
 ];
 
 function makeInput(label, value, placeholder = '') {
@@ -205,6 +205,26 @@ function renderThemeOptions(selectEl, value) {
   selectEl.value = value || THEMES[0].id;
 }
 
+function renderThemePicker(container, selected, onSelect) {
+  container.innerHTML = THEMES.map((theme) => (
+    `<button type="button" class="theme-card ${theme.id === selected ? 'selected' : ''}" data-theme="${theme.id}">
+      <div class="theme-swatch" style="background:${theme.bg}">
+        <span style="background:${theme.accent}"></span>
+        <span style="background:${theme.accent2}"></span>
+      </div>
+      <div class="theme-label">${theme.label}</div>
+    </button>`
+  )).join('');
+  container.querySelectorAll('.theme-card').forEach((card) => {
+    card.addEventListener('click', () => onSelect(card.dataset.theme));
+  });
+}
+
+function applyAdminThemePreview(themeId) {
+  THEMES.forEach((theme) => document.body.classList.remove(`theme-${theme.id}`));
+  if (themeId) document.body.classList.add(`theme-${themeId}`);
+}
+
 function readList(container, mapper) {
   return qsa('.card', container).map(mapper).filter(Boolean);
 }
@@ -393,6 +413,20 @@ function applyConfig(config) {
   qs('#inviteHtml').value = config.emails?.invite?.html || '';
   renderThemeOptions(qs('#adminTheme'), config.ui?.adminTheme);
   renderThemeOptions(qs('#affiliateTheme'), config.ui?.affiliateTheme);
+  const adminPicker = qs('#adminThemePicker');
+  const affiliatePicker = qs('#affiliateThemePicker');
+  const onAdminSelect = (themeId) => {
+    qs('#adminTheme').value = themeId;
+    applyAdminThemePreview(themeId);
+    renderThemePicker(adminPicker, themeId, onAdminSelect);
+  };
+  const onAffiliateSelect = (themeId) => {
+    qs('#affiliateTheme').value = themeId;
+    renderThemePicker(affiliatePicker, themeId, onAffiliateSelect);
+  };
+  renderThemePicker(adminPicker, config.ui?.adminTheme, onAdminSelect);
+  renderThemePicker(affiliatePicker, config.ui?.affiliateTheme, onAffiliateSelect);
+  applyAdminThemePreview(config.ui?.adminTheme);
 
   renderStats(config.stats || []);
   renderFeatures(config.features || []);
@@ -876,6 +910,24 @@ async function init() {
     } catch (err) {
       showError(err, 'Failed to send test email');
     }
+  });
+  qs('#adminTheme').addEventListener('change', (event) => {
+    const adminPicker = qs('#adminThemePicker');
+    const renderAdminPicker = (themeId) => renderThemePicker(adminPicker, themeId, (next) => {
+      qs('#adminTheme').value = next;
+      applyAdminThemePreview(next);
+      renderAdminPicker(next);
+    });
+    applyAdminThemePreview(event.target.value);
+    renderAdminPicker(event.target.value);
+  });
+  qs('#affiliateTheme').addEventListener('change', (event) => {
+    const affiliatePicker = qs('#affiliateThemePicker');
+    const renderAffiliatePicker = (themeId) => renderThemePicker(affiliatePicker, themeId, (next) => {
+      qs('#affiliateTheme').value = next;
+      renderAffiliatePicker(next);
+    });
+    renderAffiliatePicker(event.target.value);
   });
 
   bindRemove('#statsList');

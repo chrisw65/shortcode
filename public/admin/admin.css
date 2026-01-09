@@ -155,6 +155,22 @@ tr.sel{background:rgba(255,255,255,.03)}
   color:#f6efe1;
   animation:toastIn .2s ease-out;
 }
+.theme-picker{display:grid;gap:10px}
+.theme-card{
+  display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;
+  border:1px solid var(--border);background:rgba(12,18,28,.7);color:var(--text);
+  cursor:pointer;text-align:left;transition:.2s ease
+}
+.theme-card:hover{border-color:rgba(224,177,90,.4)}
+.theme-card.selected{border-color:rgba(224,177,90,.7);box-shadow:0 10px 24px rgba(0,0,0,.25)}
+.theme-swatch{
+  width:44px;height:32px;border-radius:10px;border:1px solid rgba(255,255,255,.15);
+  display:flex;align-items:center;justify-content:center;gap:6px
+}
+.theme-swatch span{
+  width:10px;height:10px;border-radius:999px;display:inline-block
+}
+.theme-label{font-weight:600;font-size:14px}
 .toast-ok{border-color:rgba(120,224,143,.4)}
 .toast-error{border-color:rgba(244,163,163,.6)}
 @keyframes toastIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
