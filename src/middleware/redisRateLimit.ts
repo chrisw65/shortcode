@@ -28,6 +28,10 @@ function makeMiddleware(
 ) {
   const limiter = buildLimiter(points, duration, prefix);
   return async (req: Request, res: Response, next: NextFunction) => {
+    const bypassToken = process.env.RATE_LIMIT_BYPASS_TOKEN;
+    if (bypassToken && req.headers['x-rate-bypass'] === bypassToken) {
+      return next();
+    }
     const key = keyer(req);
     const useRedis = redisClient.isReady;
     try {
@@ -42,12 +46,16 @@ function makeMiddleware(
   };
 }
 
-export const perIp600rpmRedis = makeMiddleware(600, 60, 'rl:ip:600', (req) => ipv6SafeKey(req), 'text');
+const testFactor = Number(process.env.RATE_LIMIT_TEST_FACTOR || '1');
+const safeFactor = Number.isFinite(testFactor) && testFactor > 0 ? testFactor : 1;
+const scaled = (points: number) => Math.max(1, Math.round(points * safeFactor));
 
-export const perIp60rpmRedis = makeMiddleware(60, 60, 'rl:ip:60', (req) => ipv6SafeKey(req), 'json');
+export const perIp600rpmRedis = makeMiddleware(scaled(600), 60, 'rl:ip:600', (req) => ipv6SafeKey(req), 'text');
+
+export const perIp60rpmRedis = makeMiddleware(scaled(60), 60, 'rl:ip:60', (req) => ipv6SafeKey(req), 'json');
 
 export const perUser120rpmRedis = makeMiddleware(
-  120,
+  scaled(120),
   60,
   'rl:user:120',
   (req) => {

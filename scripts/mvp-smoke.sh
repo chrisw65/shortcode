@@ -12,6 +12,7 @@ curl -fsS "${BASE_URL}/health" >/dev/null
 
 echo "==> Register user"
 REGISTER_JSON=$(curl -fsS -X POST "${BASE_URL}/api/auth/register" \
+  ${RATE_LIMIT_BYPASS_TOKEN:+-H "x-rate-bypass: ${RATE_LIMIT_BYPASS_TOKEN}"} \
   -H 'Content-Type: application/json' \
   -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}")
 
@@ -29,6 +30,7 @@ fi
 echo "==> Create link"
 CREATE_JSON=$(curl -fsS -X POST "${BASE_URL}/api/links" \
   -H "Authorization: Bearer ${TOKEN}" \
+  ${RATE_LIMIT_BYPASS_TOKEN:+-H "x-rate-bypass: ${RATE_LIMIT_BYPASS_TOKEN}"} \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://example.com","title":"Smoke Test"}')
 
@@ -44,7 +46,8 @@ if [[ -z "${SHORT_CODE}" ]]; then
 fi
 
 echo "==> Redirect check"
-curl -fsS -I "${BASE_URL}/${SHORT_CODE}" >/dev/null
+curl -fsS -I "${BASE_URL}/${SHORT_CODE}" \
+  ${RATE_LIMIT_BYPASS_TOKEN:+-H "x-rate-bypass: ${RATE_LIMIT_BYPASS_TOKEN}"} >/dev/null
 
 echo "==> QR check"
 curl -fsS "${BASE_URL}/api/qr/${SHORT_CODE}.png" >/dev/null
@@ -52,6 +55,7 @@ curl -fsS "${BASE_URL}/api/qr/${SHORT_CODE}.svg" >/dev/null
 
 echo "==> Analytics summary"
 curl -fsS "${BASE_URL}/api/analytics/summary" \
-  -H "Authorization: Bearer ${TOKEN}" >/dev/null
+  -H "Authorization: Bearer ${TOKEN}" \
+  ${RATE_LIMIT_BYPASS_TOKEN:+-H "x-rate-bypass: ${RATE_LIMIT_BYPASS_TOKEN}"} >/dev/null
 
 echo "==> OK"
