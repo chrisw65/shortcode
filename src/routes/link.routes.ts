@@ -10,11 +10,13 @@ const router = Router();
 // tiny async wrapper so unhandled rejections don’t crash the process
 const wrap = (fn: any): RequestHandler =>
   (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+const noLimit: RequestHandler = (_req, _res, next) => next();
+const apiLimiter = process.env.RATE_LIMIT_API_DISABLED === '1' ? noLimit : perUser120rpmRedis;
 
 // All link endpoints require auth
 router.use(authenticate);
 router.use(requireOrg);
-router.use(perUser120rpmRedis);
+router.use(apiLimiter);
 
 // Create a new short link
 router.post('/', wrap(linkController.createLink));
