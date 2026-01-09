@@ -1307,7 +1307,9 @@ function initTabs() {
   const setTab = (tab) => {
     tabs.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
     sections.forEach((section) => {
-      section.classList.toggle('is-active', section.dataset.tab === tab);
+      const active = section.dataset.tab === tab;
+      section.classList.toggle('is-active', active);
+      section.style.display = active ? '' : 'none';
     });
     localStorage.setItem('siteSettingsTab', tab);
   };
