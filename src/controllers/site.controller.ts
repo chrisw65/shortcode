@@ -260,7 +260,7 @@ export async function sendContactMessage(req: Request, res: Response) {
           remoteip: (req.headers['cf-connecting-ip'] as string | undefined) || req.ip || '',
         }).toString(),
       });
-      const verifyData = await verify.json().catch(() => ({}));
+      const verifyData: any = await verify.json().catch(() => ({}));
       if (!verify.ok || !verifyData?.success) {
         return res.status(400).json({ success: false, error: 'Captcha verification failed' });
       }
