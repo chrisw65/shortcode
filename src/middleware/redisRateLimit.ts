@@ -9,6 +9,12 @@ function ipv6SafeKey(req: Request): string {
   return cfip || xfwd || req.ip || 'unknown';
 }
 
+function authKey(req: Request): string {
+  const email = String((req as any)?.body?.email || '').trim().toLowerCase();
+  const ip = ipv6SafeKey(req);
+  return email ? `auth:${email}:${ip}` : ip;
+}
+
 function buildLimiter(points: number, duration: number, prefix: string) {
   const memory = new RateLimiterMemory({ points, duration, keyPrefix: `${prefix}:mem` });
   const redis = new RateLimiterRedis({
@@ -54,6 +60,8 @@ const scaled = (points: number) => Math.max(1, Math.round(points * safeFactor));
 export const perIp600rpmRedis = makeMiddleware(scaled(600), 60, 'rl:ip:600', (req) => ipv6SafeKey(req), 'text');
 
 export const perIp60rpmRedis = makeMiddleware(scaled(60), 60, 'rl:ip:60', (req) => ipv6SafeKey(req), 'json');
+
+export const perAuth300rpmRedis = makeMiddleware(scaled(300), 60, 'rl:auth:300', (req) => authKey(req), 'json');
 
 export const perUser120rpmRedis = makeMiddleware(
   scaled(120),
