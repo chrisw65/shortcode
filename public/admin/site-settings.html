@@ -52,7 +52,10 @@
               <h3 class="m-0">Live preview</h3>
               <div class="muted small">Shows the public site using your current draft.</div>
             </div>
-            <button class="btn ghost" id="previewRefreshBtn" type="button">Refresh preview</button>
+            <div class="row" style="gap:10px">
+              <button class="btn ghost" id="previewRefreshBtn" type="button">Refresh preview</button>
+              <button class="btn" id="previewOpenBtn" type="button">Open preview</button>
+            </div>
           </div>
           <div style="margin-top:12px;border-radius:16px;overflow:hidden;border:1px solid var(--border)">
             <iframe id="previewFrame" title="Site preview" src="/index.html?preview=1" style="width:100%;height:480px;border:0;background:#0b0d10"></iframe>
@@ -153,6 +156,22 @@
               <input class="input" id="affiliateThemeAccent2" placeholder="Accent 2 (#2fb7b2)">
               <input class="input" id="affiliateThemeLine" placeholder="Line (#2a2f3a)">
             </div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <h3>Theme library</h3>
+          <div class="muted small">Save custom themes, export, or import across environments.</div>
+          <div class="row" style="margin-top:12px;gap:10px">
+            <input class="input" id="customThemeName" placeholder="New theme name">
+            <button class="btn" id="saveThemeBtn" type="button">Save as new theme</button>
+          </div>
+          <label class="muted" style="margin-top:12px">Theme JSON</label>
+          <textarea class="input" id="themeJson" rows="6" placeholder="{ &quot;ui&quot;: { &quot;customThemes&quot;: [] } }"></textarea>
+          <div class="row" style="margin-top:12px;gap:10px">
+            <button class="btn ghost" id="exportThemeBtn" type="button">Export</button>
+            <button class="btn ghost" id="copyThemeBtn" type="button">Copy</button>
+            <button class="btn" id="importThemeBtn" type="button">Import</button>
           </div>
         </section>
 
@@ -336,6 +355,27 @@
           </div>
         </section>
       </main>
+    </div>
+  </div>
+
+  <div class="modal" id="previewModal" style="display:none">
+    <div class="modal-card">
+      <div class="row-between">
+        <div>
+          <h3 class="m-0">Live preview</h3>
+          <div class="muted small">Draft rendering of the public site.</div>
+        </div>
+        <div class="row" style="gap:10px">
+          <button class="btn ghost" data-size="desktop" type="button">Desktop</button>
+          <button class="btn ghost" data-size="tablet" type="button">Tablet</button>
+          <button class="btn ghost" data-size="mobile" type="button">Mobile</button>
+          <button class="btn ghost" id="previewFullscreenBtn" type="button">Full screen</button>
+          <button class="btn" id="previewCloseBtn" type="button">Close</button>
+        </div>
+      </div>
+      <div class="modal-frame" id="previewModalFrameWrap">
+        <iframe id="previewModalFrame" title="Preview modal" src="/index.html?preview=1" style="width:1200px;height:720px;border:0;background:#0b0d10"></iframe>
+      </div>
     </div>
   </div>
 

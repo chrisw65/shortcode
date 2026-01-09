@@ -193,6 +193,21 @@ tr.sel{background:rgba(255,255,255,.03)}
   width:10px;height:10px;border-radius:999px;display:inline-block
 }
 .theme-label{font-weight:600;font-size:14px}
+
+.modal{
+  position:fixed;inset:0;background:rgba(8,10,14,.7);
+  display:flex;align-items:center;justify-content:center;z-index:2000;
+  backdrop-filter:blur(8px)
+}
+.modal-card{
+  width:min(1200px,92vw);background:linear-gradient(180deg,rgba(21,28,38,.98),rgba(12,18,28,.98));
+  border-radius:20px;border:1px solid var(--border);padding:18px;box-shadow:var(--shadow)
+}
+.modal-frame{
+  margin-top:12px;border-radius:16px;overflow:auto;border:1px solid var(--border);
+  background:#0b0d10;display:flex;justify-content:center;align-items:flex-start;
+  padding:14px;min-height:520px
+}
 .toast-ok{border-color:rgba(120,224,143,.4)}
 .toast-error{border-color:rgba(244,163,163,.6)}
 @keyframes toastIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
