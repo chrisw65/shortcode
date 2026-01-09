@@ -1,5 +1,6 @@
 // src/index.ts
 import 'dotenv/config';
+import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import express, { Request, Response, NextFunction } from 'express';
@@ -76,7 +77,11 @@ app.get('/health', (_req, res) => {
 
 // Serve favicon explicitly to avoid hitting redirect/rate-limit path
 app.get('/favicon.ico', (_req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'favicon.ico'));
+  const iconPath = path.join(__dirname, '..', 'public', 'favicon.ico');
+  if (fs.existsSync(iconPath)) {
+    return res.sendFile(iconPath);
+  }
+  return res.status(204).end();
 });
 
 // API routes
