@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/site.css" />
 </head>
-<body>
+<body data-page="caseStudies">
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="/">
@@ -39,27 +39,10 @@
 
   <main class="container section">
     <div class="reveal">
-      <h1 class="section-title">Case studies</h1>
-      <p class="section-sub">How teams at different stages use OkLeaf to run campaigns with confidence.</p>
+      <h1 class="section-title" data-page-title>Case studies</h1>
+      <p class="section-sub" data-page-subtitle>How teams at different stages use OkLeaf to run campaigns with confidence.</p>
 
-      <div class="case-grid">
-        <div class="case-card">
-          <h3>Oakleaf Ventures</h3>
-          <p>Consolidated 5 marketing domains and doubled reporting speed with org-level analytics.</p>
-        </div>
-        <div class="case-card">
-          <h3>SignalWave Media</h3>
-          <p>Automated 12 campaign streams per week via API keys and templates.</p>
-        </div>
-        <div class="case-card">
-          <h3>Bluefin Digital</h3>
-          <p>Standardized link governance across 4 regions with owner and admin roles.</p>
-        </div>
-        <div class="case-card">
-          <h3>Nordic Growth Lab</h3>
-          <p>Improved click attribution by 38% using multi-domain analytics.</p>
-        </div>
-      </div>
+      <div class="case-grid" data-page-cards></div>
     </div>
   </main>
 

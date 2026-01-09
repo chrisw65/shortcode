@@ -215,4 +215,50 @@ export async function sendSiteEmailTest(req: Request, res: Response) {
   }
 }
 
+export async function sendContactMessage(req: Request, res: Response) {
+  try {
+    const name = String(req.body?.name || '').trim();
+    const company = String(req.body?.company || '').trim();
+    const email = String(req.body?.email || '').trim();
+    const message = String(req.body?.message || '').trim();
+    if (!name || !email || !message) {
+      return res.status(400).json({ success: false, error: 'name, email, and message are required' });
+    }
+
+    const published = await getSiteSetting('marketing_published');
+    const config = mergeConfig(DEFAULT_SITE_CONFIG, published || {});
+    const contact = config.pages?.contact || {};
+    const to = contact.supportEmail || config.footer?.email || 'support@okleaf.link';
+    const subject = contact.formSubject || 'New contact request';
+    const successMessage = contact.formSuccess || 'Thanks! We will get back to you within 1 business day.';
+
+    const text = [
+      `Name: ${name}`,
+      `Company: ${company || '-'}`,
+      `Email: ${email}`,
+      '',
+      message,
+    ].join('\n');
+
+    const html = [
+      '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;">',
+      `<p><strong>Name:</strong> ${name}</p>`,
+      `<p><strong>Company:</strong> ${company || '-'}</p>`,
+      `<p><strong>Email:</strong> ${email}</p>`,
+      `<p><strong>Message:</strong><br>${message.replace(/\n/g, '<br>')}</p>`,
+      '</div>',
+    ].join('');
+
+    const result = await sendMail({ to, subject, text, html });
+    if (!result.sent) {
+      return res.status(400).json({ success: false, error: result.reason || 'Email not sent' });
+    }
+
+    return res.json({ success: true, message: successMessage });
+  } catch (err) {
+    console.error('site.sendContactMessage error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
 export { DEFAULT_SITE_CONFIG };

@@ -190,6 +190,47 @@ export const DEFAULT_SITE_CONFIG = {
       ].join(''),
     },
   },
+  pages: {
+    contact: {
+      title: "Let's talk about your org",
+      subtitle: "Tell us about your current link workflows and we'll tailor a plan that fits your scale.",
+      supportEmail: 'support@okleaf.link',
+      formSubject: 'New contact request from OkLeaf',
+      formSubmitLabel: 'Send message',
+      formSuccess: 'Thanks! We will get back to you within 1 business day.',
+    },
+    about: {
+      title: 'Built for teams who care about brand control',
+      subtitle: 'OkLeaf blends fast redirects with enterprise-grade governance so every campaign stays on brand.',
+      body: [
+        'OkLeaf helps teams launch short links quickly without sacrificing governance.',
+        'From domain verification to analytics depth, we focus on clarity, speed, and control.',
+      ],
+      cards: [
+        { title: 'Reliable at scale', text: 'High-performance redirects with caching and resilient infrastructure.' },
+        { title: 'Insightful analytics', text: 'Actionable insights across domains, teams, and campaigns.' },
+        { title: 'Built for teams', text: 'Role-based access, audit trails, and clear ownership.' },
+      ],
+    },
+    caseStudies: {
+      title: 'Case studies',
+      subtitle: 'How teams use OkLeaf to launch campaigns with control.',
+      cards: [
+        { title: 'Oakleaf Ventures', text: 'Reduced link chaos with domain governance and real-time analytics.' },
+        { title: 'SignalWave Media', text: 'Improved campaign performance by tracking channel ROI in minutes.' },
+        { title: 'Bluefin Digital', text: 'Unified branded domains across global campaigns.' },
+      ],
+    },
+    useCases: {
+      title: 'Use cases',
+      subtitle: 'Common workflows teams power with OkLeaf.',
+      cards: [
+        { title: 'Campaign launches', text: 'Coordinate teams around a single short-link hub.' },
+        { title: 'Sales enablement', text: 'Track link performance by persona and region.' },
+        { title: 'Customer success', text: 'Give every team a branded domain with clear analytics.' },
+      ],
+    },
+  },
   ui: {
     adminTheme: 'noir',
     affiliateTheme: 'noir',

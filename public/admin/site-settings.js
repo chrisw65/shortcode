@@ -5,7 +5,7 @@ requireAuth();
 const qs = (sel, root = document) => root.querySelector(sel);
 const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-const state = { config: null, history: [] };
+const state = { config: null, history: [], pageKey: 'about', pageDrafts: {}, customThemes: [] };
 
 const THEMES = [
   { id: 'noir', label: 'Noir (default)', accent: '#e0b15a', accent2: '#2fb7b2', bg: '#0b0d10' },
@@ -120,6 +120,17 @@ const PREMIUM_PRESET = {
     ],
   },
 };
+
+const PREVIEW_PAGES = [
+  { id: 'home', label: 'Home', href: '/index.html' },
+  { id: 'features', label: 'Features', href: '/features.html' },
+  { id: 'pricing', label: 'Pricing', href: '/pricing.html' },
+  { id: 'docs', label: 'Docs', href: '/docs.html' },
+  { id: 'about', label: 'About', href: '/about.html' },
+  { id: 'contact', label: 'Contact', href: '/contact.html' },
+  { id: 'caseStudies', label: 'Case studies', href: '/case-studies.html' },
+  { id: 'useCases', label: 'Use cases', href: '/use-cases.html' },
+];
 
 function makeInput(label, value, placeholder = '') {
   const wrap = document.createElement('div');
@@ -250,6 +261,55 @@ function renderFaqs(faqs = []) {
   });
 }
 
+function renderPageCards(cards = []) {
+  const list = qs('#pageCardsList');
+  list.innerHTML = '';
+  cards.forEach((card) => {
+    const item = document.createElement('div');
+    item.className = 'card';
+    item.innerHTML = `
+      <label class="muted">Title</label>
+      <input class="input" data-field="title" value="${card.title || ''}">
+      <label class="muted" style="margin-top:10px">Text</label>
+      <input class="input" data-field="text" value="${card.text || ''}">
+      <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function renderPageBody(body = []) {
+  const list = qs('#pageBodyList');
+  list.innerHTML = '';
+  body.forEach((paragraph) => {
+    const item = document.createElement('div');
+    item.className = 'card';
+    item.innerHTML = `
+      <label class="muted">Paragraph</label>
+      <textarea class="input" data-field="text" rows="3">${paragraph || ''}</textarea>
+      <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function renderPageFaqs(faqs = []) {
+  const list = qs('#pageFaqsList');
+  list.innerHTML = '';
+  faqs.forEach((faq) => {
+    const item = document.createElement('div');
+    item.className = 'card';
+    item.innerHTML = `
+      <label class="muted">Question</label>
+      <input class="input" data-field="q" value="${faq.q || ''}">
+      <label class="muted" style="margin-top:10px">Answer</label>
+      <input class="input" data-field="a" value="${faq.a || ''}">
+      <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+    `;
+    list.appendChild(item);
+  });
+}
+
 function renderTiers(tiers = []) {
   const list = qs('#tiersList');
   list.innerHTML = '';
@@ -361,6 +421,18 @@ function getAllThemes() {
   return [...THEMES, ...(state.customThemes || [])];
 }
 
+function renderPreviewSelect(selectEl, selected) {
+  selectEl.innerHTML = PREVIEW_PAGES.map((page) => (
+    `<option value="${page.id}">${page.label}</option>`
+  )).join('');
+  selectEl.value = selected || 'home';
+}
+
+function resolvePreviewHref(pageId) {
+  const match = PREVIEW_PAGES.find((page) => page.id === pageId) || PREVIEW_PAGES[0];
+  return match?.href || '/index.html';
+}
+
 function setupAdminPicker(themes) {
   const adminPicker = qs('#adminThemePicker');
   const onSelect = (themeId) => {
@@ -405,6 +477,7 @@ function readList(container, mapper) {
 }
 
 function collectConfig() {
+  savePageEditor();
   const config = {
     brand: {
       name: qs('#brandName').value.trim(),
@@ -508,6 +581,7 @@ function collectConfig() {
         html: qs('#inviteHtml').value,
       },
     },
+    pages: state.pageDrafts || {},
     ui: {
       adminTheme: qs('#adminTheme').value,
       affiliateTheme: qs('#affiliateTheme').value,
@@ -565,6 +639,7 @@ async function loadConfig() {
 }
 
 function applyConfig(config) {
+  state.pageDrafts = JSON.parse(JSON.stringify(config.pages || {}));
   qs('#brandName').value = config.brand?.name || '';
   qs('#brandTagline').value = config.brand?.tagline || '';
   qs('#brandLogoUrl').value = config.brand?.logoUrl || '';
@@ -635,6 +710,9 @@ function applyConfig(config) {
   renderFaqs(config.faqs || []);
   renderFooterLinks(config.footer?.links || []);
   renderSocialLinks(config.footer?.social || []);
+
+  renderPageEditorSelect();
+  applyPageEditor(state.pageKey || 'about');
 }
 
 async function saveConfig() {
@@ -1021,6 +1099,90 @@ function addFaq() {
   list.appendChild(item);
 }
 
+function renderPageEditorSelect() {
+  const select = qs('#pageEditorSelect');
+  const options = [
+    { id: 'about', label: 'About' },
+    { id: 'contact', label: 'Contact' },
+    { id: 'caseStudies', label: 'Case studies' },
+    { id: 'useCases', label: 'Use cases' },
+    { id: 'home', label: 'Home (hero/FAQ overrides)' },
+  ];
+  select.innerHTML = options.map((opt) => `<option value="${opt.id}">${opt.label}</option>`).join('');
+  select.value = state.pageKey || 'about';
+}
+
+function getPageDraft(key) {
+  if (!state.pageDrafts[key]) state.pageDrafts[key] = {};
+  return state.pageDrafts[key];
+}
+
+function applyPageEditor(key) {
+  state.pageKey = key;
+  const page = getPageDraft(key);
+  if (key === 'home') {
+    qs('#pageTitle').value = page.hero?.headline || '';
+    qs('#pageSubtitle').value = page.hero?.subheadline || '';
+  } else {
+    qs('#pageTitle').value = page.title || '';
+    qs('#pageSubtitle').value = page.subtitle || '';
+  }
+  qs('#pageCtaPrimaryLabel').value = page.ctaPrimary?.label || page.hero?.primaryCta?.label || '';
+  qs('#pageCtaPrimaryHref').value = page.ctaPrimary?.href || page.hero?.primaryCta?.href || '';
+  qs('#pageCtaSecondaryLabel').value = page.ctaSecondary?.label || page.hero?.secondaryCta?.label || '';
+  qs('#pageCtaSecondaryHref').value = page.ctaSecondary?.href || page.hero?.secondaryCta?.href || '';
+  qs('#pageSupportEmail').value = page.supportEmail || '';
+  qs('#pageContactSubject').value = page.formSubject || '';
+  qs('#pageContactSubmit').value = page.formSubmitLabel || '';
+  qs('#pageContactSuccess').value = page.formSuccess || '';
+  renderPageCards(page.cards || []);
+  renderPageBody(page.body || []);
+  renderPageFaqs(page.faqs || []);
+}
+
+function savePageEditor() {
+  if (!state.pageKey) return;
+  const page = getPageDraft(state.pageKey);
+  const title = qs('#pageTitle').value.trim();
+  const subtitle = qs('#pageSubtitle').value.trim();
+  const ctaPrimary = {
+    label: qs('#pageCtaPrimaryLabel').value.trim(),
+    href: qs('#pageCtaPrimaryHref').value.trim(),
+  };
+  const ctaSecondary = {
+    label: qs('#pageCtaSecondaryLabel').value.trim(),
+    href: qs('#pageCtaSecondaryHref').value.trim(),
+  };
+  if (state.pageKey === 'home') {
+    page.hero = {
+      headline: title,
+      subheadline: subtitle,
+      primaryCta: ctaPrimary,
+      secondaryCta: ctaSecondary,
+    };
+  } else {
+    page.title = title;
+    page.subtitle = subtitle;
+    page.ctaPrimary = ctaPrimary;
+    page.ctaSecondary = ctaSecondary;
+  }
+  page.supportEmail = qs('#pageSupportEmail').value.trim();
+  page.formSubject = qs('#pageContactSubject').value.trim();
+  page.formSubmitLabel = qs('#pageContactSubmit').value.trim();
+  page.formSuccess = qs('#pageContactSuccess').value.trim();
+  page.cards = readList(qs('#pageCardsList'), (card) => ({
+    title: qs('[data-field="title"]', card).value.trim(),
+    text: qs('[data-field="text"]', card).value.trim(),
+  }));
+  page.body = readList(qs('#pageBodyList'), (card) => (
+    qs('[data-field="text"]', card).value.trim()
+  ));
+  page.faqs = readList(qs('#pageFaqsList'), (card) => ({
+    q: qs('[data-field="q"]', card).value.trim(),
+    a: qs('[data-field="a"]', card).value.trim(),
+  }));
+}
+
 function renderTemplate(template, vars) {
   return String(template || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key) => (
     key in vars ? vars[key] : match
@@ -1099,6 +1261,47 @@ async function init() {
   qs('#addFaqBtn').addEventListener('click', addFaq);
   qs('#addFooterLinkBtn').addEventListener('click', addFooterLink);
   qs('#addSocialLinkBtn').addEventListener('click', addSocialLink);
+  qs('#addPageCardBtn').addEventListener('click', () => {
+    const list = qs('#pageCardsList');
+    const item = document.createElement('div');
+    item.className = 'card';
+    item.innerHTML = `
+      <label class="muted">Title</label>
+      <input class="input" data-field="title" value="">
+      <label class="muted" style="margin-top:10px">Text</label>
+      <input class="input" data-field="text" value="">
+      <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+    `;
+    list.appendChild(item);
+  });
+  qs('#addPageBodyBtn').addEventListener('click', () => {
+    const list = qs('#pageBodyList');
+    const item = document.createElement('div');
+    item.className = 'card';
+    item.innerHTML = `
+      <label class="muted">Paragraph</label>
+      <textarea class="input" data-field="text" rows="3"></textarea>
+      <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+    `;
+    list.appendChild(item);
+  });
+  qs('#addPageFaqBtn').addEventListener('click', () => {
+    const list = qs('#pageFaqsList');
+    const item = document.createElement('div');
+    item.className = 'card';
+    item.innerHTML = `
+      <label class="muted">Question</label>
+      <input class="input" data-field="q" value="">
+      <label class="muted" style="margin-top:10px">Answer</label>
+      <input class="input" data-field="a" value="">
+      <button class="btn danger" data-action="remove" style="margin-top:12px">Remove</button>
+    `;
+    list.appendChild(item);
+  });
+  qs('#pageEditorSelect').addEventListener('change', (event) => {
+    savePageEditor();
+    applyPageEditor(event.target.value);
+  });
   qs('#invitePreviewBtn').addEventListener('click', showInvitePreview);
   qs('#invitePreviewCloseBtn').addEventListener('click', () => {
     qs('#invitePreviewPanel').style.display = 'none';
@@ -1244,7 +1447,10 @@ async function init() {
   });
   qs('#previewOpenBtn').addEventListener('click', () => {
     qs('#previewModal').style.display = 'flex';
-    qs('#previewModalFrame').src = `/index.html?preview=1&ts=${Date.now()}`;
+    const pageId = qs('#previewPageSelect').value || 'home';
+    const href = resolvePreviewHref(pageId);
+    qs('#previewModalFrame').src = `${href}?preview=1&ts=${Date.now()}`;
+    qs('#previewModalPageSelect').value = pageId;
   });
   qs('#previewCloseBtn').addEventListener('click', () => {
     qs('#previewModal').style.display = 'none';
@@ -1274,9 +1480,22 @@ async function init() {
       }
     });
   });
+  renderPreviewSelect(qs('#previewPageSelect'), 'home');
+  renderPreviewSelect(qs('#previewModalPageSelect'), 'home');
+  qs('#previewPageSelect').addEventListener('change', (event) => {
+    const frame = qs('#previewFrame');
+    const href = resolvePreviewHref(event.target.value);
+    frame.src = `${href}?preview=1&ts=${Date.now()}`;
+  });
+  qs('#previewModalPageSelect').addEventListener('change', (event) => {
+    const frame = qs('#previewModalFrame');
+    const href = resolvePreviewHref(event.target.value);
+    frame.src = `${href}?preview=1&ts=${Date.now()}`;
+  });
   qs('#previewRefreshBtn').addEventListener('click', () => {
     const frame = qs('#previewFrame');
-    frame.src = `/index.html?preview=1&ts=${Date.now()}`;
+    const href = resolvePreviewHref(qs('#previewPageSelect').value || 'home');
+    frame.src = `${href}?preview=1&ts=${Date.now()}`;
   });
   qs('#seedPremiumBtn').addEventListener('click', () => {
     const ok = window.confirm('Load the premium preset? This will replace your current draft values in the form (not published yet).');
@@ -1294,6 +1513,9 @@ async function init() {
   bindRemove('#faqsList');
   bindRemove('#footerLinksList');
   bindRemove('#socialLinksList');
+  bindRemove('#pageCardsList');
+  bindRemove('#pageBodyList');
+  bindRemove('#pageFaqsList');
 
   qs('#historyList').addEventListener('click', (event) => {
     const btn = event.target.closest('button[data-action]');

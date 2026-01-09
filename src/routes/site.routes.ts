@@ -9,11 +9,13 @@ import {
   getSiteHistory,
   rollbackSiteConfig,
   sendSiteEmailTest,
+  sendContactMessage,
 } from '../controllers/site.controller';
 
 const router = Router();
 
 router.get('/public/site-config', getPublicSiteConfig);
+router.post('/public/contact', sendContactMessage);
 router.get('/site-config', authenticate, requireSuperadmin, getAdminSiteConfig);
 router.put('/site-config', authenticate, requireSuperadmin, updateSiteConfig);
 router.post('/site-config/publish', authenticate, requireSuperadmin, publishSiteConfig);

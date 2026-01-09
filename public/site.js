@@ -143,6 +143,28 @@ function renderFeatures(features = []) {
   )).join('');
 }
 
+function renderPageCards(cards = []) {
+  const wrap = qs('[data-page-cards]');
+  if (!wrap) return;
+  wrap.innerHTML = cards.map((card) => (
+    `<div class="feature-card"><h4>${card.title || ''}</h4><p>${card.text || ''}</p></div>`
+  )).join('');
+}
+
+function renderCaseCards(cards = []) {
+  const wrap = qs('[data-page-cards]');
+  if (!wrap) return;
+  wrap.innerHTML = cards.map((card) => (
+    `<div class="case-card"><h3>${card.title || ''}</h3><p>${card.text || ''}</p></div>`
+  )).join('');
+}
+
+function renderPageBody(paragraphs = []) {
+  const wrap = qs('[data-page-body]');
+  if (!wrap) return;
+  wrap.innerHTML = paragraphs.map((p) => `<p>${p || ''}</p>`).join('');
+}
+
 function formatPrice(value, currency) {
   if (value === null || value === undefined) return 'Custom';
   if (Number(value) === 0) return 'Free';
@@ -245,6 +267,43 @@ async function init() {
     setMeta('meta[property="og:title"]', config.meta?.ogTitle || config.meta?.title);
     setMeta('meta[property="og:description"]', config.meta?.ogDescription || config.meta?.description);
     setMeta('meta[property="og:image"]', config.meta?.ogImage);
+
+    const pageKey = document.body?.dataset?.page || '';
+    if (pageKey && config.pages?.[pageKey]) {
+      const page = config.pages[pageKey];
+      const titleEl = qs('[data-page-title]');
+      if (titleEl && page.title) titleEl.textContent = page.title;
+      const subEl = qs('[data-page-subtitle]');
+      if (subEl && page.subtitle) subEl.textContent = page.subtitle;
+      if (page.hero?.headline) setText('heroHeadline', page.hero.headline);
+      if (page.hero?.subheadline) setText('heroSub', page.hero.subheadline);
+      if (page.hero?.primaryCta?.label) setText('ctaPrimary', page.hero.primaryCta.label);
+      if (page.hero?.primaryCta?.href) setHref('ctaPrimary', page.hero.primaryCta.href);
+      if (page.hero?.secondaryCta?.label) setText('ctaSecondary', page.hero.secondaryCta.label);
+      if (page.hero?.secondaryCta?.href) setHref('ctaSecondary', page.hero.secondaryCta.href);
+      const pageCtaPrimary = qs('[data-page-cta-primary]');
+      if (pageCtaPrimary && page.ctaPrimary?.label) pageCtaPrimary.textContent = page.ctaPrimary.label;
+      if (pageCtaPrimary && page.ctaPrimary?.href && pageCtaPrimary.tagName === 'A') {
+        pageCtaPrimary.href = page.ctaPrimary.href;
+      }
+      const pageCtaSecondary = qs('[data-page-cta-secondary]');
+      if (pageCtaSecondary && page.ctaSecondary?.label) pageCtaSecondary.textContent = page.ctaSecondary.label;
+      if (pageCtaSecondary && page.ctaSecondary?.href && pageCtaSecondary.tagName === 'A') {
+        pageCtaSecondary.href = page.ctaSecondary.href;
+      }
+      if (page.cards && pageKey === 'about') renderPageCards(page.cards);
+      if (page.cards && (pageKey === 'caseStudies' || pageKey === 'useCases')) renderCaseCards(page.cards);
+      if (page.body) renderPageBody(page.body);
+      if (page.formSubmitLabel) {
+        const btn = qs('[data-page-cta-primary]');
+        if (btn) btn.textContent = page.formSubmitLabel;
+      }
+      if (page.formSuccess) {
+        const notice = qs('#contactNotice');
+        if (notice) notice.textContent = page.formSuccess;
+      }
+      if (Array.isArray(page.faqs)) renderFaqs(page.faqs);
+    }
 
     bindToggle();
   } catch (err) {

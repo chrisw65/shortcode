@@ -53,6 +53,7 @@
               <div class="muted small">Shows the public site using your current draft.</div>
             </div>
             <div class="row" style="gap:10px">
+              <select class="input" id="previewPageSelect" style="max-width:220px"></select>
               <button class="btn ghost" id="previewRefreshBtn" type="button">Refresh preview</button>
               <button class="btn" id="previewOpenBtn" type="button">Open preview</button>
             </div>
@@ -228,6 +229,81 @@
 
         <section class="card" style="margin-top:18px">
           <div class="row-between">
+            <div>
+              <h3 class="m-0">Pages</h3>
+              <div class="muted small">Control About, Contact, Case studies, and Use cases content.</div>
+            </div>
+            <select class="input" id="pageEditorSelect" style="max-width:220px"></select>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Title</label>
+              <input class="input" id="pageTitle" placeholder="Page title">
+            </div>
+            <div>
+              <label class="muted">Subtitle</label>
+              <input class="input" id="pageSubtitle" placeholder="Page subtitle">
+            </div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Primary CTA label</label>
+              <input class="input" id="pageCtaPrimaryLabel" placeholder="Start free">
+            </div>
+            <div>
+              <label class="muted">Primary CTA URL</label>
+              <input class="input" id="pageCtaPrimaryHref" placeholder="/register.html">
+            </div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Secondary CTA label</label>
+              <input class="input" id="pageCtaSecondaryLabel" placeholder="Talk to sales">
+            </div>
+            <div>
+              <label class="muted">Secondary CTA URL</label>
+              <input class="input" id="pageCtaSecondaryHref" placeholder="/contact.html">
+            </div>
+          </div>
+          <div class="row-between" style="margin-top:12px">
+            <h4 class="m-0">Cards</h4>
+            <button class="btn ghost" id="addPageCardBtn" type="button">Add card</button>
+          </div>
+          <div id="pageCardsList" class="grid" style="margin-top:12px"></div>
+          <div class="row-between" style="margin-top:12px">
+            <h4 class="m-0">Body paragraphs</h4>
+            <button class="btn ghost" id="addPageBodyBtn" type="button">Add paragraph</button>
+          </div>
+          <div id="pageBodyList" class="grid" style="margin-top:12px"></div>
+          <div class="row-between" style="margin-top:12px">
+            <h4 class="m-0">FAQs override</h4>
+            <button class="btn ghost" id="addPageFaqBtn" type="button">Add FAQ</button>
+          </div>
+          <div id="pageFaqsList" class="grid" style="margin-top:12px"></div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Contact support email</label>
+              <input class="input" id="pageSupportEmail" placeholder="support@okleaf.link">
+            </div>
+            <div>
+              <label class="muted">Contact subject</label>
+              <input class="input" id="pageContactSubject" placeholder="New contact request">
+            </div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Contact submit label</label>
+              <input class="input" id="pageContactSubmit" placeholder="Send message">
+            </div>
+            <div>
+              <label class="muted">Contact success message</label>
+              <input class="input" id="pageContactSuccess" placeholder="Thanks! We'll be in touch.">
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
             <h3 class="m-0">Logos</h3>
             <button class="btn ghost" id="addLogoBtn" type="button">Add logo</button>
           </div>
@@ -366,6 +442,7 @@
           <div class="muted small">Draft rendering of the public site.</div>
         </div>
         <div class="row" style="gap:10px">
+          <select class="input" id="previewModalPageSelect" style="max-width:220px"></select>
           <button class="btn ghost" data-size="desktop" type="button">Desktop</button>
           <button class="btn ghost" data-size="tablet" type="button">Tablet</button>
           <button class="btn ghost" data-size="mobile" type="button">Mobile</button>
