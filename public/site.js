@@ -187,8 +187,8 @@ function renderFeatures(features = []) {
   )).join('');
 }
 
-function renderPageCards(cards = [], variant = 'feature') {
-  const wrap = qs('[data-page-cards]');
+function renderPageCards(cards = [], variant = 'feature', selector = '[data-page-cards]') {
+  const wrap = qs(selector);
   if (!wrap) return;
   const isCase = variant === 'case';
   wrap.innerHTML = cards.map((card) => (
@@ -332,6 +332,27 @@ async function init() {
       }
       if (page.cards && pageKey === 'about') renderPageCards(page.cards, 'feature');
       if (page.cards && (pageKey === 'caseStudies' || pageKey === 'useCases')) renderPageCards(page.cards, 'case');
+      if (pageKey === 'features') {
+        const sectionTitle = qs('[data-page-section-title]');
+        if (sectionTitle && page.section?.title) sectionTitle.textContent = page.section.title;
+        const sectionSub = qs('[data-page-section-subtitle]');
+        if (sectionSub && page.section?.subtitle) sectionSub.textContent = page.section.subtitle;
+        if (page.cards) renderPageCards(page.cards, 'feature', '[data-page-cards]');
+      }
+      if (pageKey === 'pricing') {
+        const monthly = qs('[data-pricing-monthly-label]');
+        if (monthly && page.pricing?.monthlyLabel) monthly.textContent = page.pricing.monthlyLabel;
+        const annual = qs('[data-pricing-annual-label]');
+        if (annual && page.pricing?.annualLabel) annual.textContent = page.pricing.annualLabel;
+        const faqTitle = qs('[data-page-faq-title]');
+        if (faqTitle && page.pricing?.faqTitle) faqTitle.textContent = page.pricing.faqTitle;
+        const faqSub = qs('[data-page-faq-subtitle]');
+        if (faqSub && page.pricing?.faqSubtitle) faqSub.textContent = page.pricing.faqSubtitle;
+      }
+      if (pageKey === 'docs') {
+        const docsWrap = qs('[data-docs-html]');
+        if (docsWrap && page.html) docsWrap.innerHTML = page.html;
+      }
       if (page.body) renderPageBody(page.body);
       if (page.formSubmitLabel) {
         const btn = qs('[data-page-cta-primary]');

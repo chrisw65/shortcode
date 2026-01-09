@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/site.css" />
 </head>
-<body>
+<body data-page="features">
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="/">
@@ -40,34 +40,17 @@
   <main>
     <section class="section">
       <div class="container reveal">
-        <h1 class="section-title">The modern link stack for fast-moving teams</h1>
-        <p class="section-sub">From branded links to org-level analytics, OkLeaf keeps every campaign in a single system.</p>
+        <h1 class="section-title" data-page-title>The modern link stack for fast-moving teams</h1>
+        <p class="section-sub" data-page-subtitle>From branded links to org-level analytics, OkLeaf keeps every campaign in a single system.</p>
         <div class="feature-grid" data-features></div>
       </div>
     </section>
 
     <section class="section">
       <div class="container reveal">
-        <h2 class="section-title">Built for teams, not just individuals</h2>
-        <p class="section-sub">Invite teammates, assign roles, and audit every change so leadership stays informed.</p>
-        <div class="feature-grid">
-          <div class="feature-card">
-            <h4>Org-level governance</h4>
-            <p>Owners can approve domains, revoke access, and align teams to shared analytics.</p>
-          </div>
-          <div class="feature-card">
-            <h4>API-first workflows</h4>
-            <p>Automate link creation, enforce naming, and wire campaigns into your stack.</p>
-          </div>
-          <div class="feature-card">
-            <h4>Enterprise controls</h4>
-            <p>Custom retention, SSO-ready patterns, and audit logs built into every plan.</p>
-          </div>
-          <div class="feature-card">
-            <h4>Reliable redirects</h4>
-            <p>Fast, secure redirects with rate controls and monitoring baked in.</p>
-          </div>
-        </div>
+        <h2 class="section-title" data-page-section-title>Built for teams, not just individuals</h2>
+        <p class="section-sub" data-page-section-subtitle>Invite teammates, assign roles, and audit every change so leadership stays informed.</p>
+        <div class="feature-grid" data-page-cards></div>
       </div>
     </section>
   </main>
@@ -93,6 +76,6 @@
       </div>
     </footer>
 
-  <script src="/site.js?v=20260111"></script>
+  <script src="/site.js?v=20260112"></script>
 </body>
 </html>

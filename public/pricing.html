@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/site.css" />
 </head>
-<body>
+<body data-page="pricing">
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="/">
@@ -39,18 +39,19 @@
 
   <main class="container section">
     <div class="reveal">
-      <h1 class="section-title">Plans built for every stage of growth</h1>
-      <p class="section-sub">Pick the tier that matches your org. Upgrade anytime as you add domains or teammates.</p>
+      <h1 class="section-title" data-page-title>Plans built for every stage of growth</h1>
+      <p class="section-sub" data-page-subtitle>Pick the tier that matches your org. Upgrade anytime as you add domains or teammates.</p>
       <div class="toggle" data-billing-toggle>
-        <button type="button" class="active" data-mode="monthly">Monthly</button>
-        <button type="button" data-mode="annual">Annual</button>
+        <button type="button" class="active" data-mode="monthly" data-pricing-monthly-label>Monthly</button>
+        <button type="button" data-mode="annual" data-pricing-annual-label>Annual</button>
       </div>
       <div class="pricing-grid" data-pricing></div>
       <div class="notice" data-billing-note></div>
     </div>
 
     <section class="section reveal">
-      <h2 class="section-title">Frequently asked questions</h2>
+      <h2 class="section-title" data-page-faq-title>Frequently asked questions</h2>
+      <p class="section-sub" data-page-faq-subtitle></p>
       <div class="faqs" data-faqs></div>
     </section>
   </main>
@@ -76,6 +77,6 @@
       </div>
     </footer>
 
-  <script src="/site.js?v=20260111"></script>
+  <script src="/site.js?v=20260112"></script>
 </body>
 </html>

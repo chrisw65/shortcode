@@ -1159,6 +1159,9 @@ function renderPageEditorSelect() {
     { id: 'contact', label: 'Contact' },
     { id: 'caseStudies', label: 'Case studies' },
     { id: 'useCases', label: 'Use cases' },
+    { id: 'features', label: 'Features' },
+    { id: 'pricing', label: 'Pricing' },
+    { id: 'docs', label: 'Docs' },
     { id: 'home', label: 'Home (hero/FAQ overrides)' },
   ];
   select.innerHTML = options.map((opt) => `<option value="${opt.id}">${opt.label}</option>`).join('');
@@ -1170,9 +1173,18 @@ function getPageDraft(key) {
   return state.pageDrafts[key];
 }
 
+function updatePageEditorVisibility(key) {
+  qsa('[data-page-only]').forEach((el) => {
+    const list = (el.dataset.pageOnly || '').split(',').map((item) => item.trim());
+    const visible = list.includes(key);
+    el.style.display = visible ? '' : 'none';
+  });
+}
+
 function applyPageEditor(key) {
   state.pageKey = key;
   const page = getPageDraft(key);
+  updatePageEditorVisibility(key);
   if (key === 'home') {
     qs('#pageTitle').value = page.hero?.headline || '';
     qs('#pageSubtitle').value = page.hero?.subheadline || '';
@@ -1195,6 +1207,13 @@ function applyPageEditor(key) {
   qs('#pageCaptchaTheme').value = captcha.theme || 'dark';
   qs('#pageCaptchaSiteKey').value = captcha.siteKey || '';
   qs('#pageCaptchaSecret').value = captcha.secret || page.captchaSecret || '';
+  qs('#pageSectionTitle').value = page.section?.title || '';
+  qs('#pageSectionSubtitle').value = page.section?.subtitle || '';
+  qs('#pagePricingMonthlyLabel').value = page.pricing?.monthlyLabel || '';
+  qs('#pagePricingAnnualLabel').value = page.pricing?.annualLabel || '';
+  qs('#pagePricingFaqTitle').value = page.pricing?.faqTitle || '';
+  qs('#pagePricingFaqSubtitle').value = page.pricing?.faqSubtitle || '';
+  qs('#pageDocsHtml').value = page.html || '';
   qs('#pageMetaTitle').value = page.meta?.title || '';
   qs('#pageMetaDescription').value = page.meta?.description || '';
   qs('#pageOgTitle').value = page.meta?.ogTitle || '';
@@ -1243,6 +1262,17 @@ function savePageEditor() {
     question: qs('#pageCaptchaQuestion').value.trim(),
     answer: qs('#pageCaptchaAnswer').value.trim(),
   };
+  page.section = {
+    title: qs('#pageSectionTitle').value.trim(),
+    subtitle: qs('#pageSectionSubtitle').value.trim(),
+  };
+  page.pricing = {
+    monthlyLabel: qs('#pagePricingMonthlyLabel').value.trim(),
+    annualLabel: qs('#pagePricingAnnualLabel').value.trim(),
+    faqTitle: qs('#pagePricingFaqTitle').value.trim(),
+    faqSubtitle: qs('#pagePricingFaqSubtitle').value.trim(),
+  };
+  page.html = qs('#pageDocsHtml').value.trim();
   page.meta = {
     title: qs('#pageMetaTitle').value.trim(),
     description: qs('#pageMetaDescription').value.trim(),

@@ -239,7 +239,7 @@
           <div class="row-between">
             <div>
               <h3 class="m-0">Pages</h3>
-              <div class="muted small">Control About, Contact, Case studies, and Use cases content.</div>
+              <div class="muted small">Control About, Contact, Case studies, Use cases, Features, Pricing, and Docs content.</div>
             </div>
             <select class="input" id="pageEditorSelect" style="max-width:220px"></select>
           </div>
@@ -273,22 +273,63 @@
               <input class="input" id="pageCtaSecondaryHref" placeholder="/contact.html">
             </div>
           </div>
-          <div class="row-between" style="margin-top:12px">
-            <h4 class="m-0">Cards</h4>
-            <button class="btn ghost" id="addPageCardBtn" type="button">Add card</button>
+          <div class="grid grid-2" style="margin-top:12px" data-page-only="features">
+            <div>
+              <label class="muted">Section title</label>
+              <input class="input" id="pageSectionTitle" placeholder="Built for teams, not just individuals">
+            </div>
+            <div>
+              <label class="muted">Section subtitle</label>
+              <input class="input" id="pageSectionSubtitle" placeholder="Invite teammates and manage access.">
+            </div>
           </div>
-          <div id="pageCardsList" class="grid" style="margin-top:12px"></div>
-          <div class="row-between" style="margin-top:12px">
-            <h4 class="m-0">Body paragraphs</h4>
-            <button class="btn ghost" id="addPageBodyBtn" type="button">Add paragraph</button>
+          <div data-page-only="about,caseStudies,useCases,features">
+            <div class="row-between" style="margin-top:12px">
+              <h4 class="m-0">Cards</h4>
+              <button class="btn ghost" id="addPageCardBtn" type="button">Add card</button>
+            </div>
+            <div id="pageCardsList" class="grid" style="margin-top:12px"></div>
           </div>
-          <div id="pageBodyList" class="grid" style="margin-top:12px"></div>
-          <div class="row-between" style="margin-top:12px">
-            <h4 class="m-0">FAQs override</h4>
-            <button class="btn ghost" id="addPageFaqBtn" type="button">Add FAQ</button>
+          <div data-page-only="about,caseStudies,useCases">
+            <div class="row-between" style="margin-top:12px">
+              <h4 class="m-0">Body paragraphs</h4>
+              <button class="btn ghost" id="addPageBodyBtn" type="button">Add paragraph</button>
+            </div>
+            <div id="pageBodyList" class="grid" style="margin-top:12px"></div>
           </div>
-          <div id="pageFaqsList" class="grid" style="margin-top:12px"></div>
-          <div class="grid grid-2" style="margin-top:12px">
+          <div data-page-only="about,caseStudies,useCases,pricing">
+            <div class="row-between" style="margin-top:12px">
+              <h4 class="m-0">FAQs override</h4>
+              <button class="btn ghost" id="addPageFaqBtn" type="button">Add FAQ</button>
+            </div>
+            <div id="pageFaqsList" class="grid" style="margin-top:12px"></div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px" data-page-only="pricing">
+            <div>
+              <label class="muted">Toggle monthly label</label>
+              <input class="input" id="pagePricingMonthlyLabel" placeholder="Monthly">
+            </div>
+            <div>
+              <label class="muted">Toggle annual label</label>
+              <input class="input" id="pagePricingAnnualLabel" placeholder="Annual">
+            </div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px" data-page-only="pricing">
+            <div>
+              <label class="muted">FAQ title</label>
+              <input class="input" id="pagePricingFaqTitle" placeholder="Frequently asked questions">
+            </div>
+            <div>
+              <label class="muted">FAQ subtitle</label>
+              <input class="input" id="pagePricingFaqSubtitle" placeholder="Answers about billing and upgrades.">
+            </div>
+          </div>
+          <div style="margin-top:12px" data-page-only="docs">
+            <label class="muted">Docs HTML</label>
+            <textarea class="input" id="pageDocsHtml" rows="10" placeholder="<section class=&quot;section reveal&quot;>..."></textarea>
+            <div class="muted small" style="margin-top:6px">Use HTML blocks like the current docs page to control layout, code blocks, and cards.</div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px" data-page-only="contact">
             <div>
               <label class="muted">Contact support email</label>
               <input class="input" id="pageSupportEmail" placeholder="support@okleaf.link">
@@ -298,7 +339,7 @@
               <input class="input" id="pageContactSubject" placeholder="New contact request">
             </div>
           </div>
-          <div class="grid grid-2" style="margin-top:12px">
+          <div class="grid grid-2" style="margin-top:12px" data-page-only="contact">
             <div>
               <label class="muted">Contact submit label</label>
               <input class="input" id="pageContactSubmit" placeholder="Send message">
@@ -308,7 +349,7 @@
               <input class="input" id="pageContactSuccess" placeholder="Thanks! We'll be in touch.">
             </div>
           </div>
-          <div class="grid grid-2" style="margin-top:12px">
+          <div class="grid grid-2" style="margin-top:12px" data-page-only="contact">
             <div>
               <label class="muted">Captcha question</label>
               <input class="input" id="pageCaptchaQuestion" placeholder="What is 3 + 4?">
@@ -318,7 +359,7 @@
               <input class="input" id="pageCaptchaAnswer" placeholder="7">
             </div>
           </div>
-          <div class="grid grid-2" style="margin-top:12px">
+          <div class="grid grid-2" style="margin-top:12px" data-page-only="contact">
             <div>
               <label class="muted">Captcha provider</label>
               <select class="input" id="pageCaptchaProvider">
@@ -336,7 +377,7 @@
               </select>
             </div>
           </div>
-          <div class="grid grid-2" style="margin-top:12px">
+          <div class="grid grid-2" style="margin-top:12px" data-page-only="contact">
             <div>
               <label class="muted">Turnstile site key</label>
               <input class="input" id="pageCaptchaSiteKey" placeholder="0x4AAAAAAA...">
@@ -532,6 +573,6 @@
   </div>
 
   <script type="module" src="/admin/admin-common.js?v=20260111"></script>
-  <script type="module" src="/admin/site-settings.js?v=20260111"></script>
+  <script type="module" src="/admin/site-settings.js?v=20260112"></script>
 </body>
 </html>
