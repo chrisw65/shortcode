@@ -1302,7 +1302,7 @@ async function sendInviteTest() {
 
 function initTabs() {
   const tabs = Array.from(document.querySelectorAll('#siteTabs .tab-btn'));
-  const sections = Array.from(document.querySelectorAll('[data-tab]'));
+  const sections = Array.from(document.querySelectorAll('.admin-content [data-tab]'));
   if (!tabs.length || !sections.length) return;
   const setTab = (tab) => {
     tabs.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
