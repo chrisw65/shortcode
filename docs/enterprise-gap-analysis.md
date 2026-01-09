@@ -17,9 +17,9 @@ Core product
 - API keys for orgs
 
 Billing and growth
-- Stripe Checkout + Customer Portal wiring
+- Stripe Checkout + Customer Portal endpoints (configurable via admin)
 - Stripe webhook handling for subscriptions
-- Plan grants, coupons, and affiliates (manual payouts)
+- Plan grants stored for orgs (manual enforcement)
 
 Analytics
 - Click event capture in Postgres
@@ -86,6 +86,21 @@ Medium
 Low
 - Polished affiliate dashboard + automated payouts
 - Admin tooling for pricing/entitlement experiments
+
+## Additional gaps to address (from latest review)
+
+Billing & entitlements
+- Stripe integration is present but not fully operationalized (pricing sync, coupons, trials, invoices)
+- Entitlements are not enforced end-to-end (domains, features, limits)
+- Affiliate payouts lack automated ledgers and payout workflows
+
+Security, compliance, and audit
+- No immutable audit log UI or export
+- No data retention policies, GDPR tooling, or SOC2-ready controls
+
+CMS / docs
+- Docs are CMS HTML-driven but lack a WYSIWYG editor
+- Some pages still have hardcoded sections (reduced, but not eliminated)
 
 ## Recommended next steps (short)
 
