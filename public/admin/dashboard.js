@@ -1,5 +1,5 @@
 // v9 – minimal, safe dashboard data loader with proper nav mounting
-import { requireAuth, apiFetch, fmtDate, mountNav, $, $$ } from '/admin/admin-common.js';
+import { requireAuth, apiFetch, fmtDate, mountNav, $, $$ } from '/admin/admin-common.js?v=20260111';
 
 requireAuth();
 mountNav('dashboard');

@@ -70,12 +70,39 @@ export function onReady(fn) {
   else document.addEventListener('DOMContentLoaded', fn, { once:true });
 }
 
+function applyAdminBrand(config) {
+  const brand = config?.brand || {};
+  const name = brand.name || 'OkLeaf';
+  const logoUrl = brand.logoUrl || '';
+  const logoAlt = brand.logoAlt || name;
+  const initial = name.trim().charAt(0).toUpperCase() || 'O';
+
+  document.querySelectorAll('.brand').forEach((el) => {
+    const badge = el.querySelector('.brand-badge');
+    const label = el.querySelector('span:last-child');
+    if (label) label.textContent = name;
+    if (badge) {
+      if (logoUrl) {
+        while (badge.firstChild) badge.removeChild(badge.firstChild);
+        const img = document.createElement('img');
+        img.className = 'brand-logo';
+        img.src = logoUrl;
+        img.alt = logoAlt;
+        badge.appendChild(img);
+      } else {
+        badge.textContent = initial;
+      }
+    }
+  });
+}
+
 async function applyAdminTheme() {
   try {
     const res = await fetch('/api/public/site-config', { credentials: 'same-origin' });
     const data = await res.json().catch(() => null);
-    const theme = data?.data?.ui?.adminTheme || 'noir';
-    const tokens = data?.data?.ui?.adminThemeTokens || {};
+    const config = data?.data || {};
+    const theme = config?.ui?.adminTheme || 'noir';
+    const tokens = config?.ui?.adminThemeTokens || {};
     document.body.classList.add(`theme-${theme}`);
     const root = document.documentElement;
     if (tokens.bg) root.style.setProperty('--bg', tokens.bg);
@@ -86,6 +113,7 @@ async function applyAdminTheme() {
     if (tokens.accent) root.style.setProperty('--accent', tokens.accent);
     if (tokens.accent2) root.style.setProperty('--accent-2', tokens.accent2);
     if (tokens.border) root.style.setProperty('--border', tokens.border);
+    applyAdminBrand(config);
   } catch (err) {
     console.warn('admin theme load failed', err);
   }

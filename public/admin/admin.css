@@ -94,6 +94,9 @@ a{color:inherit;text-decoration:none}
   background:linear-gradient(135deg,var(--accent),var(--accent-2));
   display:grid;place-items:center;color:#141414;font-weight:700
 }
+.brand-logo{
+  width:100%;height:100%;object-fit:cover;border-radius:8px
+}
 .side-meta{color:var(--muted);font-size:13px;margin-bottom:18px}
 
 .side-nav{display:flex;flex-direction:column;gap:6px}

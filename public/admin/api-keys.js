@@ -1,4 +1,4 @@
-import { requireAuth, api, htmlesc } from '/admin/admin-common.js';
+import { requireAuth, api, htmlesc } from '/admin/admin-common.js?v=20260111';
 
 requireAuth();
 

@@ -1,4 +1,4 @@
-import { requireAuth, apiFetch, showToast, showError } from '/admin/admin-common.js';
+import { requireAuth, apiFetch, showToast, showError } from '/admin/admin-common.js?v=20260111';
 
 requireAuth();
 
