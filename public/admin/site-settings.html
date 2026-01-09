@@ -432,7 +432,10 @@
         </section>
 
         <section class="card" style="margin-top:18px" data-tab="email">
-          <h3>Email templates</h3>
+          <div class="row-between">
+            <h3 class="m-0">Email templates</h3>
+            <button class="btn ghost" id="inviteResetBtn" type="button">Reset invite template</button>
+          </div>
           <div class="muted small">Variables: {{brandName}}, {{supportEmail}}, {{inviter}}, {{inviteUrl}}</div>
           <label class="muted" style="margin-top:12px">Invite subject</label>
           <input class="input" id="inviteSubject" placeholder="You are invited to {{brandName}}">
@@ -529,6 +532,6 @@
   </div>
 
   <script type="module" src="/admin/admin-common.js"></script>
-  <script type="module" src="/admin/site-settings.js?v=20260110"></script>
+  <script type="module" src="/admin/site-settings.js?v=20260111"></script>
 </body>
 </html>

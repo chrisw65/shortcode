@@ -1244,6 +1244,53 @@ function renderTemplate(template, vars) {
   ));
 }
 
+function getDefaultInviteTemplate() {
+  return {
+    subject: 'You are invited to {{brandName}}',
+    text: [
+      'Hello,',
+      '',
+      '{{inviter}} invited you to join {{brandName}}.',
+      'Use this link to accept the invite:',
+      '{{inviteUrl}}',
+      '',
+      'If you were not expecting this invite, you can ignore this email.',
+      'Need help? Contact {{supportEmail}}.',
+    ].join('\n'),
+    html: [
+      '<div style="background:#edf2f7;padding:32px 12px;font-family:Helvetica,Arial,sans-serif;color:#0f172a;">',
+      '  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 12px 30px rgba(15,23,42,0.08);">',
+      '    <tr>',
+      '      <td style="padding:28px 32px;background:linear-gradient(135deg,#0f172a,#1e293b);color:#ffffff;">',
+      '        <div style="font-size:20px;font-weight:700;letter-spacing:0.3px;">{{brandName}}</div>',
+      '        <div style="opacity:0.8;font-size:13px;margin-top:6px;letter-spacing:0.2px;">Invitation to collaborate</div>',
+      '      </td>',
+      '    </tr>',
+      '    <tr>',
+      '      <td style="padding:32px;">',
+      '        <h2 style="margin:0 0 12px;font-size:22px;color:#0f172a;">You are invited</h2>',
+      '        <p style="margin:0 0 16px;line-height:1.7;color:#334155;">{{inviter}} invited you to join {{brandName}}. Accept the invite to access your workspace, manage links, and view analytics.</p>',
+      '        <div style="margin:22px 0;">',
+      '          <a href="{{inviteUrl}}" style="display:inline-block;padding:12px 22px;background:#2563eb;color:#ffffff;border-radius:999px;text-decoration:none;font-weight:600;">Accept invite</a>',
+      '        </div>',
+      '        <div style="font-size:13px;color:#64748b;margin-top:12px;">If the button doesn\'t work, copy this link:</div>',
+      '        <div style="font-size:13px;color:#2563eb;word-break:break-all;">{{inviteUrl}}</div>',
+      '        <div style="margin-top:18px;padding:12px 14px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;font-size:13px;color:#475569;">',
+      '          This invite is unique to you. If you were not expecting it, you can ignore this email.',
+      '        </div>',
+      '      </td>',
+      '    </tr>',
+      '    <tr>',
+      '      <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;">',
+      '        Need help? Contact <a href="mailto:{{supportEmail}}" style="color:#2563eb;text-decoration:none;">{{supportEmail}}</a>.',
+      '      </td>',
+      '    </tr>',
+      '  </table>',
+      '</div>',
+    ].join(''),
+  };
+}
+
 function buildInvitePreviewVars() {
   return {
     brandName: qs('#brandName').value.trim() || 'OkLeaf',
@@ -1388,6 +1435,15 @@ async function init() {
     applyPageEditor(event.target.value);
   });
   qs('#invitePreviewBtn').addEventListener('click', showInvitePreview);
+  qs('#inviteResetBtn').addEventListener('click', () => {
+    const ok = window.confirm('Reset invite template to the default premium layout? This will replace your current draft values.');
+    if (!ok) return;
+    const defaults = getDefaultInviteTemplate();
+    qs('#inviteSubject').value = defaults.subject;
+    qs('#inviteText').value = defaults.text;
+    qs('#inviteHtml').value = defaults.html;
+    showToast('Invite template reset to defaults.');
+  });
   qs('#invitePreviewCloseBtn').addEventListener('click', () => {
     qs('#invitePreviewPanel').style.display = 'none';
   });
