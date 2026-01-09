@@ -149,15 +149,15 @@ tr.sel{background:rgba(255,255,255,.03)}
   background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px, auto;
   overflow:hidden;
 }
-.world-map-svg{
+.world-map-img{
   position:absolute;
   inset:8%;
   width:84%;
   height:84%;
-  fill:rgba(255,255,255,.35);
+  object-fit:contain;
   pointer-events:none;
   display:block;
-  opacity:.35;
+  opacity:.45;
 }
 .world-dots{position:absolute;inset:0}
 .world-dot{
