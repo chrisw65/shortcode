@@ -109,6 +109,11 @@ const PREMIUM_PRESET = {
     company: 'OkLeaf',
     email: 'support@okleaf.link',
     address: 'Amsterdam • Remote-first',
+    headings: {
+      support: 'Support',
+      company: 'Company',
+      social: 'Social',
+    },
     links: [
       { label: 'Privacy', href: '/docs.html' },
       { label: 'Terms', href: '/docs.html' },
@@ -126,6 +131,8 @@ const PREVIEW_PAGES = [
   { id: 'features', label: 'Features', href: '/features.html' },
   { id: 'pricing', label: 'Pricing', href: '/pricing.html' },
   { id: 'docs', label: 'Docs', href: '/docs.html' },
+  { id: 'login', label: 'Login', href: '/login.html' },
+  { id: 'register', label: 'Register', href: '/register.html' },
   { id: 'about', label: 'About', href: '/about.html' },
   { id: 'contact', label: 'Contact', href: '/contact.html' },
   { id: 'caseStudies', label: 'Case studies', href: '/case-studies.html' },
@@ -613,6 +620,11 @@ function collectConfig() {
       company: qs('#footerCompany').value.trim(),
       email: qs('#footerEmail').value.trim(),
       address: qs('#footerAddress').value.trim(),
+      headings: {
+        support: qs('#footerHeadingSupport').value.trim(),
+        company: qs('#footerHeadingCompany').value.trim(),
+        social: qs('#footerHeadingSocial').value.trim(),
+      },
       links: readList(qs('#footerLinksList'), (card) => ({
         label: qs('[data-field="label"]', card).value.trim(),
         href: qs('[data-field="href"]', card).value.trim(),
@@ -719,6 +731,9 @@ function applyConfig(config) {
   qs('#footerCompany').value = config.footer?.company || '';
   qs('#footerEmail').value = config.footer?.email || '';
   qs('#footerAddress').value = config.footer?.address || '';
+  qs('#footerHeadingSupport').value = config.footer?.headings?.support || '';
+  qs('#footerHeadingCompany').value = config.footer?.headings?.company || '';
+  qs('#footerHeadingSocial').value = config.footer?.headings?.social || '';
   qs('#inviteSubject').value = config.emails?.invite?.subject || '';
   qs('#inviteText').value = config.emails?.invite?.text || '';
   qs('#inviteHtml').value = config.emails?.invite?.html || '';
@@ -1181,6 +1196,21 @@ function updatePageEditorVisibility(key) {
   });
 }
 
+function setDocsEditorHtml(html) {
+  const editor = qs('#pageDocsEditor');
+  const field = qs('#pageDocsHtml');
+  if (!editor || !field) return;
+  editor.innerHTML = html || '';
+  field.value = html || '';
+}
+
+function syncDocsEditor() {
+  const editor = qs('#pageDocsEditor');
+  const field = qs('#pageDocsHtml');
+  if (!editor || !field) return;
+  field.value = editor.innerHTML.trim();
+}
+
 function applyPageEditor(key) {
   state.pageKey = key;
   const page = getPageDraft(key);
@@ -1213,7 +1243,8 @@ function applyPageEditor(key) {
   qs('#pagePricingAnnualLabel').value = page.pricing?.annualLabel || '';
   qs('#pagePricingFaqTitle').value = page.pricing?.faqTitle || '';
   qs('#pagePricingFaqSubtitle').value = page.pricing?.faqSubtitle || '';
-  qs('#pageDocsHtml').value = page.html || '';
+  setDocsEditorHtml(page.html || '');
+  qs('#pageAuthBullets').value = (page.bullets || []).join('\n');
   qs('#pageMetaTitle').value = page.meta?.title || '';
   qs('#pageMetaDescription').value = page.meta?.description || '';
   qs('#pageOgTitle').value = page.meta?.ogTitle || '';
@@ -1272,7 +1303,12 @@ function savePageEditor() {
     faqTitle: qs('#pagePricingFaqTitle').value.trim(),
     faqSubtitle: qs('#pagePricingFaqSubtitle').value.trim(),
   };
+  syncDocsEditor();
   page.html = qs('#pageDocsHtml').value.trim();
+  page.bullets = qs('#pageAuthBullets').value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
   page.meta = {
     title: qs('#pageMetaTitle').value.trim(),
     description: qs('#pageMetaDescription').value.trim(),
@@ -1297,6 +1333,58 @@ function renderTemplate(template, vars) {
   return String(template || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key) => (
     key in vars ? vars[key] : match
   ));
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function applyDocsCommand(cmd) {
+  const editor = qs('#pageDocsEditor');
+  if (!editor) return;
+  editor.focus();
+  if (cmd === 'h2') return document.execCommand('formatBlock', false, 'H2');
+  if (cmd === 'h3') return document.execCommand('formatBlock', false, 'H3');
+  if (cmd === 'p') return document.execCommand('formatBlock', false, 'P');
+  if (cmd === 'ul') return document.execCommand('insertUnorderedList');
+  if (cmd === 'ol') return document.execCommand('insertOrderedList');
+  if (cmd === 'bold') return document.execCommand('bold');
+  if (cmd === 'italic') return document.execCommand('italic');
+  if (cmd === 'underline') return document.execCommand('underline');
+  if (cmd === 'link') {
+    const url = window.prompt('Enter link URL');
+    if (!url) return;
+    const selection = window.getSelection();
+    const text = selection ? selection.toString() : '';
+    if (text) {
+      document.execCommand('createLink', false, url);
+    } else {
+      document.execCommand('insertHTML', false, `<a href="${url}">${url}</a>`);
+    }
+    return;
+  }
+  if (cmd === 'code') {
+    const selection = window.getSelection();
+    const text = selection ? selection.toString() : '';
+    const escaped = escapeHtml(text || 'code');
+    document.execCommand('insertHTML', false, `<pre class="code-block"><code>${escaped}</code></pre>`);
+  }
+}
+
+function setupDocsEditor() {
+  const editor = qs('#pageDocsEditor');
+  const toolbar = qs('#docsEditorToolbar');
+  if (!editor || !toolbar) return;
+  editor.addEventListener('input', syncDocsEditor);
+  toolbar.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-cmd]');
+    if (!btn) return;
+    applyDocsCommand(btn.dataset.cmd);
+    syncDocsEditor();
+  });
 }
 
 function getDefaultInviteTemplate() {
@@ -1426,6 +1514,7 @@ async function init() {
   }
 
   initTabs();
+  setupDocsEditor();
 
   qs('#saveBtn').addEventListener('click', saveConfig);
   qs('#publishBtn').addEventListener('click', publishConfig);

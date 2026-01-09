@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/site.css" />
 </head>
-<body>
+<body data-page="login">
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="/">
@@ -38,8 +38,9 @@
 
   <main class="auth-wrap">
     <div class="auth-card reveal">
-      <h2>Welcome back</h2>
-      <p class="notice">Sign in to manage domains, links, and analytics.</p>
+      <h2 data-page-title>Welcome back</h2>
+      <p class="notice" data-page-subtitle>Sign in to manage domains, links, and analytics.</p>
+      <ul class="auth-points" data-page-bullets></ul>
       <label for="email">Email</label>
       <input id="email" type="email" placeholder="you@company.com" />
       <label for="password">Password</label>
@@ -59,21 +60,21 @@
         <div id="footerAddress" data-bind="footerAddress">Amsterdam - Remote-first</div>
       </div>
       <div>
-        <div>Support</div>
+        <div data-footer-heading-support>Support</div>
         <div id="footerEmail" data-bind="footerEmail">support@okleaf.link</div>
       </div>
       <div>
-        <div>Company</div>
+        <div data-footer-heading-company>Company</div>
         <div class="footer-links" data-footer-links></div>
       </div>
       <div>
-        <div>Social</div>
+        <div data-footer-heading-social>Social</div>
         <div class="footer-social" data-social-links></div>
       </div>
     </div>
   </footer>
 
-  <script src="/site.js?v=20260112"></script>
+  <script src="/site.js?v=20260113"></script>
   <script src="/login.js"></script>
 </body>
 </html>

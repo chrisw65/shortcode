@@ -38,6 +38,11 @@ function setTextBind(key, value) {
   });
 }
 
+function setTextSelector(selector, value) {
+  const el = document.querySelector(selector);
+  if (el && value) el.textContent = value;
+}
+
 function setHref(id, value) {
   const el = byId(id);
   if (el && value) el.href = value;
@@ -204,6 +209,18 @@ function renderPageBody(paragraphs = []) {
   wrap.innerHTML = paragraphs.map((p) => `<p>${p || ''}</p>`).join('');
 }
 
+function renderAuthBullets(items = []) {
+  const wrap = qs('[data-page-bullets]');
+  if (!wrap) return;
+  if (!items.length) {
+    wrap.innerHTML = '';
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = '';
+  wrap.innerHTML = items.map((item) => `<li>${item}</li>`).join('');
+}
+
 function formatPrice(value, currency) {
   if (value === null || value === undefined) return 'Custom';
   if (Number(value) === 0) return 'Free';
@@ -298,6 +315,9 @@ async function init() {
     setTextBind('footerCompany', config.footer?.company || 'OkLeaf');
     setTextBind('footerEmail', config.footer?.email || '');
     setTextBind('footerAddress', config.footer?.address || '');
+    setTextSelector('[data-footer-heading-support]', config.footer?.headings?.support || '');
+    setTextSelector('[data-footer-heading-company]', config.footer?.headings?.company || '');
+    setTextSelector('[data-footer-heading-social]', config.footer?.headings?.social || '');
     renderFooterLinks(config.footer?.links || []);
     renderSocialLinks(config.footer?.social || []);
 
@@ -352,6 +372,9 @@ async function init() {
       if (pageKey === 'docs') {
         const docsWrap = qs('[data-docs-html]');
         if (docsWrap && page.html) docsWrap.innerHTML = page.html;
+      }
+      if (pageKey === 'login' || pageKey === 'register') {
+        renderAuthBullets(page.bullets || []);
       }
       if (page.body) renderPageBody(page.body);
       if (page.formSubmitLabel) {

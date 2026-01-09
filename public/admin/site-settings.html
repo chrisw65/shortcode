@@ -325,9 +325,26 @@
             </div>
           </div>
           <div style="margin-top:12px" data-page-only="docs">
-            <label class="muted">Docs HTML</label>
-            <textarea class="input" id="pageDocsHtml" rows="10" placeholder="<section class=&quot;section reveal&quot;>..."></textarea>
-            <div class="muted small" style="margin-top:6px">Use HTML blocks like the current docs page to control layout, code blocks, and cards.</div>
+            <label class="muted">Docs editor</label>
+            <div class="editor-toolbar" id="docsEditorToolbar">
+              <button class="btn ghost" type="button" data-cmd="bold">Bold</button>
+              <button class="btn ghost" type="button" data-cmd="italic">Italic</button>
+              <button class="btn ghost" type="button" data-cmd="underline">Underline</button>
+              <button class="btn ghost" type="button" data-cmd="h2">H2</button>
+              <button class="btn ghost" type="button" data-cmd="h3">H3</button>
+              <button class="btn ghost" type="button" data-cmd="p">Paragraph</button>
+              <button class="btn ghost" type="button" data-cmd="ul">Bullets</button>
+              <button class="btn ghost" type="button" data-cmd="ol">Numbers</button>
+              <button class="btn ghost" type="button" data-cmd="link">Link</button>
+              <button class="btn ghost" type="button" data-cmd="code">Code block</button>
+            </div>
+            <div id="pageDocsEditor" class="wysiwyg-input" contenteditable="true" spellcheck="false"></div>
+            <textarea class="input" id="pageDocsHtml" rows="10" placeholder="<section class=&quot;section reveal&quot;>..." style="display:none"></textarea>
+            <div class="muted small" style="margin-top:6px">Use the toolbar to format content. The HTML version is stored automatically.</div>
+          </div>
+          <div style="margin-top:12px" data-page-only="login,register">
+            <label class="muted">Benefit bullets (one per line)</label>
+            <textarea class="input" id="pageAuthBullets" rows="4" placeholder="Branded domains\nTeam access\nAdvanced analytics"></textarea>
           </div>
           <div class="grid grid-2" style="margin-top:12px" data-page-only="contact">
             <div>
@@ -460,6 +477,20 @@
           <input class="input" id="footerEmail" placeholder="support@okleaf.link">
           <label class="muted" style="margin-top:10px">Address line</label>
           <input class="input" id="footerAddress" placeholder="Amsterdam - Remote-first">
+          <div class="grid grid-3" style="margin-top:12px">
+            <div>
+              <label class="muted">Support heading</label>
+              <input class="input" id="footerHeadingSupport" placeholder="Support">
+            </div>
+            <div>
+              <label class="muted">Company heading</label>
+              <input class="input" id="footerHeadingCompany" placeholder="Company">
+            </div>
+            <div>
+              <label class="muted">Social heading</label>
+              <input class="input" id="footerHeadingSocial" placeholder="Social">
+            </div>
+          </div>
           <div class="row-between" style="margin-top:16px">
             <h4 class="m-0">Footer links</h4>
             <button class="btn ghost" id="addFooterLinkBtn" type="button">Add footer link</button>
@@ -573,6 +604,6 @@
   </div>
 
   <script type="module" src="/admin/admin-common.js?v=20260111"></script>
-  <script type="module" src="/admin/site-settings.js?v=20260112"></script>
+  <script type="module" src="/admin/site-settings.js?v=20260113"></script>
 </body>
 </html>

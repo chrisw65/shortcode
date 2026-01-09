@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/site.css" />
 </head>
-<body>
+<body data-page="register">
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="/">
@@ -38,8 +38,9 @@
 
   <main class="auth-wrap">
     <div class="auth-card reveal">
-      <h2>Create your OkLeaf account</h2>
-      <p class="notice">Get a branded short link workspace in minutes.</p>
+      <h2 data-page-title>Create your OkLeaf account</h2>
+      <p class="notice" data-page-subtitle>Get a branded short link workspace in minutes.</p>
+      <ul class="auth-points" data-page-bullets></ul>
       <label for="name">Name</label>
       <input id="name" type="text" placeholder="Your name" />
       <label for="email">Email</label>
@@ -61,21 +62,21 @@
         <div id="footerAddress" data-bind="footerAddress">Amsterdam - Remote-first</div>
       </div>
       <div>
-        <div>Support</div>
+        <div data-footer-heading-support>Support</div>
         <div id="footerEmail" data-bind="footerEmail">support@okleaf.link</div>
       </div>
       <div>
-        <div>Company</div>
+        <div data-footer-heading-company>Company</div>
         <div class="footer-links" data-footer-links></div>
       </div>
       <div>
-        <div>Social</div>
+        <div data-footer-heading-social>Social</div>
         <div class="footer-social" data-social-links></div>
       </div>
     </div>
   </footer>
 
-  <script src="/site.js?v=20260112"></script>
+  <script src="/site.js?v=20260113"></script>
   <script src="/register.js"></script>
 </body>
 </html>

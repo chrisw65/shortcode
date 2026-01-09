@@ -231,6 +231,10 @@ a{color:inherit;text-decoration:none}
 }
 .auth-card{margin:0 auto}
 .auth-card .actions{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}
+.auth-points{
+  margin:12px 0 6px;padding-left:18px;color:var(--muted);font-size:14px
+}
+.auth-points li{margin:6px 0}
 .notice{margin-top:10px;color:var(--muted);font-size:14px}
 
 .toggle{

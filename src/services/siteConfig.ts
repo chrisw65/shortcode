@@ -137,6 +137,11 @@ export const DEFAULT_SITE_CONFIG = {
     company: 'OkLeaf',
     email: 'support@okleaf.link',
     address: 'Amsterdam • Remote-first',
+    headings: {
+      support: 'Support',
+      company: 'Company',
+      social: 'Social',
+    },
     links: [
       { label: 'Privacy', href: '/docs.html' },
       { label: 'Terms', href: '/docs.html' },
@@ -328,6 +333,38 @@ export const DEFAULT_SITE_CONFIG = {
         description: 'OkLeaf documentation for API usage, domain setup, and analytics exports.',
         ogTitle: 'OkLeaf Docs',
         ogDescription: 'API usage, domain verification, and analytics guidance for OkLeaf.',
+        ogImage: '/favicon.ico',
+      },
+    },
+    login: {
+      title: 'Welcome back',
+      subtitle: 'Sign in to manage domains, links, and analytics.',
+      bullets: [
+        'Track link performance across your org',
+        'Manage branded domains and team access',
+        'Export analytics and campaign summaries',
+      ],
+      meta: {
+        title: 'OkLeaf - Login',
+        description: 'Login to manage your OkLeaf links, domains, and analytics.',
+        ogTitle: 'OkLeaf Login',
+        ogDescription: 'Access your OkLeaf workspace.',
+        ogImage: '/favicon.ico',
+      },
+    },
+    register: {
+      title: 'Create your OkLeaf account',
+      subtitle: 'Get a branded short link workspace in minutes.',
+      bullets: [
+        'Set up branded domains in minutes',
+        'Invite teammates and assign roles',
+        'Unlock analytics and QR exports',
+      ],
+      meta: {
+        title: 'OkLeaf - Start free',
+        description: 'Create your OkLeaf account and launch branded short links in minutes.',
+        ogTitle: 'Start free with OkLeaf',
+        ogDescription: 'Create a new OkLeaf workspace for your team.',
         ogImage: '/favicon.ico',
       },
     },
