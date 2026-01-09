@@ -157,7 +157,8 @@ tr.sel{background:rgba(255,255,255,.03)}
   object-fit:contain;
   pointer-events:none;
   display:block;
-  opacity:.45;
+  opacity:.8;
+  filter:brightness(1.2) contrast(1.05);
 }
 .world-dots{position:absolute;inset:0}
 .world-dot{
