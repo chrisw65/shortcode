@@ -1307,12 +1307,13 @@ function initTabs() {
   const setTab = (tab) => {
     tabs.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
     sections.forEach((section) => {
-      section.classList.toggle('is-hidden', section.dataset.tab !== tab);
+      section.classList.toggle('is-active', section.dataset.tab === tab);
     });
     localStorage.setItem('siteSettingsTab', tab);
   };
   const stored = localStorage.getItem('siteSettingsTab') || 'content';
   const available = tabs.some((btn) => btn.dataset.tab === stored) ? stored : 'content';
+  document.body.classList.add('tabs-ready');
   setTab(available);
   tabs.forEach((btn) => {
     btn.addEventListener('click', () => setTab(btn.dataset.tab));
