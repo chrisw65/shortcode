@@ -1,6 +1,7 @@
 // src/controllers/site.controller.ts
 import type { Request, Response } from 'express';
 import db from '../config/database';
+import redisClient from '../config/redis';
 
 const DEFAULT_SITE_CONFIG = {
   brand: {
@@ -101,6 +102,32 @@ const DEFAULT_SITE_CONFIG = {
   },
 };
 
+const SITE_PUBLIC_CACHE_KEY = 'site:public-config';
+
+async function getCachedPublicConfig() {
+  if (!redisClient.isReady) return null;
+  try {
+    const raw = await redisClient.get(SITE_PUBLIC_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function setCachedPublicConfig(config: any) {
+  if (!redisClient.isReady) return;
+  try {
+    await redisClient.set(SITE_PUBLIC_CACHE_KEY, JSON.stringify(config), { EX: 300 });
+  } catch {
+    // best-effort
+  }
+}
+
+async function invalidatePublicConfigCache() {
+  if (!redisClient.isReady) return;
+  try { await redisClient.del(SITE_PUBLIC_CACHE_KEY); } catch {}
+}
+
 async function getSiteConfig(key: string) {
   try {
     const { rows } = await db.query(`SELECT value FROM site_settings WHERE key = $1 LIMIT 1`, [key]);
@@ -123,9 +150,12 @@ async function insertHistory(action: string, value: any, userId?: string | null)
 
 export async function getPublicSiteConfig(req: Request, res: Response) {
   try {
+    const cached = await getCachedPublicConfig();
+    if (cached) return res.json({ success: true, data: cached });
     const published = await getSiteConfig('marketing_published');
     const draft = await getSiteConfig('marketing_draft');
     const config = published || draft || DEFAULT_SITE_CONFIG;
+    await setCachedPublicConfig(config);
     return res.json({ success: true, data: config });
   } catch (err) {
     console.error('site.getPublicSiteConfig error:', err);
@@ -161,6 +191,7 @@ export async function updateSiteConfig(req: Request, res: Response) {
     );
 
     await insertHistory('draft_saved', payload, userId);
+    await invalidatePublicConfigCache();
     return res.json({ success: true, data: payload });
   } catch (err) {
     console.error('site.updateSiteConfig error:', err);
@@ -181,6 +212,7 @@ export async function publishSiteConfig(req: Request, res: Response) {
     );
 
     await insertHistory('published', draft, userId);
+    await invalidatePublicConfigCache();
     return res.json({ success: true, data: draft });
   } catch (err) {
     console.error('site.publishSiteConfig error:', err);
@@ -233,6 +265,7 @@ export async function rollbackSiteConfig(req: Request, res: Response) {
     );
 
     await insertHistory('rollback', value, userId);
+    await invalidatePublicConfigCache();
     return res.json({ success: true, data: value });
   } catch (err) {
     console.error('site.rollbackSiteConfig error:', err);

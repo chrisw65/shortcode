@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import UAParser from 'ua-parser-js';
 import db from '../config/database';
+import redisClient from '../config/redis';
 
 type ReqWithUser = Request & { user?: { userId?: string } };
 
@@ -85,6 +86,29 @@ function sendCsv(res: Response, filename: string, headers: string[], rows: Recor
   res.send(lines.join('\n'));
 }
 
+function cacheKey(parts: Array<string | number | null | undefined>) {
+  return ['analytics', ...parts.map((p) => String(p ?? ''))].join(':');
+}
+
+async function getCached<T>(key: string): Promise<T | null> {
+  if (!redisClient.isReady) return null;
+  try {
+    const raw = await redisClient.get(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function setCached<T>(key: string, data: T, ttlSeconds: number) {
+  if (!redisClient.isReady) return;
+  try {
+    await redisClient.set(key, JSON.stringify(data), { EX: ttlSeconds });
+  } catch {
+    // best-effort
+  }
+}
+
 /**
  * GET /api/analytics/summary
  */
@@ -93,6 +117,9 @@ export async function summary(req: ReqWithUser, res: Response) {
     const orgId = (req as any).org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
     const range = req.query.range;
+    const cacheId = cacheKey(['summary', orgId, range]);
+    const cached = await getCached<any>(cacheId);
+    if (cached) return res.json({ success: true, data: cached });
 
     const series = await db.query<{ h: string; count: string | number }>(`
       WITH series AS (
@@ -209,7 +236,7 @@ export async function summary(req: ReqWithUser, res: Response) {
       LIMIT 300
     `, pointRange.params);
 
-    return res.json({
+    const payload = {
       success: true,
       data: {
         sparkline: series.rows.map((r) => ({ t: r.h, y: Number(r.count) })),
@@ -239,7 +266,9 @@ export async function summary(req: ReqWithUser, res: Response) {
         user_agents: Object.entries(uaBuckets).map(([group, count]) => ({ group, count })),
         ua_detail: uaDetail,
       },
-    });
+    };
+    await setCached(cacheId, payload.data, 30);
+    return res.json(payload);
   } catch (e) {
     console.error('analytics.summary error:', e);
     return res.status(500).json({ success: false, error: 'Internal server error' });
@@ -255,6 +284,9 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
     const range = req.query.range;
     const country = req.query.country;
+    const cacheId = cacheKey(['linkSummary', orgId, req.params.shortCode, range, country]);
+    const cached = await getCached<any>(cacheId);
+    if (cached) return res.json({ success: true, data: cached });
 
     const { shortCode } = req.params;
     const linkRow = await db.query<{ id: string; title: string | null }>(
@@ -383,7 +415,7 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     }, {});
     const uaDetail = buildUaDetails(uas.rows);
 
-    return res.json({
+    const payload = {
       success: true,
       data: {
         short_code: shortCode,
@@ -415,7 +447,9 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
         ua_detail: uaDetail,
         sparkline: series.rows.map((r) => ({ t: r.h, y: Number(r.count) })),
       },
-    });
+    };
+    await setCached(cacheId, payload.data, 30);
+    return res.json(payload);
   } catch (e) {
     console.error('analytics.linkSummary error:', e);
     return res.status(500).json({ success: false, error: 'Internal server error' });
