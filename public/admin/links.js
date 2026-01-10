@@ -1,4 +1,4 @@
-import { requireAuth, api, mountNav, htmlesc, copyText } from '/admin/admin-common.js?v=20260120';
+import { requireAuth, api, mountNav, htmlesc, copyText, showToast } from '/admin/admin-common.js?v=20260120';
 
 function fmtDate(v) {
   if (!v) return '—';
@@ -319,7 +319,7 @@ function render() {
   });
 }
 
-async function load() {
+async function load(opts = {}) {
   try {
     const data = unwrap(await api('/api/links'));
     // Normalise keys we rely on
@@ -335,9 +335,11 @@ async function load() {
       groups: Array.isArray(x.groups) ? x.groups : [],
     }));
     render();
+    if (opts.toast) showToast('Links refreshed');
   } catch (err) {
     console.error('Load error:', err);
     els.tbody.innerHTML = `<tr><td class="empty danger" colspan="10">Failed to load links.</td></tr>`;
+    if (opts.toast) showToast('Refresh failed', 'error');
   }
 }
 
@@ -838,6 +840,10 @@ async function bulkDelete() {
 
 function exportCSV() {
   if (!allLinks.length) return;
+  if (els.btnExport) {
+    els.btnExport.disabled = true;
+    els.btnExport.textContent = 'Exporting...';
+  }
   const header = ['title','short_code','short_url','click_count','created_at','tags','groups'];
   const rows = [header.join(',')].concat(
     allLinks.map(l => header.map(k => {
@@ -852,6 +858,13 @@ function exportCSV() {
   a.download = 'links.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 0);
+  showToast('Export started');
+  setTimeout(() => {
+    if (els.btnExport) {
+      els.btnExport.disabled = false;
+      els.btnExport.textContent = 'Export CSV';
+    }
+  }, 800);
 }
 
 function openQrModal(code, type) {
@@ -1141,7 +1154,17 @@ els.inDomain?.addEventListener('change', () => {
 
 // Actions
 els.btnCreate.addEventListener('click', createLink);
-els.btnRefresh.addEventListener('click', load);
+els.btnRefresh.addEventListener('click', async () => {
+  if (els.btnRefresh) {
+    els.btnRefresh.disabled = true;
+    els.btnRefresh.textContent = 'Refreshing...';
+  }
+  await load({ toast: true });
+  if (els.btnRefresh) {
+    els.btnRefresh.disabled = false;
+    els.btnRefresh.textContent = 'Refresh';
+  }
+});
 els.btnExport.addEventListener('click', exportCSV);
 els.bulkCreateBtn?.addEventListener('click', bulkCreate);
 els.bulkDeleteBtn?.addEventListener('click', bulkDelete);
