@@ -14,6 +14,30 @@ function unwrap(res) {
 requireAuth();
 mountNav('links');
 
+const tabButtons = Array.from(document.querySelectorAll('[data-tab]'));
+const tabPanels = Array.from(document.querySelectorAll('[data-panel]'));
+
+function setActiveTab(name) {
+  tabButtons.forEach((btn) => {
+    const active = btn.dataset.tab === name;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  tabPanels.forEach((panel) => {
+    panel.classList.toggle('active', panel.dataset.panel === name);
+  });
+  sessionStorage.setItem('links_tab', name);
+}
+
+tabButtons.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const name = btn.dataset.tab || 'create';
+    setActiveTab(name);
+  });
+});
+
+setActiveTab(sessionStorage.getItem('links_tab') || 'manage');
+
 const els = {
   inUrl:     document.getElementById('inUrl'),
   inTitle:   document.getElementById('inTitle'),

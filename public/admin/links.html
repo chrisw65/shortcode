@@ -6,6 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/admin/admin.css?v=20260113">
+  <style>
+    .tabs { display:flex; gap:8px; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:16px; flex-wrap:wrap; }
+    .tab-btn { border:1px solid var(--border); background:var(--panel); color:var(--text); padding:8px 14px; border-radius:999px; cursor:pointer; font-weight:600; }
+    .tab-btn.active { border-color:var(--accent); color:var(--accent); }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+  </style>
 </head>
 <body>
   <div class="admin-shell">
@@ -42,7 +49,14 @@
       </header>
 
       <main class="admin-content">
-        <div class="grid grid-2">
+        <div class="tabs" role="tablist" aria-label="Links sections">
+          <button class="tab-btn active" type="button" data-tab="create" role="tab" aria-selected="true">Create</button>
+          <button class="tab-btn" type="button" data-tab="manage" role="tab" aria-selected="false">Manage</button>
+          <button class="tab-btn" type="button" data-tab="organize" role="tab" aria-selected="false">Tags &amp; Groups</button>
+          <button class="tab-btn" type="button" data-tab="bulk" role="tab" aria-selected="false">Bulk</button>
+        </div>
+
+        <section class="tab-panel active" data-panel="create">
           <section class="card">
             <h3>Create a link</h3>
             <div class="grid">
@@ -145,7 +159,9 @@
               <div class="muted">Leave code blank to auto-generate.</div>
             </div>
           </section>
+        </section>
 
+        <section class="tab-panel" data-panel="manage">
           <section class="card">
             <h3>Your links</h3>
             <div class="row" style="gap:8px;margin-bottom:8px">
@@ -157,104 +173,108 @@
             </div>
             <div class="muted">Click table headers to sort. Copy grabs the short URL.</div>
           </section>
-        </div>
 
-        <div class="grid grid-2" style="margin-top:18px">
-          <section class="card">
-            <h3>Tags</h3>
-            <div class="row" style="margin-bottom:10px">
-              <input id="tagName" class="input" placeholder="New tag name">
-              <input id="tagColor" class="input" placeholder="#84fab0 or brand color">
-              <button id="tagAdd" class="btn">Add</button>
-            </div>
-            <div id="tagsList" class="grid"></div>
+          <section class="card" style="margin-top:18px">
+            <table id="tbl" aria-label="Links table">
+              <thead>
+                <tr>
+                  <th data-sort="title">Title</th>
+                  <th>Tags</th>
+                  <th>Group</th>
+                  <th data-sort="short_code">Code</th>
+                  <th>Security</th>
+                  <th>Domain</th>
+                  <th>Short URL</th>
+                  <th data-sort="click_count">Clicks</th>
+                  <th data-sort="created_at">Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rows">
+                <tr><td class="empty" colspan="10">Loading...</td></tr>
+              </tbody>
+            </table>
           </section>
-          <section class="card">
-            <h3>Groups</h3>
-            <div class="row" style="margin-bottom:10px">
-              <input id="groupName" class="input" placeholder="New group name">
-              <input id="groupDesc" class="input" placeholder="Optional description">
-              <button id="groupAdd" class="btn">Add</button>
-            </div>
-            <div id="groupsList" class="grid"></div>
-          </section>
-        </div>
+        </section>
 
-        <div class="grid grid-2" style="margin-top:18px">
-          <section class="card">
-            <h3>Bulk create</h3>
-            <div class="muted">Paste one URL per line. Optional title with comma: https://example.com, Campaign name</div>
-            <textarea id="bulkUrls" class="input" rows="6" placeholder="https://example.com/page"></textarea>
-            <div class="grid grid-2" style="margin-top:10px">
-              <label>
-                Domain
-                <select id="bulkDomain" class="input"></select>
-              </label>
-              <label>
-                Password (optional)
-                <input id="bulkPassword" class="input" type="password" placeholder="Protect all">
-              </label>
-            </div>
-            <div class="grid grid-2" style="margin-top:10px">
-              <label>
-                CSV import
-                <input id="bulkCsv" class="input" type="file" accept=".csv,text/csv">
-              </label>
-              <label>
-                Import mode
-                <select id="bulkImportMode" class="input">
-                  <option value="append" selected>Append</option>
-                  <option value="replace">Replace list</option>
-                </select>
-              </label>
-            </div>
-            <div class="muted small">CSV columns: url, title, short_code (optional).</div>
-            <div class="grid grid-2" style="margin-top:10px">
-              <label>
-                Tags
-                <select id="bulkTags" class="input" multiple size="4"></select>
-              </label>
-              <label>
-                Group
-                <select id="bulkGroup" class="input"></select>
-              </label>
-            </div>
-            <div class="row" style="margin-top:12px;justify-content:flex-end">
-              <button id="bulkCreateBtn" class="btn">Create links</button>
-            </div>
-            <div class="muted small" id="bulkCreateMsg"></div>
-          </section>
-          <section class="card">
-            <h3>Bulk delete</h3>
-            <div class="muted">Paste one short code per line.</div>
-            <textarea id="bulkDeleteCodes" class="input" rows="6" placeholder="abcd1234"></textarea>
-            <div class="row" style="margin-top:12px;justify-content:flex-end">
-              <button id="bulkDeleteBtn" class="btn danger">Delete links</button>
-            </div>
-            <div class="muted small" id="bulkDeleteMsg"></div>
-          </section>
-        </div>
+        <section class="tab-panel" data-panel="organize">
+          <div class="grid grid-2">
+            <section class="card">
+              <h3>Tags</h3>
+              <div class="row" style="margin-bottom:10px">
+                <input id="tagName" class="input" placeholder="New tag name">
+                <input id="tagColor" class="input" placeholder="#84fab0 or brand color">
+                <button id="tagAdd" class="btn">Add</button>
+              </div>
+              <div id="tagsList" class="grid"></div>
+            </section>
+            <section class="card">
+              <h3>Groups</h3>
+              <div class="row" style="margin-bottom:10px">
+                <input id="groupName" class="input" placeholder="New group name">
+                <input id="groupDesc" class="input" placeholder="Optional description">
+                <button id="groupAdd" class="btn">Add</button>
+              </div>
+              <div id="groupsList" class="grid"></div>
+            </section>
+          </div>
+        </section>
 
-        <section class="card" style="margin-top:18px">
-          <table id="tbl" aria-label="Links table">
-            <thead>
-              <tr>
-                <th data-sort="title">Title</th>
-                <th>Tags</th>
-                <th>Group</th>
-                <th data-sort="short_code">Code</th>
-                <th>Security</th>
-                <th>Domain</th>
-                <th>Short URL</th>
-                <th data-sort="click_count">Clicks</th>
-                <th data-sort="created_at">Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="rows">
-              <tr><td class="empty" colspan="10">Loading...</td></tr>
-            </tbody>
-          </table>
+        <section class="tab-panel" data-panel="bulk">
+          <div class="grid grid-2">
+            <section class="card">
+              <h3>Bulk create</h3>
+              <div class="muted">Paste one URL per line. Optional title with comma: https://example.com, Campaign name</div>
+              <textarea id="bulkUrls" class="input" rows="6" placeholder="https://example.com/page"></textarea>
+              <div class="grid grid-2" style="margin-top:10px">
+                <label>
+                  Domain
+                  <select id="bulkDomain" class="input"></select>
+                </label>
+                <label>
+                  Password (optional)
+                  <input id="bulkPassword" class="input" type="password" placeholder="Protect all">
+                </label>
+              </div>
+              <div class="grid grid-2" style="margin-top:10px">
+                <label>
+                  CSV import
+                  <input id="bulkCsv" class="input" type="file" accept=".csv,text/csv">
+                </label>
+                <label>
+                  Import mode
+                  <select id="bulkImportMode" class="input">
+                    <option value="append" selected>Append</option>
+                    <option value="replace">Replace list</option>
+                  </select>
+                </label>
+              </div>
+              <div class="muted small">CSV columns: url, title, short_code (optional).</div>
+              <div class="grid grid-2" style="margin-top:10px">
+                <label>
+                  Tags
+                  <select id="bulkTags" class="input" multiple size="4"></select>
+                </label>
+                <label>
+                  Group
+                  <select id="bulkGroup" class="input"></select>
+                </label>
+              </div>
+              <div class="row" style="margin-top:12px;justify-content:flex-end">
+                <button id="bulkCreateBtn" class="btn">Create links</button>
+              </div>
+              <div class="muted small" id="bulkCreateMsg"></div>
+            </section>
+            <section class="card">
+              <h3>Bulk delete</h3>
+              <div class="muted">Paste one short code per line.</div>
+              <textarea id="bulkDeleteCodes" class="input" rows="6" placeholder="abcd1234"></textarea>
+              <div class="row" style="margin-top:12px;justify-content:flex-end">
+                <button id="bulkDeleteBtn" class="btn danger">Delete links</button>
+              </div>
+              <div class="muted small" id="bulkDeleteMsg"></div>
+            </section>
+          </div>
         </section>
       </main>
     </div>
