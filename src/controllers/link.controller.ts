@@ -381,7 +381,7 @@ export async function updateLink(req: UserReq, res: Response) {
       [orgId, shortCode]
     );
     if (!existing.length) return res.status(404).json({ success: false, error: 'Link not found' });
-    const linkId = existing[0].id;
+    const existingId = existing[0].id;
 
     const sets: string[] = [];
     const vals: any[] = [];
@@ -402,7 +402,7 @@ export async function updateLink(req: UserReq, res: Response) {
       const newCode = normalizeShortCode(short_code);
       const v = validateCustomCode(newCode);
       if (!v.ok) return res.status(400).json({ success: false, error: v.error });
-      if (await isShortCodeTaken(newCode, linkId)) {
+      if (await isShortCodeTaken(newCode, existingId)) {
         return res.status(409).json({ success: false, error: 'short_code already exists' });
       }
       sets.push(`short_code = $${i++}`); vals.push(newCode);
