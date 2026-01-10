@@ -20,6 +20,8 @@ import orgRoutes from './routes/org.routes';
 import orgsRoutes from './routes/orgs.routes';
 import auditRoutes from './routes/audit.routes';
 import privacyRoutes from './routes/privacy.routes';
+import tagsRoutes from './routes/tags.routes';
+import groupsRoutes from './routes/groups.routes';
 import siteRoutes from './routes/site.routes';
 import invitesRoutes from './routes/invites.routes';
 import couponsRoutes from './routes/coupons.routes';
@@ -105,6 +107,8 @@ const registerApi = (base: string) => {
   app.use(`${base}/orgs`, orgsRoutes);
   app.use(`${base}/org/audit`, auditRoutes);
   app.use(`${base}/privacy`, privacyRoutes);
+  app.use(`${base}/tags`, tagsRoutes);
+  app.use(`${base}/groups`, groupsRoutes);
   app.use(base, siteRoutes);
   app.use(`${base}/coupons`, couponsRoutes);
   app.use(`${base}/plan-grants`, planGrantsRoutes);

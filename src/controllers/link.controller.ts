@@ -69,6 +69,8 @@ function coreBaseUrl(): string {
 function shapeLink(row: any, coreBase: string) {
   const domain = row.domain || null;
   const baseUrl = domain ? `https://${domain}` : coreBase;
+  const tags = Array.isArray(row.tags) ? row.tags : (row.tags ? row.tags : []);
+  const groups = Array.isArray(row.groups) ? row.groups : (row.groups ? row.groups : []);
   return {
     id: row.id,
     user_id: row.user_id,
@@ -81,7 +83,51 @@ function shapeLink(row: any, coreBase: string) {
     active: row.active !== false, // default true
     short_url: `${baseUrl}/${row.short_code}`,
     domain,
+    tags,
+    groups,
   };
+}
+
+async function fetchTags(orgId: string, tagIds: string[]) {
+  if (!tagIds.length) return [];
+  const { rows } = await db.query(
+    `SELECT id, name, color
+       FROM link_tags
+      WHERE org_id = $1 AND id = ANY($2::uuid[])`,
+    [orgId, tagIds]
+  );
+  return rows;
+}
+
+async function fetchGroups(orgId: string, groupIds: string[]) {
+  if (!groupIds.length) return [];
+  const { rows } = await db.query(
+    `SELECT id, name, description
+       FROM link_groups
+      WHERE org_id = $1 AND id = ANY($2::uuid[])`,
+    [orgId, groupIds]
+  );
+  return rows;
+}
+
+async function setLinkTags(linkId: string, tagIds: string[]) {
+  await db.query(`DELETE FROM link_tag_links WHERE link_id = $1`, [linkId]);
+  if (!tagIds.length) return;
+  await db.query(
+    `INSERT INTO link_tag_links (tag_id, link_id)
+     SELECT UNNEST($1::uuid[]), $2`,
+    [tagIds, linkId]
+  );
+}
+
+async function setLinkGroups(linkId: string, groupIds: string[]) {
+  await db.query(`DELETE FROM link_group_links WHERE link_id = $1`, [linkId]);
+  if (!groupIds.length) return;
+  await db.query(
+    `INSERT INTO link_group_links (group_id, link_id)
+     SELECT UNNEST($1::uuid[]), $2`,
+    [groupIds, linkId]
+  );
 }
 
 /**
@@ -93,7 +139,7 @@ export async function createLink(req: UserReq, res: Response) {
   try {
     const userId = req.user.userId;
     const orgId = req.org.orgId;
-    const { url, title, short_code, expires_at, domain_id } = req.body ?? {};
+    const { url, title, short_code, expires_at, domain_id, tag_ids, group_ids } = req.body ?? {};
     if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
 
     const normalizedUrl = ensureHttpUrl(String(url).trim());
@@ -120,6 +166,21 @@ export async function createLink(req: UserReq, res: Response) {
       } while ((RESERVED.has(code.toLowerCase()) || await isShortCodeTaken(code)) && attempts < 5);
       if (await isShortCodeTaken(code)) {
         return res.status(500).json({ success: false, error: 'Failed to generate a unique short_code' });
+      }
+    }
+
+    const tagIds = Array.isArray(tag_ids) ? tag_ids.filter(Boolean) : [];
+    const groupIds = Array.isArray(group_ids) ? group_ids.filter(Boolean) : [];
+    if (tagIds.length) {
+      const tags = await fetchTags(orgId, tagIds);
+      if (tags.length !== tagIds.length) {
+        return res.status(400).json({ success: false, error: 'One or more tags are invalid' });
+      }
+    }
+    if (groupIds.length) {
+      const groups = await fetchGroups(orgId, groupIds);
+      if (groups.length !== groupIds.length) {
+        return res.status(400).json({ success: false, error: 'One or more groups are invalid' });
       }
     }
 
@@ -150,12 +211,17 @@ export async function createLink(req: UserReq, res: Response) {
       domainHost = d.domain;
     }
 
+    await db.query('BEGIN');
     const q = `
       INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, expires_at, active)
       VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, $8, true)
       RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active
     `;
     const { rows } = await db.query(q, [orgId, userId, code, normalizedUrl, title ?? null, autoTitle, domainId, expires_at ?? null]);
+    const linkId = rows[0].id as string;
+    await setLinkTags(linkId, tagIds);
+    await setLinkGroups(linkId, groupIds);
+    await db.query('COMMIT');
 
     await logAudit({
       org_id: orgId,
@@ -173,8 +239,14 @@ export async function createLink(req: UserReq, res: Response) {
       expires_at: rows[0].expires_at,
       active: rows[0].active !== false,
     });
-    return res.status(201).json({ success: true, data: shapeLink({ ...rows[0], domain: domainHost }, coreBase) });
+    const tagRows = tagIds.length ? await fetchTags(orgId, tagIds) : [];
+    const groupRows = groupIds.length ? await fetchGroups(orgId, groupIds) : [];
+    return res.status(201).json({
+      success: true,
+      data: shapeLink({ ...rows[0], domain: domainHost, tags: tagRows, groups: groupRows }, coreBase),
+    });
   } catch (e: any) {
+    try { await db.query('ROLLBACK'); } catch {}
     if (e?.code === '23505') {
       return res.status(409).json({ success: false, error: 'short_code already exists' });
     }
@@ -234,7 +306,17 @@ export async function getUserLinks(req: UserReq, res: Response) {
     const coreBase = coreBaseUrl();
     const { rows } = await db.query(
       `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
-              d.domain AS domain
+              d.domain AS domain,
+              COALESCE(
+                (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
+                   FROM link_tag_links ltl
+                   JOIN link_tags t ON t.id = ltl.tag_id
+                  WHERE ltl.link_id = l.id), '[]'::json) AS tags,
+              COALESCE(
+                (SELECT json_agg(json_build_object('id', g.id, 'name', g.name, 'description', g.description) ORDER BY g.name)
+                   FROM link_group_links lgl
+                   JOIN link_groups g ON g.id = lgl.group_id
+                  WHERE lgl.link_id = l.id), '[]'::json) AS groups
          FROM links l
          LEFT JOIN domains d ON d.id = l.domain_id
         WHERE l.org_id = $1
@@ -257,7 +339,17 @@ export async function getLinkDetails(req: UserReq, res: Response) {
     const { shortCode } = req.params;
     const { rows } = await db.query(
       `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
-              d.domain AS domain
+              d.domain AS domain,
+              COALESCE(
+                (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
+                   FROM link_tag_links ltl
+                   JOIN link_tags t ON t.id = ltl.tag_id
+                  WHERE ltl.link_id = l.id), '[]'::json) AS tags,
+              COALESCE(
+                (SELECT json_agg(json_build_object('id', g.id, 'name', g.name, 'description', g.description) ORDER BY g.name)
+                   FROM link_group_links lgl
+                   JOIN link_groups g ON g.id = lgl.group_id
+                  WHERE lgl.link_id = l.id), '[]'::json) AS groups
          FROM links l
          LEFT JOIN domains d ON d.id = l.domain_id
         WHERE l.org_id = $1 AND l.short_code = $2`,
@@ -282,7 +374,7 @@ export async function updateLink(req: UserReq, res: Response) {
   try {
     const orgId = req.org.orgId;
     const { shortCode } = req.params;
-    const { url, title, expires_at, short_code } = req.body ?? {};
+    const { url, title, expires_at, short_code, tag_ids, group_ids } = req.body ?? {};
 
     const { rows: existing } = await db.query(
       `SELECT id FROM links WHERE org_id = $1 AND short_code = $2`,
@@ -317,19 +409,94 @@ export async function updateLink(req: UserReq, res: Response) {
       newCodeValue = newCode;
     }
 
-    if (!sets.length) {
+    const tagIds = Array.isArray(tag_ids) ? tag_ids.filter(Boolean) : null;
+    const groupIds = Array.isArray(group_ids) ? group_ids.filter(Boolean) : null;
+    if (tagIds !== null) {
+      const tags = await fetchTags(orgId, tagIds);
+      if (tags.length !== tagIds.length) {
+        return res.status(400).json({ success: false, error: 'One or more tags are invalid' });
+      }
+    }
+    if (groupIds !== null) {
+      const groups = await fetchGroups(orgId, groupIds);
+      if (groups.length !== groupIds.length) {
+        return res.status(400).json({ success: false, error: 'One or more groups are invalid' });
+      }
+    }
+
+    if (!sets.length && tagIds === null && groupIds === null) {
       return res.json({ success: true, data: { updated: false } });
     }
 
-    vals.push(orgId, shortCode);
-    const q = `
-      UPDATE links
-         SET ${sets.join(', ')}
-       WHERE org_id = $${i++} AND short_code = $${i++}
-      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
-                (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain
-    `;
-    const { rows } = await db.query(q, vals);
+    await db.query('BEGIN');
+    let rows: any[] = [];
+    if (sets.length) {
+      vals.push(orgId, shortCode);
+      const q = `
+        UPDATE links
+           SET ${sets.join(', ')}
+         WHERE org_id = $${i++} AND short_code = $${i++}
+        RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
+                  (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain,
+                  COALESCE(
+                    (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
+                       FROM link_tag_links ltl
+                       JOIN link_tags t ON t.id = ltl.tag_id
+                      WHERE ltl.link_id = links.id), '[]'::json) AS tags,
+                  COALESCE(
+                    (SELECT json_agg(json_build_object('id', g.id, 'name', g.name, 'description', g.description) ORDER BY g.name)
+                       FROM link_group_links lgl
+                       JOIN link_groups g ON g.id = lgl.group_id
+                      WHERE lgl.link_id = links.id), '[]'::json) AS groups
+      `;
+      const result = await db.query(q, vals);
+      rows = result.rows;
+    } else {
+      const result = await db.query(
+        `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
+                (SELECT domain FROM domains d WHERE d.id = l.domain_id) AS domain,
+                COALESCE(
+                  (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
+                     FROM link_tag_links ltl
+                     JOIN link_tags t ON t.id = ltl.tag_id
+                    WHERE ltl.link_id = l.id), '[]'::json) AS tags,
+                COALESCE(
+                  (SELECT json_agg(json_build_object('id', g.id, 'name', g.name, 'description', g.description) ORDER BY g.name)
+                     FROM link_group_links lgl
+                     JOIN link_groups g ON g.id = lgl.group_id
+                    WHERE lgl.link_id = l.id), '[]'::json) AS groups
+           FROM links l
+          WHERE l.org_id = $1 AND l.short_code = $2
+          LIMIT 1`,
+        [orgId, shortCode]
+      );
+      rows = result.rows;
+    }
+    const linkId = rows[0].id as string;
+    if (tagIds !== null) await setLinkTags(linkId, tagIds);
+    if (groupIds !== null) await setLinkGroups(linkId, groupIds);
+    if (tagIds !== null || groupIds !== null) {
+      const refreshed = await db.query(
+        `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
+                (SELECT domain FROM domains d WHERE d.id = l.domain_id) AS domain,
+                COALESCE(
+                  (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
+                     FROM link_tag_links ltl
+                     JOIN link_tags t ON t.id = ltl.tag_id
+                    WHERE ltl.link_id = l.id), '[]'::json) AS tags,
+                COALESCE(
+                  (SELECT json_agg(json_build_object('id', g.id, 'name', g.name, 'description', g.description) ORDER BY g.name)
+                     FROM link_group_links lgl
+                     JOIN link_groups g ON g.id = lgl.group_id
+                    WHERE lgl.link_id = l.id), '[]'::json) AS groups
+           FROM links l
+          WHERE l.id = $1
+          LIMIT 1`,
+        [linkId]
+      );
+      rows = refreshed.rows;
+    }
+    await db.query('COMMIT');
 
     await logAudit({
       org_id: orgId,
@@ -345,6 +512,7 @@ export async function updateLink(req: UserReq, res: Response) {
     const coreBase = coreBaseUrl();
     return res.json({ success: true, data: shapeLink(rows[0], coreBase) });
   } catch (e: any) {
+    try { await db.query('ROLLBACK'); } catch {}
     if (e?.code === '23505') {
       return res.status(409).json({ success: false, error: 'short_code already exists' });
     }
@@ -372,7 +540,17 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
           SET active = $1
         WHERE org_id = $2 AND short_code = $3
       RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
-                (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain`,
+                (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain,
+                COALESCE(
+                  (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
+                     FROM link_tag_links ltl
+                     JOIN link_tags t ON t.id = ltl.tag_id
+                    WHERE ltl.link_id = links.id), '[]'::json) AS tags,
+                COALESCE(
+                  (SELECT json_agg(json_build_object('id', g.id, 'name', g.name, 'description', g.description) ORDER BY g.name)
+                     FROM link_group_links lgl
+                     JOIN link_groups g ON g.id = lgl.group_id
+                    WHERE lgl.link_id = links.id), '[]'::json) AS groups`,
       [active, orgId, shortCode]
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'Link not found' });
