@@ -811,7 +811,7 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
     const deepLinkEnabled = Boolean(req.body?.deep_link_enabled) || Boolean(deepLinkUrl);
     if (!items.length) return res.status(400).json({ success: false, error: 'items are required' });
 
-    const candidateCount = items.filter((item) => String(item?.url || '').trim()).length;
+    const candidateCount = items.filter((item: any) => String(item?.url || '').trim()).length;
     const quota = await ensureLinkQuota(orgId, candidateCount);
     if (quota && !quota.allowed) {
       return res.status(403).json({
