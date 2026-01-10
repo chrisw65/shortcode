@@ -1,4 +1,5 @@
 import db from '../config/database';
+import { getRetentionDefaultDays } from './platformConfig';
 
 const DEFAULT_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -19,7 +20,10 @@ function parseHours(value: string | undefined): number | null {
 export async function runRetentionCleanup() {
   const fallbackDays = parseDays(process.env.DEFAULT_RETENTION_DAYS);
   try {
-    if (!fallbackDays) {
+    const platformDefault = await getRetentionDefaultDays();
+    const effectiveDefault = platformDefault ?? fallbackDays;
+
+    if (!effectiveDefault) {
       const hasOrgRetention = await db.query(
         `SELECT 1 FROM orgs WHERE data_retention_days IS NOT NULL LIMIT 1`
       );
@@ -40,7 +44,7 @@ export async function runRetentionCleanup() {
             AND ce.occurred_at < NOW() - make_interval(days => $1))
         )
       `,
-      [fallbackDays ?? 0]
+      [effectiveDefault ?? 0]
     );
   } catch (err) {
     console.error('retention cleanup failed:', err);

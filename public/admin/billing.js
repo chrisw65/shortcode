@@ -47,8 +47,14 @@ const savePlanMapping = document.getElementById('savePlanMapping');
 const planMapMsg = document.getElementById('planMapMsg');
 const reloadPlanMapping = document.getElementById('reloadPlanMapping');
 
+const platformDefaultsSection = document.getElementById('platformDefaultsSection');
+const platformRetentionDays = document.getElementById('platformRetentionDays');
+const savePlatformDefaults = document.getElementById('savePlatformDefaults');
+const platformDefaultsMsg = document.getElementById('platformDefaultsMsg');
+
 let pricingTiers = [];
 let billingConfig = { prices: {}, stripe: {} };
+let platformConfig = {};
 let meData = null;
 
 async function loadMe() {
@@ -62,6 +68,7 @@ async function loadMe() {
     if (meData?.user?.is_superadmin) {
       stripeConfigSection.style.display = 'block';
       planMappingSection.style.display = 'block';
+      platformDefaultsSection.style.display = 'block';
     }
   } catch (err) {
     console.error('Failed to load user profile', err);
@@ -100,6 +107,19 @@ async function loadBillingConfig() {
     renderPlanCards();
   } catch (err) {
     stripeConfigMsg.textContent = 'Failed to load Stripe config.';
+  }
+}
+
+async function loadPlatformConfig() {
+  if (!meData?.user?.is_superadmin) return;
+  try {
+    const res = await apiFetch('/api/platform-config');
+    platformConfig = res.data || {};
+    if (platformRetentionDays) {
+      platformRetentionDays.value = platformConfig.retention_default_days ? String(platformConfig.retention_default_days) : '';
+    }
+  } catch (err) {
+    if (platformDefaultsMsg) platformDefaultsMsg.textContent = 'Failed to load platform defaults.';
   }
 }
 
@@ -204,6 +224,27 @@ async function openPortal() {
     else billingMsg.textContent = 'Billing portal unavailable.';
   } catch (err) {
     showError(err, 'Failed to open billing portal');
+  }
+}
+
+async function savePlatformDefaultsHandler() {
+  if (!meData?.user?.is_superadmin) return;
+  if (platformDefaultsMsg) platformDefaultsMsg.textContent = '';
+  const raw = platformRetentionDays ? platformRetentionDays.value.trim() : '';
+  const value = raw ? Number(raw) : null;
+  if (raw && (!Number.isInteger(value) || value < 1 || value > 3650)) {
+    if (platformDefaultsMsg) platformDefaultsMsg.textContent = 'Retention must be 1-3650 days.';
+    return;
+  }
+  try {
+    await apiFetch('/api/platform-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ retention_default_days: raw ? value : null }),
+    });
+    if (platformDefaultsMsg) platformDefaultsMsg.textContent = 'Platform defaults saved.';
+  } catch (err) {
+    showError(err, 'Failed to save platform defaults');
   }
 }
 
@@ -401,8 +442,11 @@ savePlanMapping?.addEventListener('click', async () => {
   }
 });
 
+savePlatformDefaults?.addEventListener('click', savePlatformDefaultsHandler);
+
 await loadMe();
 await loadPricing();
 await loadBillingConfig();
+await loadPlatformConfig();
 loadCoupons();
 loadGrants();

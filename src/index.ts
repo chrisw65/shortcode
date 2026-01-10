@@ -28,6 +28,7 @@ import affiliatesRoutes from './routes/affiliates.routes';
 import affiliateAuthRoutes from './routes/affiliateAuth.routes';
 import billingRoutes from './routes/billing.routes';
 import openapiRoutes from './routes/openapi.routes';
+import platformRoutes from './routes/platform.routes';
 import { stripeWebhook } from './controllers/billing.controller';
 import redisClient from './config/redis';
 import { startClickWorker } from './services/clickQueue';
@@ -110,6 +111,7 @@ const registerApi = (base: string) => {
   app.use(`${base}/affiliates`, affiliatesRoutes);
   app.use(`${base}/affiliate`, affiliateAuthRoutes);
   app.use(`${base}/billing`, billingRoutes);
+  app.use(`${base}/platform-config`, platformRoutes);
   app.use(base, openapiRoutes);
 };
 

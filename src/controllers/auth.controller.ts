@@ -5,6 +5,7 @@ import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import db from '../config/database';
 import { getEffectivePlan } from '../services/plan';
 import { recordConsent } from '../services/consent';
+import { getRetentionDefaultDays } from '../services/platformConfig';
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -153,11 +154,12 @@ async function registerImpl(req: Request, res: Response) {
       }
     } else {
       const orgName = 'Default Org';
+      const retentionDefault = await getRetentionDefaultDays();
       const orgRes = await db.query(
-        `INSERT INTO orgs (name, owner_user_id)
-         VALUES ($1, $2)
+        `INSERT INTO orgs (name, owner_user_id, data_retention_days)
+         VALUES ($1, $2, $3)
          RETURNING id`,
-        [orgName, user.id]
+        [orgName, user.id, retentionDefault]
       );
       orgId = orgRes.rows[0].id;
 
