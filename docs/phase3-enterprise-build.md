@@ -14,6 +14,11 @@ Delivered in Phase 3.4 scope:
 - API key auth with scopes (links/domains/analytics/org/tags/groups/invites)
 - Per‑org API rate limits + link/domain quotas (admin configurable)
 - SSO groundwork (OIDC org settings storage + admin UI)
+- 2FA (TOTP) for password logins
+- SSO provisioning rules (auto-provision, default role, allowed domains)
+- Link routing rules (country/device/platform)
+- DNS automation (Cloudflare optional)
+- Service mode split (api/redirect/worker)
 
 Remaining Phase 3 items are listed below by phase section.
 

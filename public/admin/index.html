@@ -25,6 +25,12 @@
           <label class="muted" style="margin-top:12px">Password</label>
           <input id="password" name="password" class="input" type="password" placeholder="••••••••" required />
 
+          <div id="twofaBlock" style="margin-top:12px;display:none">
+            <label class="muted">Authenticator code</label>
+            <input id="twofaCode" name="twofaCode" class="input" type="text" placeholder="123456" inputmode="numeric" />
+            <div class="muted small" style="margin-top:6px">Enter the 6-digit code from your authenticator app.</div>
+          </div>
+
           <div class="row" style="justify-content:flex-end;margin-top:16px">
             <button id="btn-login" class="btn" type="submit">Login</button>
           </div>

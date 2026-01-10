@@ -17,6 +17,10 @@ router.get('/openapi.json', (_req, res) => {
     paths: {
       '/auth/login': { post: { summary: 'Login' } },
       '/auth/register': { post: { summary: 'Register' } },
+      '/auth/2fa/confirm': { post: { summary: 'Confirm 2FA login' } },
+      '/auth/2fa/setup': { post: { summary: 'Start 2FA setup' } },
+      '/auth/2fa/verify': { post: { summary: 'Verify 2FA setup' } },
+      '/auth/2fa/disable': { post: { summary: 'Disable 2FA' } },
       '/links': { get: { summary: 'List links' }, post: { summary: 'Create link' } },
       '/links/bulk-create': { post: { summary: 'Bulk create links' } },
       '/links/bulk-delete': { post: { summary: 'Bulk delete links' } },

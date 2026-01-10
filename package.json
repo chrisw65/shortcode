@@ -35,6 +35,7 @@
     "morgan": "^1.10.1",
     "nanoid": "^5.1.6",
     "nodemailer": "^7.0.12",
+    "otplib": "^13.0.1",
     "pg": "^8.16.3",
     "qrcode": "^1.5.4",
     "rate-limiter-flexible": "^8.1.0",

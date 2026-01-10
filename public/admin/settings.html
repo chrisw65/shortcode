@@ -127,6 +127,26 @@
         </section>
 
         <section class="card" style="max-width:720px;margin-top:18px">
+          <h3>Two-factor authentication</h3>
+          <div class="muted small">Use an authenticator app for extra protection.</div>
+          <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+            <button id="twofaSetupBtn" class="btn ghost" type="button">Generate QR</button>
+            <button id="twofaDisableBtn" class="btn danger" type="button">Disable 2FA</button>
+            <span id="twofaStatus" class="muted small"></span>
+          </div>
+          <div id="twofaSetupBlock" style="margin-top:12px;display:none">
+            <img id="twofaQr" alt="Two-factor QR code" style="max-width:220px;border-radius:12px;border:1px solid #203042" />
+            <div class="muted small" style="margin-top:8px">Secret: <span id="twofaSecret">—</span></div>
+            <label class="muted" style="margin-top:10px">Verification code</label>
+            <input id="twofaCode" class="input" type="text" placeholder="123456" inputmode="numeric" />
+            <div class="row" style="margin-top:12px;gap:8px">
+              <button id="twofaVerifyBtn" class="btn" type="button">Enable 2FA</button>
+              <span id="twofaMsg" class="muted small"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="max-width:720px;margin-top:18px">
           <h3>SSO (OIDC)</h3>
           <div class="grid grid-2" style="margin-top:10px">
             <div>
@@ -159,6 +179,24 @@
               <input id="ssoEnabled" type="checkbox" />
               <span class="muted">Enable SSO for this org</span>
             </div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div class="row" style="align-items:center;gap:10px;margin-top:24px">
+              <input id="ssoAutoProvision" type="checkbox" />
+              <span class="muted">Auto-provision new users</span>
+            </div>
+            <div>
+              <label class="muted">Default role</label>
+              <select id="ssoDefaultRole" class="input">
+                <option value="member">Member</option>
+                <option value="admin">Admin</option>
+                <option value="owner">Owner</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:12px">
+            <label class="muted">Allowed email domains (comma separated)</label>
+            <input id="ssoAllowedDomains" class="input" type="text" placeholder="example.com, sub.example.com" />
           </div>
           <div class="row" style="margin-top:12px">
             <button id="ssoSaveBtn" class="btn">Save SSO</button>

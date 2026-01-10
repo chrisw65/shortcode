@@ -14,9 +14,13 @@ const authLimiter = process.env.RATE_LIMIT_AUTH_DISABLED === '1'
 
 router.post('/register', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
+router.post('/2fa/confirm', authLimiter, authController.twoFactorConfirm);
 router.get('/oidc/start', authLimiter, authController.oidcStart);
 router.get('/oidc/callback', authLimiter, authController.oidcCallback);
 router.get('/me', authenticate, requireOrg, authController.me);
 router.post('/change-password', authenticate, authController.changePassword);
+router.post('/2fa/setup', authenticate, authController.twoFactorSetup);
+router.post('/2fa/verify', authenticate, authController.twoFactorVerify);
+router.post('/2fa/disable', authenticate, authController.twoFactorDisable);
 
 export default router;

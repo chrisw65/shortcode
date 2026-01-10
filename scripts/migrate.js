@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS users (
   is_active BOOLEAN DEFAULT true,
   email_verified BOOLEAN DEFAULT true,
   is_superadmin BOOLEAN DEFAULT false,
+  totp_secret TEXT,
+  totp_enabled BOOLEAN DEFAULT false,
+  totp_verified_at TIMESTAMP NULL,
+  totp_last_used TIMESTAMP NULL,
   deleted_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -61,6 +65,9 @@ CREATE TABLE IF NOT EXISTS org_sso (
   client_secret TEXT,
   scopes TEXT[] NOT NULL DEFAULT ARRAY[]::text[],
   enabled BOOLEAN DEFAULT false,
+  auto_provision BOOLEAN DEFAULT true,
+  default_role VARCHAR(20) DEFAULT 'member',
+  allowed_domains TEXT[] NOT NULL DEFAULT ARRAY[]::text[],
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (org_id)

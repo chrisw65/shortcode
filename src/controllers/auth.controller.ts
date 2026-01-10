@@ -4,6 +4,8 @@ import bcrypt from 'bcrypt';
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import { createHash, randomBytes } from 'crypto';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { authenticator } from 'otplib';
+import qrcode from 'qrcode';
 import db from '../config/database';
 import { getEffectivePlan } from '../services/plan';
 import { recordConsent } from '../services/consent';
@@ -22,6 +24,7 @@ function safeUser(row: any) {
     is_active: row.is_active ?? true,
     email_verified: row.email_verified ?? true,
     is_superadmin: row.is_superadmin ?? false,
+    two_factor_enabled: row.totp_enabled ?? false,
   };
 }
 
@@ -40,9 +43,31 @@ function signToken(payload: Record<string, any>) {
   return jwt.sign(payload, secret, opts);
 }
 
+function signChallengeToken(payload: Record<string, any>) {
+  const secret: Secret = process.env.JWT_SECRET as Secret;
+  if (!secret) throw new Error('JWT_SECRET missing');
+  const opts: SignOptions = { expiresIn: '5m' };
+  return jwt.sign({ ...payload, type: '2fa' }, secret, opts);
+}
+
+function verifyChallengeToken(token: string): jwt.JwtPayload {
+  const secret: Secret = process.env.JWT_SECRET as Secret;
+  if (!secret) throw new Error('JWT_SECRET missing');
+  const payload = jwt.verify(token, secret) as jwt.JwtPayload;
+  if (payload?.type !== '2fa') {
+    throw new Error('Invalid challenge token');
+  }
+  return payload;
+}
+
 const APP_URL = process.env.PUBLIC_HOST || process.env.BASE_URL || 'https://okleaf.link';
 const OIDC_STATE_COOKIE = 'oidc_state';
 const OIDC_STATE_TTL_SECONDS = 600;
+const TWO_FA_ISSUER = process.env.TOTP_ISSUER || 'OkLeaf';
+
+authenticator.options = {
+  window: Number(process.env.TOTP_WINDOW || '1'),
+};
 
 type OidcState = {
   org_id: string;
@@ -127,7 +152,9 @@ async function loginImpl(req: Request, res: Response) {
       `SELECT id, email, name, plan, created_at, password AS password_hash,
               COALESCE(is_active, true)  AS is_active,
               COALESCE(email_verified, true) AS email_verified,
-              COALESCE(is_superadmin, false) AS is_superadmin
+              COALESCE(is_superadmin, false) AS is_superadmin,
+              COALESCE(totp_enabled, false) AS totp_enabled,
+              totp_secret
          FROM users
         WHERE LOWER(email) = $1
         LIMIT 1`,
@@ -159,6 +186,11 @@ async function loginImpl(req: Request, res: Response) {
       if (trimmed.length > 0) ok = await bcrypt.compare(trimmed, user.password_hash);
     }
     if (!ok) return res.status(401).json({ success: false, error: 'Invalid credentials' });
+
+    if (user.totp_enabled && user.totp_secret) {
+      const challenge = signChallengeToken({ userId: user.id, email: user.email });
+      return res.json({ success: true, data: { requires_2fa: true, challenge_token: challenge } });
+    }
 
     const token = signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
     return res.json({ success: true, data: { user: safeUser(user), token } });
@@ -351,7 +383,8 @@ async function meImpl(req: Request, res: Response) {
       `SELECT id, email, name, plan, created_at,
               COALESCE(is_active, true)  AS is_active,
               COALESCE(email_verified, true) AS email_verified,
-              COALESCE(is_superadmin, false) AS is_superadmin
+              COALESCE(is_superadmin, false) AS is_superadmin,
+              COALESCE(totp_enabled, false) AS totp_enabled
          FROM users
         WHERE id = $1
         LIMIT 1`,
@@ -479,7 +512,7 @@ async function oidcCallbackImpl(req: Request, res: Response) {
 
     const redirectPath = sanitizeRedirect(payload.redirect);
     const { rows } = await db.query(
-      `SELECT issuer_url, client_id, client_secret, scopes, enabled
+      `SELECT issuer_url, client_id, client_secret, scopes, enabled, auto_provision, default_role, allowed_domains
          FROM org_sso
         WHERE org_id = $1
         LIMIT 1`,
@@ -543,6 +576,11 @@ async function oidcCallbackImpl(req: Request, res: Response) {
     if (!email) {
       return res.status(400).json({ success: false, error: 'No email claim available' });
     }
+    const emailDomain = email.split('@')[1] || '';
+    const allowedDomains = Array.isArray(sso.allowed_domains) ? sso.allowed_domains : [];
+    if (allowedDomains.length && (!emailDomain || !allowedDomains.includes(emailDomain))) {
+      return res.status(403).json({ success: false, error: 'Email domain is not allowed for this organization' });
+    }
 
     const userRes = await db.query(
       `SELECT id, email, name, is_active, email_verified, is_superadmin
@@ -554,6 +592,9 @@ async function oidcCallbackImpl(req: Request, res: Response) {
 
     let user = userRes.rows[0];
     if (!user) {
+      if (sso.auto_provision === false) {
+        return res.status(403).json({ success: false, error: 'User provisioning is disabled for this organization' });
+      }
       const randomPass = base64url(randomBytes(24));
       const hash = await bcrypt.hash(randomPass, 12);
       const ins = await db.query(
@@ -569,11 +610,14 @@ async function oidcCallbackImpl(req: Request, res: Response) {
       return res.status(403).json({ success: false, error: 'Account disabled' });
     }
 
+    const role = ['owner', 'admin', 'member'].includes(String(sso.default_role || '').toLowerCase())
+      ? String(sso.default_role).toLowerCase()
+      : 'member';
     await db.query(
       `INSERT INTO org_memberships (org_id, user_id, role)
-       VALUES ($1, $2, 'member')
+       VALUES ($1, $2, $3)
        ON CONFLICT (org_id, user_id) DO NOTHING`,
-      [payload.org_id, user.id]
+      [payload.org_id, user.id, role]
     );
 
     const token = signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
@@ -588,6 +632,158 @@ async function oidcCallbackImpl(req: Request, res: Response) {
   }
 }
 
+async function twoFactorSetupImpl(req: Request, res: Response) {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const { rows } = await db.query(
+      `SELECT email, totp_enabled FROM users WHERE id = $1 LIMIT 1`,
+      [user.userId]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'User not found' });
+    if (rows[0].totp_enabled) {
+      return res.status(400).json({ success: false, error: 'Two-factor authentication already enabled' });
+    }
+
+    const secret = authenticator.generateSecret();
+    await db.query(
+      `UPDATE users
+          SET totp_secret = $1,
+              totp_enabled = false,
+              totp_verified_at = NULL
+        WHERE id = $2`,
+      [secret, user.userId]
+    );
+
+    const email = String(rows[0].email || '').trim();
+    const otpauth = authenticator.keyuri(email, TWO_FA_ISSUER, secret);
+    const qrDataUrl = await qrcode.toDataURL(otpauth);
+
+    return res.json({ success: true, data: { secret, otpauth_url: otpauth, qr_data_url: qrDataUrl } });
+  } catch (err) {
+    console.error('auth.2fa.setup error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+async function twoFactorVerifyImpl(req: Request, res: Response) {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const code = String(req.body?.code || '').trim();
+    if (!code) return res.status(400).json({ success: false, error: 'code is required' });
+
+    const { rows } = await db.query(
+      `SELECT totp_secret FROM users WHERE id = $1 LIMIT 1`,
+      [user.userId]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'User not found' });
+    const secret = rows[0].totp_secret;
+    if (!secret) return res.status(400).json({ success: false, error: 'Two-factor setup not initialized' });
+
+    const ok = authenticator.check(code, secret);
+    if (!ok) return res.status(400).json({ success: false, error: 'Invalid code' });
+
+    await db.query(
+      `UPDATE users
+          SET totp_enabled = true,
+              totp_verified_at = NOW(),
+              totp_last_used = NOW()
+        WHERE id = $1`,
+      [user.userId]
+    );
+    return res.json({ success: true, data: { enabled: true } });
+  } catch (err) {
+    console.error('auth.2fa.verify error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+async function twoFactorDisableImpl(req: Request, res: Response) {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const current_password = String(req.body?.current_password ?? '');
+    const code = String(req.body?.code ?? '').trim();
+    if (!current_password || !code) {
+      return res.status(400).json({ success: false, error: 'current_password and code are required' });
+    }
+
+    const { rows } = await db.query(
+      `SELECT password AS password_hash, totp_secret, totp_enabled
+         FROM users WHERE id = $1 LIMIT 1`,
+      [user.userId]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'User not found' });
+    if (!rows[0].totp_enabled || !rows[0].totp_secret) {
+      return res.status(400).json({ success: false, error: 'Two-factor authentication is not enabled' });
+    }
+
+    const ok = await bcrypt.compare(current_password, rows[0].password_hash);
+    if (!ok) return res.status(401).json({ success: false, error: 'Invalid current password' });
+    if (!authenticator.check(code, rows[0].totp_secret)) {
+      return res.status(400).json({ success: false, error: 'Invalid code' });
+    }
+
+    await db.query(
+      `UPDATE users
+          SET totp_enabled = false,
+              totp_secret = NULL,
+              totp_verified_at = NULL,
+              totp_last_used = NULL
+        WHERE id = $1`,
+      [user.userId]
+    );
+    return res.json({ success: true, data: { enabled: false } });
+  } catch (err) {
+    console.error('auth.2fa.disable error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+async function twoFactorConfirmImpl(req: Request, res: Response) {
+  try {
+    const challengeToken = String(req.body?.challenge_token || '').trim();
+    const code = String(req.body?.code || '').trim();
+    if (!challengeToken || !code) {
+      return res.status(400).json({ success: false, error: 'challenge_token and code are required' });
+    }
+
+    const payload = verifyChallengeToken(challengeToken);
+    const userId = String(payload.userId || '');
+    if (!userId) return res.status(401).json({ success: false, error: 'Invalid challenge token' });
+
+    const { rows } = await db.query(
+      `SELECT id, email, is_active, is_superadmin, totp_secret, totp_enabled
+         FROM users
+        WHERE id = $1
+        LIMIT 1`,
+      [userId]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'User not found' });
+    const userRow = rows[0];
+    if (userRow.is_active === false) {
+      return res.status(403).json({ success: false, error: 'Account disabled' });
+    }
+    if (!userRow.totp_enabled || !userRow.totp_secret) {
+      return res.status(400).json({ success: false, error: 'Two-factor authentication not enabled' });
+    }
+
+    const ok = authenticator.check(code, userRow.totp_secret);
+    if (!ok) return res.status(400).json({ success: false, error: 'Invalid code' });
+
+    await db.query(`UPDATE users SET totp_last_used = NOW() WHERE id = $1`, [userRow.id]);
+    const token = signToken({ userId: userRow.id, email: userRow.email, is_superadmin: userRow.is_superadmin });
+    return res.json({ success: true, data: { token } });
+  } catch (err) {
+    console.error('auth.2fa.confirm error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
 // Class export for existing routes
 export class AuthController {
   login = (req: Request, res: Response) => { void loginImpl(req, res); };
@@ -596,6 +792,10 @@ export class AuthController {
   changePassword = (req: Request, res: Response) => { void changePasswordImpl(req, res); };
   oidcStart = (req: Request, res: Response) => { void oidcStartImpl(req, res); };
   oidcCallback = (req: Request, res: Response) => { void oidcCallbackImpl(req, res); };
+  twoFactorSetup = (req: Request, res: Response) => { void twoFactorSetupImpl(req, res); };
+  twoFactorVerify = (req: Request, res: Response) => { void twoFactorVerifyImpl(req, res); };
+  twoFactorDisable = (req: Request, res: Response) => { void twoFactorDisableImpl(req, res); };
+  twoFactorConfirm = (req: Request, res: Response) => { void twoFactorConfirmImpl(req, res); };
 }
 
 // Named exports (if used elsewhere)
@@ -603,3 +803,7 @@ export const login = (req: Request, res: Response) => { void loginImpl(req, res)
 export const register = (req: Request, res: Response) => { void registerImpl(req, res); };
 export const me = (req: Request, res: Response) => { void meImpl(req, res); };
 export const changePassword = (req: Request, res: Response) => { void changePasswordImpl(req, res); };
+export const twoFactorSetup = (req: Request, res: Response) => { void twoFactorSetupImpl(req, res); };
+export const twoFactorVerify = (req: Request, res: Response) => { void twoFactorVerifyImpl(req, res); };
+export const twoFactorDisable = (req: Request, res: Response) => { void twoFactorDisableImpl(req, res); };
+export const twoFactorConfirm = (req: Request, res: Response) => { void twoFactorConfirmImpl(req, res); };

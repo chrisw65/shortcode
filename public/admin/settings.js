@@ -27,16 +27,42 @@ const ssoIssuer = document.getElementById('ssoIssuer');
 const ssoClientId = document.getElementById('ssoClientId');
 const ssoClientSecret = document.getElementById('ssoClientSecret');
 const ssoEnabled = document.getElementById('ssoEnabled');
+const ssoAutoProvision = document.getElementById('ssoAutoProvision');
+const ssoDefaultRole = document.getElementById('ssoDefaultRole');
+const ssoAllowedDomains = document.getElementById('ssoAllowedDomains');
 const ssoSaveBtn = document.getElementById('ssoSaveBtn');
 const ssoMsg = document.getElementById('ssoMsg');
+const twofaSetupBtn = document.getElementById('twofaSetupBtn');
+const twofaDisableBtn = document.getElementById('twofaDisableBtn');
+const twofaStatus = document.getElementById('twofaStatus');
+const twofaSetupBlock = document.getElementById('twofaSetupBlock');
+const twofaQr = document.getElementById('twofaQr');
+const twofaSecret = document.getElementById('twofaSecret');
+const twofaCode = document.getElementById('twofaCode');
+const twofaVerifyBtn = document.getElementById('twofaVerifyBtn');
+const twofaMsg = document.getElementById('twofaMsg');
 const privacyExportBtn = document.getElementById('privacyExportBtn');
 const privacyDeleteBtn = document.getElementById('privacyDeleteBtn');
 const privacyAcceptBtn = document.getElementById('privacyAcceptBtn');
 const privacyMsg = document.getElementById('privacyMsg');
 
+let twoFactorEnabled = false;
 
 function setText(el, value) {
   if (el) el.textContent = value ?? '—';
+}
+
+function updateTwoFactorUI() {
+  if (twofaStatus) {
+    twofaStatus.textContent = twoFactorEnabled ? 'Enabled' : 'Not enabled';
+  }
+  if (twofaDisableBtn) {
+    twofaDisableBtn.disabled = !twoFactorEnabled;
+  }
+  if (twofaSetupBlock) {
+    const active = twofaSetupBlock.dataset.active === '1';
+    twofaSetupBlock.style.display = twoFactorEnabled ? 'none' : (active ? 'block' : 'none');
+  }
 }
 
 async function loadMe() {
@@ -47,6 +73,8 @@ async function loadMe() {
     setText(meRole, data?.org?.role || 'member');
     setText(meOrg, data?.org?.orgId || '—');
     setText(meSuper, data?.user?.is_superadmin ? 'yes' : 'no');
+    twoFactorEnabled = Boolean(data?.user?.two_factor_enabled);
+    updateTwoFactorUI();
   } catch (e) {
     setText(meEmail, '—');
   }
@@ -106,6 +134,9 @@ async function loadSsoSettings() {
     if (ssoIssuer) ssoIssuer.value = data?.issuer_url || '';
     if (ssoClientId) ssoClientId.value = data?.client_id || '';
     if (ssoEnabled) ssoEnabled.checked = Boolean(data?.enabled);
+    if (ssoAutoProvision) ssoAutoProvision.checked = data?.auto_provision !== false;
+    if (ssoDefaultRole) ssoDefaultRole.value = data?.default_role || 'member';
+    if (ssoAllowedDomains) ssoAllowedDomains.value = Array.isArray(data?.allowed_domains) ? data.allowed_domains.join(', ') : '';
   } catch (e) {
     if (ssoMsg) ssoMsg.textContent = e?.message || 'Failed to load SSO settings.';
   }
@@ -127,6 +158,9 @@ async function saveSsoSettings() {
         client_id: ssoClientId ? ssoClientId.value.trim() : '',
         client_secret: ssoClientSecret ? ssoClientSecret.value.trim() : '',
         enabled: ssoEnabled ? ssoEnabled.checked : false,
+        auto_provision: ssoAutoProvision ? ssoAutoProvision.checked : true,
+        default_role: ssoDefaultRole ? ssoDefaultRole.value : 'member',
+        allowed_domains: ssoAllowedDomains ? ssoAllowedDomains.value.split(',').map(s => s.trim()).filter(Boolean) : [],
       }),
     });
     if (ssoMsg) ssoMsg.textContent = 'SSO settings saved.';
@@ -241,10 +275,73 @@ async function changePassword() {
   }
 }
 
+async function setupTwoFactor() {
+  if (twofaMsg) twofaMsg.textContent = '';
+  try {
+    const res = await api('/api/auth/2fa/setup', { method: 'POST' });
+    const data = res?.data || res;
+    if (twofaQr) twofaQr.src = data?.qr_data_url || '';
+    if (twofaSecret) twofaSecret.textContent = data?.secret || '—';
+    if (twofaSetupBlock) twofaSetupBlock.dataset.active = '1';
+    if (twofaSetupBlock) twofaSetupBlock.style.display = 'block';
+    if (twofaMsg) twofaMsg.textContent = 'Scan the QR code in your authenticator app.';
+  } catch (e) {
+    if (twofaMsg) twofaMsg.textContent = e?.message || 'Failed to start 2FA setup.';
+  }
+}
+
+async function verifyTwoFactor() {
+  const code = String(twofaCode?.value || '').trim();
+  if (!code) {
+    if (twofaMsg) twofaMsg.textContent = 'Enter the verification code.';
+    return;
+  }
+  if (twofaMsg) twofaMsg.textContent = '';
+  try {
+    await api('/api/auth/2fa/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    twoFactorEnabled = true;
+    updateTwoFactorUI();
+    if (twofaMsg) twofaMsg.textContent = 'Two-factor authentication enabled.';
+  } catch (e) {
+    if (twofaMsg) twofaMsg.textContent = e?.message || 'Failed to verify code.';
+  }
+}
+
+async function disableTwoFactor() {
+  const password = window.prompt('Enter your current password to disable 2FA.');
+  if (!password) return;
+  const code = window.prompt('Enter your current 2FA code.');
+  if (!code) return;
+  if (twofaMsg) twofaMsg.textContent = '';
+  try {
+    await api('/api/auth/2fa/disable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: password, code }),
+    });
+    twoFactorEnabled = false;
+    if (twofaQr) twofaQr.src = '';
+    if (twofaSecret) twofaSecret.textContent = '—';
+    if (twofaCode) twofaCode.value = '';
+    if (twofaSetupBlock) twofaSetupBlock.dataset.active = '0';
+    updateTwoFactorUI();
+    if (twofaMsg) twofaMsg.textContent = 'Two-factor authentication disabled.';
+  } catch (e) {
+    if (twofaMsg) twofaMsg.textContent = e?.message || 'Failed to disable 2FA.';
+  }
+}
+
 btnChange?.addEventListener('click', changePassword);
 orgSaveBtn?.addEventListener('click', saveOrgSettings);
 orgSelect?.addEventListener('change', onOrgSwitch);
 ssoSaveBtn?.addEventListener('click', saveSsoSettings);
+twofaSetupBtn?.addEventListener('click', setupTwoFactor);
+twofaVerifyBtn?.addEventListener('click', verifyTwoFactor);
+twofaDisableBtn?.addEventListener('click', disableTwoFactor);
 privacyExportBtn?.addEventListener('click', () => {
   window.location.href = '/api/privacy/export';
 });
