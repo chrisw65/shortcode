@@ -51,6 +51,21 @@ CREATE TABLE IF NOT EXISTS org_memberships (
   UNIQUE (org_id, user_id)
 );
 
+-- Org SSO settings
+CREATE TABLE IF NOT EXISTS org_sso (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  provider VARCHAR(40) NOT NULL DEFAULT 'oidc',
+  issuer_url TEXT,
+  client_id TEXT,
+  client_secret TEXT,
+  scopes TEXT[] NOT NULL DEFAULT ARRAY[]::text[],
+  enabled BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (org_id)
+);
+
 -- API keys
 CREATE TABLE IF NOT EXISTS api_keys (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -13,6 +13,7 @@ Delivered in Phase 3.4 scope:
 - Deep links with device fallback
 - API key auth with scopes (links/domains/analytics/org/tags/groups/invites)
 - Per‑org API rate limits + link/domain quotas (admin configurable)
+- SSO groundwork (OIDC org settings storage + admin UI)
 
 Remaining Phase 3 items are listed below by phase section.
 

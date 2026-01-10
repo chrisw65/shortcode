@@ -20,6 +20,14 @@ const btnChange = document.getElementById('btnChange');
 const curPass = document.getElementById('curPass');
 const newPass = document.getElementById('newPass');
 const msg = document.getElementById('msg');
+const ssoProvider = document.getElementById('ssoProvider');
+const ssoScopes = document.getElementById('ssoScopes');
+const ssoIssuer = document.getElementById('ssoIssuer');
+const ssoClientId = document.getElementById('ssoClientId');
+const ssoClientSecret = document.getElementById('ssoClientSecret');
+const ssoEnabled = document.getElementById('ssoEnabled');
+const ssoSaveBtn = document.getElementById('ssoSaveBtn');
+const ssoMsg = document.getElementById('ssoMsg');
 const privacyExportBtn = document.getElementById('privacyExportBtn');
 const privacyDeleteBtn = document.getElementById('privacyDeleteBtn');
 const privacyAcceptBtn = document.getElementById('privacyAcceptBtn');
@@ -75,6 +83,47 @@ async function loadOrgSettings() {
     if (meOrg && orgData?.name) meOrg.textContent = orgData.name;
   } catch (e) {
     if (orgMsg) orgMsg.textContent = e?.message || 'Failed to load orgs.';
+  }
+}
+
+async function loadSsoSettings() {
+  try {
+    const res = await api('/api/org/sso');
+    const data = res?.data || res;
+    if (ssoProvider) ssoProvider.value = data?.provider || 'oidc';
+    if (ssoScopes) ssoScopes.value = Array.isArray(data?.scopes) ? data.scopes.join(',') : '';
+    if (ssoIssuer) ssoIssuer.value = data?.issuer_url || '';
+    if (ssoClientId) ssoClientId.value = data?.client_id || '';
+    if (ssoEnabled) ssoEnabled.checked = Boolean(data?.enabled);
+  } catch (e) {
+    if (ssoMsg) ssoMsg.textContent = e?.message || 'Failed to load SSO settings.';
+  }
+}
+
+async function saveSsoSettings() {
+  if (ssoSaveBtn) ssoSaveBtn.disabled = true;
+  if (ssoMsg) ssoMsg.textContent = '';
+  try {
+    const provider = ssoProvider ? ssoProvider.value : 'oidc';
+    const scopes = ssoScopes ? ssoScopes.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+    await api('/api/org/sso', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider,
+        scopes,
+        issuer_url: ssoIssuer ? ssoIssuer.value.trim() : '',
+        client_id: ssoClientId ? ssoClientId.value.trim() : '',
+        client_secret: ssoClientSecret ? ssoClientSecret.value.trim() : '',
+        enabled: ssoEnabled ? ssoEnabled.checked : false,
+      }),
+    });
+    if (ssoMsg) ssoMsg.textContent = 'SSO settings saved.';
+    if (ssoClientSecret) ssoClientSecret.value = '';
+  } catch (e) {
+    if (ssoMsg) ssoMsg.textContent = e?.message || 'Failed to save SSO settings.';
+  } finally {
+    if (ssoSaveBtn) ssoSaveBtn.disabled = false;
   }
 }
 
@@ -177,6 +226,7 @@ async function changePassword() {
 btnChange?.addEventListener('click', changePassword);
 orgSaveBtn?.addEventListener('click', saveOrgSettings);
 orgSelect?.addEventListener('change', onOrgSwitch);
+ssoSaveBtn?.addEventListener('click', saveSsoSettings);
 privacyExportBtn?.addEventListener('click', () => {
   window.location.href = '/api/privacy/export';
 });
@@ -201,3 +251,4 @@ privacyDeleteBtn?.addEventListener('click', async () => {
 });
 loadMe();
 loadOrgSettings();
+loadSsoSettings();

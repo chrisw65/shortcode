@@ -123,6 +123,46 @@
         </section>
 
         <section class="card" style="max-width:720px;margin-top:18px">
+          <h3>SSO (OIDC)</h3>
+          <div class="grid grid-2" style="margin-top:10px">
+            <div>
+              <label class="muted">Provider</label>
+              <select id="ssoProvider" class="input">
+                <option value="oidc">OIDC</option>
+              </select>
+            </div>
+            <div>
+              <label class="muted">Scopes (comma separated)</label>
+              <input id="ssoScopes" class="input" type="text" placeholder="openid,profile,email" />
+            </div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Issuer URL</label>
+              <input id="ssoIssuer" class="input" type="text" placeholder="https://accounts.example.com" />
+            </div>
+            <div>
+              <label class="muted">Client ID</label>
+              <input id="ssoClientId" class="input" type="text" placeholder="Client ID" />
+            </div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Client secret</label>
+              <input id="ssoClientSecret" class="input" type="password" placeholder="Leave blank to keep current" />
+            </div>
+            <div class="row" style="align-items:center;gap:10px;margin-top:24px">
+              <input id="ssoEnabled" type="checkbox" />
+              <span class="muted">Enable SSO for this org</span>
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button id="ssoSaveBtn" class="btn">Save SSO</button>
+            <span id="ssoMsg" class="muted"></span>
+          </div>
+        </section>
+
+        <section class="card" style="max-width:720px;margin-top:18px">
           <h3>Privacy</h3>
           <p class="muted">Export your data or request account deletion.</p>
           <div class="row" style="margin-top:12px">

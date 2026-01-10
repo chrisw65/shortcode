@@ -1,0 +1,113 @@
+import type { Response } from 'express';
+import type { OrgRequest } from '../middleware/org';
+import db from '../config/database';
+import { logAudit } from '../services/audit';
+
+const ALLOWED_PROVIDERS = new Set(['oidc']);
+
+function normalizeScopes(input: unknown): string[] {
+  if (!input) return [];
+  const raw = Array.isArray(input) ? input : String(input).split(',');
+  return raw.map((s) => String(s).trim()).filter(Boolean);
+}
+
+export async function getOrgSso(req: OrgRequest, res: Response) {
+  try {
+    const orgId = req.org!.orgId;
+    const { rows } = await db.query(
+      `SELECT id, provider, issuer_url, client_id, scopes, enabled, created_at, updated_at
+         FROM org_sso
+        WHERE org_id = $1
+        LIMIT 1`,
+      [orgId]
+    );
+    if (!rows.length) {
+      return res.json({ success: true, data: { provider: 'oidc', scopes: [], enabled: false, has_client_secret: false } });
+    }
+    const row = rows[0];
+    return res.json({
+      success: true,
+      data: {
+        id: row.id,
+        provider: row.provider,
+        issuer_url: row.issuer_url,
+        client_id: row.client_id,
+        scopes: row.scopes || [],
+        enabled: row.enabled,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        has_client_secret: true,
+      },
+    });
+  } catch (e) {
+    console.error('getOrgSso error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+export async function updateOrgSso(req: OrgRequest, res: Response) {
+  try {
+    const orgId = req.org!.orgId;
+    const actorId = req.user?.userId ?? null;
+    const provider = String(req.body?.provider || 'oidc').trim().toLowerCase();
+    const issuerUrl = String(req.body?.issuer_url || '').trim();
+    const clientId = String(req.body?.client_id || '').trim();
+    const clientSecret = String(req.body?.client_secret || '').trim();
+    const scopes = normalizeScopes(req.body?.scopes);
+    const enabled = Boolean(req.body?.enabled);
+
+    if (!ALLOWED_PROVIDERS.has(provider)) {
+      return res.status(400).json({ success: false, error: 'Unsupported SSO provider' });
+    }
+    if (enabled && (!issuerUrl || !clientId)) {
+      return res.status(400).json({ success: false, error: 'issuer_url and client_id are required when enabled' });
+    }
+
+    const existing = await db.query(`SELECT id, client_secret FROM org_sso WHERE org_id = $1 LIMIT 1`, [orgId]);
+    const secretToStore = clientSecret || existing.rows[0]?.client_secret || null;
+
+    if (existing.rows.length) {
+      const { rows } = await db.query(
+        `UPDATE org_sso
+            SET provider = $1,
+                issuer_url = $2,
+                client_id = $3,
+                client_secret = $4,
+                scopes = $5,
+                enabled = $6,
+                updated_at = NOW()
+          WHERE org_id = $7
+          RETURNING id, provider, issuer_url, client_id, scopes, enabled, created_at, updated_at`,
+        [provider, issuerUrl, clientId, secretToStore, scopes, enabled, orgId]
+      );
+      await logAudit({
+        org_id: orgId,
+        user_id: actorId,
+        action: 'org.sso.update',
+        entity_type: 'org_sso',
+        entity_id: rows[0].id,
+        metadata: { provider, issuer_url: issuerUrl, scopes, enabled, client_secret_updated: Boolean(clientSecret) },
+      });
+      return res.json({ success: true, data: { ...rows[0], has_client_secret: Boolean(secretToStore) } });
+    }
+
+    const { rows } = await db.query(
+      `INSERT INTO org_sso (org_id, provider, issuer_url, client_id, client_secret, scopes, enabled)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, provider, issuer_url, client_id, scopes, enabled, created_at, updated_at`,
+      [orgId, provider, issuerUrl, clientId, secretToStore, scopes, enabled]
+    );
+    await logAudit({
+      org_id: orgId,
+      user_id: actorId,
+      action: 'org.sso.create',
+      entity_type: 'org_sso',
+      entity_id: rows[0].id,
+      metadata: { provider, issuer_url: issuerUrl, scopes, enabled, client_secret_updated: Boolean(secretToStore) },
+    });
+    return res.status(201).json({ success: true, data: { ...rows[0], has_client_secret: Boolean(secretToStore) } });
+  } catch (e) {
+    console.error('updateOrgSso error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
