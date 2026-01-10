@@ -52,6 +52,7 @@ Deliverables:
 - Redirect service with Redis cache
 - Queue for click events
 - Analytics ingestion worker
+ - Service mode split for api/redirect/worker
 
 Tasks:
 1) Split redirect route into its own service

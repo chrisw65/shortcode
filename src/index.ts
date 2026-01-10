@@ -39,6 +39,16 @@ import { scheduleRetentionCleanup } from './services/retention';
 // Ensure DB connects on boot (side-effect import if you have it)
 import './config/database';
 
+const modeRaw = String(process.env.SERVICE_MODE || 'all').toLowerCase();
+const modeTokens = modeRaw.split(',').map((mode) => mode.trim()).filter(Boolean);
+const modeSet = new Set(modeTokens.length ? modeTokens : ['all']);
+const enableAll = modeSet.has('all');
+const enableApi = enableAll || modeSet.has('api');
+const enableRedirect = enableAll || modeSet.has('redirect');
+const enableWorker = enableAll || modeSet.has('worker');
+const enableStatic = enableApi;
+const enableJobs = enableWorker || enableApi;
+
 const app = express();
 
 // If behind Cloudflare / a proxy
@@ -52,10 +62,14 @@ app.use(
     credentials: true,
   })
 );
-app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
-app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: false }));
+if (enableApi) {
+  app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+  app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: false }));
+} else if (enableRedirect) {
+  app.use(express.urlencoded({ extended: false }));
+}
 app.use((req, res, next) => {
   (req as any).id = randomUUID();
   res.setHeader('X-Request-Id', (req as any).id);
@@ -69,20 +83,28 @@ async function initRedis() {
     if (!redisClient.isOpen) {
       await redisClient.connect();
     }
-    startClickWorker();
+    if (enableWorker) {
+      startClickWorker();
+    }
   } catch (err) {
     console.error('Redis init failed:', err);
   }
 }
-initRedis().catch(() => {});
-scheduleRetentionCleanup();
+if (enableApi || enableRedirect || enableWorker) {
+  initRedis().catch(() => {});
+}
+if (enableJobs) {
+  scheduleRetentionCleanup();
+}
 
 // Serve static admin UI from /public
-app.use(express.static(path.join(__dirname, '..', 'public')));
+if (enableStatic) {
+  app.use(express.static(path.join(__dirname, '..', 'public')));
+}
 
 // Healthcheck
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, env: process.env.NODE_ENV || 'development' });
+  res.json({ ok: true, env: process.env.NODE_ENV || 'development', mode: modeRaw });
 });
 
 // Serve favicon explicitly to avoid hitting redirect/rate-limit path
@@ -95,35 +117,39 @@ app.get('/favicon.ico', (_req, res) => {
 });
 
 // API routes
-const registerApi = (base: string) => {
-  app.use(`${base}/auth`, authRoutes);
-  app.use(`${base}/links`, linkRoutes);
-  app.use(`${base}/domains`, domainRoutes);
-  app.use(`${base}/analytics`, analyticsRoutes);
-  app.use(`${base}/qr`, qrRoutes);
-  app.use(`${base}/api-keys`, apiKeysRoutes);
-  app.use(`${base}/org/invites`, invitesRoutes);
-  app.use(`${base}/org`, orgRoutes);
-  app.use(`${base}/orgs`, orgsRoutes);
-  app.use(`${base}/org/audit`, auditRoutes);
-  app.use(`${base}/privacy`, privacyRoutes);
-  app.use(`${base}/tags`, tagsRoutes);
-  app.use(`${base}/groups`, groupsRoutes);
-  app.use(base, siteRoutes);
-  app.use(`${base}/coupons`, couponsRoutes);
-  app.use(`${base}/plan-grants`, planGrantsRoutes);
-  app.use(`${base}/affiliates`, affiliatesRoutes);
-  app.use(`${base}/affiliate`, affiliateAuthRoutes);
-  app.use(`${base}/billing`, billingRoutes);
-  app.use(`${base}/platform-config`, platformRoutes);
-  app.use(base, openapiRoutes);
-};
+if (enableApi) {
+  const registerApi = (base: string) => {
+    app.use(`${base}/auth`, authRoutes);
+    app.use(`${base}/links`, linkRoutes);
+    app.use(`${base}/domains`, domainRoutes);
+    app.use(`${base}/analytics`, analyticsRoutes);
+    app.use(`${base}/qr`, qrRoutes);
+    app.use(`${base}/api-keys`, apiKeysRoutes);
+    app.use(`${base}/org/invites`, invitesRoutes);
+    app.use(`${base}/org`, orgRoutes);
+    app.use(`${base}/orgs`, orgsRoutes);
+    app.use(`${base}/org/audit`, auditRoutes);
+    app.use(`${base}/privacy`, privacyRoutes);
+    app.use(`${base}/tags`, tagsRoutes);
+    app.use(`${base}/groups`, groupsRoutes);
+    app.use(base, siteRoutes);
+    app.use(`${base}/coupons`, couponsRoutes);
+    app.use(`${base}/plan-grants`, planGrantsRoutes);
+    app.use(`${base}/affiliates`, affiliatesRoutes);
+    app.use(`${base}/affiliate`, affiliateAuthRoutes);
+    app.use(`${base}/billing`, billingRoutes);
+    app.use(`${base}/platform-config`, platformRoutes);
+    app.use(base, openapiRoutes);
+  };
 
-registerApi('/api');
-registerApi('/api/v1');
+  registerApi('/api');
+  registerApi('/api/v1');
+}
 
 // Public redirect route (must come AFTER /api and static so it doesn’t swallow them)
-app.use('/', redirectRoutes);
+if (enableRedirect) {
+  app.use('/', redirectRoutes);
+}
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -143,13 +169,15 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
 });
 
 // Start server (when run directly)
-if (require.main === module) {
+if (require.main === module && (enableApi || enableRedirect || enableStatic)) {
   const PORT = parseInt(process.env.PORT || '3000', 10);
   app.listen(PORT, () => {
     // eslint-disable-next-line no-console
     console.log(`✓ Server running on port ${PORT}`);
     // eslint-disable-next-line no-console
     console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+    // eslint-disable-next-line no-console
+    console.log(`✓ Service mode: ${modeRaw}`);
   });
 }
 

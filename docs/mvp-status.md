@@ -14,6 +14,7 @@ These must be true for the MVP to work as intended:
 - The DB schema matches `scripts/migrate.js`
 - The service is running behind a reverse proxy or direct, with `PUBLIC_HOST` or `BASE_URL`
 - The admin UI is served from `/public/admin`
+- `SERVICE_MODE` defaults to `all` (set to `api`, `redirect`, or `worker` to split services)
 
 ## Recent enhancements (Phase 3.4)
 - Bulk create/delete (JSON + CSV import)
