@@ -3,6 +3,7 @@ import { authenticate } from '../middleware/auth';
 import { requireOrg, requireOrgRole } from '../middleware/org';
 import { perUser120rpmRedis } from '../middleware/redisRateLimit';
 import { listApiKeys, createApiKey, revokeApiKey } from '../controllers/apiKeys.controller';
+import { requireApiScope } from '../middleware/apiScope';
 
 const router = Router();
 const wrap = (fn: any): RequestHandler => (req, res, next) =>
@@ -15,8 +16,8 @@ router.use(requireOrg);
 router.use(apiLimiter);
 router.use(requireOrgRole(['owner', 'admin']));
 
-router.get('/', wrap(listApiKeys));
-router.post('/', wrap(createApiKey));
-router.post('/:id/revoke', wrap(revokeApiKey));
+router.get('/', requireApiScope('api-keys:read'), wrap(listApiKeys));
+router.post('/', requireApiScope('api-keys:write'), wrap(createApiKey));
+router.post('/:id/revoke', requireApiScope('api-keys:write'), wrap(revokeApiKey));
 
 export default router;

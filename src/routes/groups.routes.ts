@@ -3,6 +3,7 @@ import { authenticate } from '../middleware/auth';
 import { requireOrg } from '../middleware/org';
 import { perUser120rpmRedis } from '../middleware/redisRateLimit';
 import { listGroups, createGroup, updateGroup, deleteGroup } from '../controllers/group.controller';
+import { requireApiScope } from '../middleware/apiScope';
 
 const router = Router();
 const wrap = (fn: any): RequestHandler => (req, res, next) =>
@@ -14,9 +15,9 @@ router.use(authenticate);
 router.use(requireOrg);
 router.use(apiLimiter);
 
-router.get('/', wrap(listGroups));
-router.post('/', wrap(createGroup));
-router.put('/:id', wrap(updateGroup));
-router.delete('/:id', wrap(deleteGroup));
+router.get('/', requireApiScope('groups:read'), wrap(listGroups));
+router.post('/', requireApiScope('groups:write'), wrap(createGroup));
+router.put('/:id', requireApiScope('groups:write'), wrap(updateGroup));
+router.delete('/:id', requireApiScope('groups:write'), wrap(deleteGroup));
 
 export default router;

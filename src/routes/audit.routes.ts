@@ -3,6 +3,7 @@ import { authenticate } from '../middleware/auth';
 import { requireOrg } from '../middleware/org';
 import { perUser120rpmRedis } from '../middleware/redisRateLimit';
 import { listAuditLogs, exportAuditLogs } from '../controllers/audit.controller';
+import { requireApiScope } from '../middleware/apiScope';
 
 const router = Router();
 const wrap = (fn: any): RequestHandler => (req, res, next) =>
@@ -14,7 +15,7 @@ router.use(authenticate);
 router.use(requireOrg);
 router.use(apiLimiter);
 
-router.get('/', wrap(listAuditLogs));
-router.get('/export', wrap(exportAuditLogs));
+router.get('/', requireApiScope('audit:read'), wrap(listAuditLogs));
+router.get('/export', requireApiScope('audit:read'), wrap(exportAuditLogs));
 
 export default router;

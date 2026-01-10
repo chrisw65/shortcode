@@ -4,6 +4,7 @@ import * as linkController from '../controllers/link.controller';
 import { authenticate } from '../middleware/auth';
 import { requireOrg } from '../middleware/org';
 import { perUser120rpmRedis } from '../middleware/redisRateLimit';
+import { requireApiScope } from '../middleware/apiScope';
 
 const router = Router();
 
@@ -19,33 +20,33 @@ router.use(requireOrg);
 router.use(apiLimiter);
 
 // Create a new short link
-router.post('/', wrap(linkController.createLink));
+router.post('/', requireApiScope('links:write'), wrap(linkController.createLink));
 
 // Bulk operations
-router.post('/bulk-create', wrap(linkController.bulkCreateLinks));
-router.post('/bulk-delete', wrap(linkController.bulkDeleteLinks));
-router.post('/bulk-import', wrap(linkController.bulkImportLinks));
+router.post('/bulk-create', requireApiScope('links:write'), wrap(linkController.bulkCreateLinks));
+router.post('/bulk-delete', requireApiScope('links:write'), wrap(linkController.bulkDeleteLinks));
+router.post('/bulk-import', requireApiScope('links:write'), wrap(linkController.bulkImportLinks));
 
 // Check short code availability
-router.get('/availability/:shortCode', wrap(linkController.checkAvailability));
+router.get('/availability/:shortCode', requireApiScope('links:read'), wrap(linkController.checkAvailability));
 
 // Core domain (okleaf.lnk)
-router.get('/core-domain', wrap(linkController.getCoreDomain));
+router.get('/core-domain', requireApiScope('links:read'), wrap(linkController.getCoreDomain));
 
 // List current user's links
-router.get('/', wrap(linkController.getUserLinks));
+router.get('/', requireApiScope('links:read'), wrap(linkController.getUserLinks));
 
 // Manage link variants
-router.get('/:shortCode/variants', wrap(linkController.listVariants));
-router.put('/:shortCode/variants', wrap(linkController.replaceVariants));
+router.get('/:shortCode/variants', requireApiScope('links:read'), wrap(linkController.listVariants));
+router.put('/:shortCode/variants', requireApiScope('links:write'), wrap(linkController.replaceVariants));
 
 // Get a single link (by short code, owned by the user)
-router.get('/:shortCode', wrap(linkController.getLinkDetails));
+router.get('/:shortCode', requireApiScope('links:read'), wrap(linkController.getLinkDetails));
 
 // Update a link (title/url/expiry) by short code
-router.put('/:shortCode', wrap(linkController.updateLink));
+router.put('/:shortCode', requireApiScope('links:write'), wrap(linkController.updateLink));
 
 // Delete a link by short code
-router.delete('/:shortCode', wrap(linkController.deleteLink));
+router.delete('/:shortCode', requireApiScope('links:write'), wrap(linkController.deleteLink));
 
 export default router;

@@ -3,6 +3,7 @@ import { authenticate } from '../middleware/auth';
 import { requireOrg, requireOrgRole } from '../middleware/org';
 import { perUser120rpmRedis } from '../middleware/redisRateLimit';
 import { listMembers, addMember, removeMember, getOrg, updateOrg } from '../controllers/org.controller';
+import { requireApiScope } from '../middleware/apiScope';
 
 const router = Router();
 const wrap = (fn: any): RequestHandler => (req, res, next) =>
@@ -14,10 +15,10 @@ router.use(authenticate);
 router.use(requireOrg);
 router.use(apiLimiter);
 
-router.get('/', wrap(getOrg));
-router.put('/', requireOrgRole(['owner', 'admin']), wrap(updateOrg));
-router.get('/members', wrap(listMembers));
-router.post('/members', requireOrgRole(['owner']), wrap(addMember));
-router.delete('/members/:memberId', requireOrgRole(['owner']), wrap(removeMember));
+router.get('/', requireApiScope('org:read'), wrap(getOrg));
+router.put('/', requireApiScope('org:write'), requireOrgRole(['owner', 'admin']), wrap(updateOrg));
+router.get('/members', requireApiScope('org:read'), wrap(listMembers));
+router.post('/members', requireApiScope('org:write'), requireOrgRole(['owner']), wrap(addMember));
+router.delete('/members/:memberId', requireApiScope('org:write'), requireOrgRole(['owner']), wrap(removeMember));
 
 export default router;

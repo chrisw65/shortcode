@@ -49,6 +49,10 @@
               <label class="muted">Key name</label>
               <input id="keyName" class="input" type="text" placeholder="Production automation" />
             </div>
+            <div style="flex:1">
+              <label class="muted">Scopes (comma separated)</label>
+              <input id="keyScopes" class="input" type="text" placeholder="links:read,links:write,analytics:read" />
+            </div>
             <button id="btnCreate" class="btn">Create</button>
           </div>
           <div id="keyMsg" class="muted" style="margin-top:8px"></div>
@@ -62,6 +66,7 @@
               <tr>
                 <th>Name</th>
                 <th>Prefix</th>
+                <th>Scopes</th>
                 <th>Created</th>
                 <th>Last used</th>
                 <th>Status</th>
@@ -69,7 +74,7 @@
               </tr>
             </thead>
             <tbody id="keysBody">
-              <tr><td colspan="6" class="muted">Loading...</td></tr>
+              <tr><td colspan="7" class="muted">Loading...</td></tr>
             </tbody>
           </table>
         </section>

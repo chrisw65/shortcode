@@ -11,6 +11,7 @@ Delivered in Phase 3.4 scope:
 - A/B testing (weighted variants)
 - Password‑protected links
 - Deep links with device fallback
+- API key auth with scopes (links/domains/analytics/org/tags/groups/invites)
 
 Remaining Phase 3 items are listed below by phase section.
 

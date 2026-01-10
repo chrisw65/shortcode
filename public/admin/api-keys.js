@@ -4,6 +4,7 @@ requireAuth();
 
 const keysBody = document.getElementById('keysBody');
 const keyName = document.getElementById('keyName');
+const keyScopes = document.getElementById('keyScopes');
 const btnCreate = document.getElementById('btnCreate');
 const keyMsg = document.getElementById('keyMsg');
 
@@ -12,15 +13,17 @@ async function loadKeys() {
     const res = await api('/api/api-keys');
     const data = res?.data || res;
     if (!Array.isArray(data) || !data.length) {
-      keysBody.innerHTML = '<tr><td class="empty" colspan="5">No keys yet.</td></tr>';
+      keysBody.innerHTML = '<tr><td class="empty" colspan="7">No keys yet.</td></tr>';
       return;
     }
     keysBody.innerHTML = data.map((k) => `
       <tr data-id="${htmlesc(k.id)}">
         <td>${htmlesc(k.name || '')}</td>
         <td><span class="pill">${htmlesc(k.prefix)}</span></td>
+        <td>${htmlesc(Array.isArray(k.scopes) ? k.scopes.join(', ') : (k.scopes || ''))}</td>
+        <td>${k.created_at ? new Date(k.created_at).toLocaleString() : '—'}</td>
         <td>${k.last_used_at ? new Date(k.last_used_at).toLocaleString() : '—'}</td>
-        <td>${k.revoked_at ? new Date(k.revoked_at).toLocaleString() : '—'}</td>
+        <td>${k.revoked_at ? 'Revoked' : 'Active'}</td>
         <td style="text-align:right">
           <button class="btn danger btn-revoke" ${k.revoked_at ? 'disabled' : ''}>Revoke</button>
         </td>
@@ -48,6 +51,8 @@ async function loadKeys() {
 
 async function createKey() {
   const name = (keyName.value || '').trim();
+  const scopesRaw = (keyScopes?.value || '').trim();
+  const scopes = scopesRaw ? scopesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
   keyMsg.textContent = '';
   if (!name) {
     keyMsg.textContent = 'Name is required.';
@@ -55,7 +60,7 @@ async function createKey() {
   }
   btnCreate.disabled = true;
   try {
-    const res = await api('/api/api-keys', { method: 'POST', body: { name } });
+    const res = await api('/api/api-keys', { method: 'POST', body: { name, scopes } });
     const data = res?.data || res;
     if (data?.api_key) {
       keyMsg.textContent = `New API key (copy now): ${data.api_key}`;
@@ -63,6 +68,7 @@ async function createKey() {
       keyMsg.textContent = 'Key created.';
     }
     keyName.value = '';
+    if (keyScopes) keyScopes.value = '';
     await loadKeys();
   } catch (err) {
     keyMsg.textContent = err?.message || 'Failed to create key.';

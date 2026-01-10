@@ -3,6 +3,7 @@ import { authenticate } from '../middleware/auth';
 import { requireOrg } from '../middleware/org';
 import { perUser120rpmRedis } from '../middleware/redisRateLimit';
 import { listTags, createTag, updateTag, deleteTag } from '../controllers/tag.controller';
+import { requireApiScope } from '../middleware/apiScope';
 
 const router = Router();
 const wrap = (fn: any): RequestHandler => (req, res, next) =>
@@ -14,9 +15,9 @@ router.use(authenticate);
 router.use(requireOrg);
 router.use(apiLimiter);
 
-router.get('/', wrap(listTags));
-router.post('/', wrap(createTag));
-router.put('/:id', wrap(updateTag));
-router.delete('/:id', wrap(deleteTag));
+router.get('/', requireApiScope('tags:read'), wrap(listTags));
+router.post('/', requireApiScope('tags:write'), wrap(createTag));
+router.put('/:id', requireApiScope('tags:write'), wrap(updateTag));
+router.delete('/:id', requireApiScope('tags:write'), wrap(deleteTag));
 
 export default router;

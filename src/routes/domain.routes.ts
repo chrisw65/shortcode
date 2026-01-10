@@ -4,6 +4,7 @@ import * as domainController from '../controllers/domain.controller';
 import { authenticate } from '../middleware/auth';
 import { requireOrg, requireOrgRole } from '../middleware/org';
 import { perUser120rpmRedis } from '../middleware/redisRateLimit';
+import { requireApiScope } from '../middleware/apiScope';
 
 const router = Router();
 const wrap = (fn: any): RequestHandler => (req, res, next) =>
@@ -15,10 +16,10 @@ router.use(authenticate);
 router.use(requireOrg);
 router.use(apiLimiter);
 
-router.get('/', wrap(domainController.listDomains));
-router.post('/', wrap(domainController.createDomain));
-router.post('/:id/verify', wrap(domainController.verifyDomain));
-router.post('/:id/default', wrap(domainController.setDefaultDomain));
-router.delete('/:id', requireOrgRole(['owner']), wrap(domainController.deleteDomain));
+router.get('/', requireApiScope('domains:read'), wrap(domainController.listDomains));
+router.post('/', requireApiScope('domains:write'), wrap(domainController.createDomain));
+router.post('/:id/verify', requireApiScope('domains:write'), wrap(domainController.verifyDomain));
+router.post('/:id/default', requireApiScope('domains:write'), wrap(domainController.setDefaultDomain));
+router.delete('/:id', requireApiScope('domains:write'), requireOrgRole(['owner']), wrap(domainController.deleteDomain));
 
 export default router;

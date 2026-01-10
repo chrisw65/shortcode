@@ -13,6 +13,11 @@ export type OrgRequest = AuthenticatedRequest & {
 
 export async function requireOrg(req: OrgRequest, res: Response, next: NextFunction) {
   try {
+    if (req.apiKey?.orgId) {
+      req.org = { orgId: req.apiKey.orgId, role: 'admin' };
+      return next();
+    }
+
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
