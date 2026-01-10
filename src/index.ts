@@ -31,6 +31,7 @@ import openapiRoutes from './routes/openapi.routes';
 import { stripeWebhook } from './controllers/billing.controller';
 import redisClient from './config/redis';
 import { startClickWorker } from './services/clickQueue';
+import { scheduleRetentionCleanup } from './services/retention';
 
 // Ensure DB connects on boot (side-effect import if you have it)
 import './config/database';
@@ -71,6 +72,7 @@ async function initRedis() {
   }
 }
 initRedis().catch(() => {});
+scheduleRetentionCleanup();
 
 // Serve static admin UI from /public
 app.use(express.static(path.join(__dirname, '..', 'public')));

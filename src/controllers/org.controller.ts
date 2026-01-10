@@ -124,7 +124,7 @@ export async function getOrg(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org!.orgId;
     const { rows } = await db.query(
-      `SELECT id, name, owner_user_id, ip_anonymization, created_at
+      `SELECT id, name, owner_user_id, ip_anonymization, data_retention_days, created_at
          FROM orgs
         WHERE id = $1
         LIMIT 1`,
@@ -144,16 +144,32 @@ export async function updateOrg(req: OrgRequest, res: Response) {
     const actorId = req.user?.userId ?? null;
     const name = String(req.body?.name ?? '').trim();
     const ipAnonymization = req.body?.ip_anonymization;
+    const retentionRaw = req.body?.data_retention_days;
     if (!name) return res.status(400).json({ success: false, error: 'name is required' });
     const anonValue = typeof ipAnonymization === 'boolean' ? ipAnonymization : null;
+    let retentionProvided = false;
+    let retentionValue: number | null = null;
+    if (typeof retentionRaw !== 'undefined') {
+      retentionProvided = true;
+      if (retentionRaw === null) {
+        retentionValue = null;
+      } else {
+        const parsed = Number(retentionRaw);
+        if (!Number.isInteger(parsed) || parsed < 1 || parsed > 3650) {
+          return res.status(400).json({ success: false, error: 'data_retention_days must be 1-3650' });
+        }
+        retentionValue = parsed;
+      }
+    }
 
     const { rows } = await db.query(
       `UPDATE orgs
           SET name = $1,
-              ip_anonymization = COALESCE($2, ip_anonymization)
-        WHERE id = $3
-        RETURNING id, name, owner_user_id, ip_anonymization, created_at`,
-      [name, anonValue, orgId]
+              ip_anonymization = COALESCE($2, ip_anonymization),
+              data_retention_days = CASE WHEN $3 THEN $4 ELSE data_retention_days END
+        WHERE id = $5
+        RETURNING id, name, owner_user_id, ip_anonymization, data_retention_days, created_at`,
+      [name, anonValue, retentionProvided, retentionValue, orgId]
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'Org not found' });
 
@@ -163,7 +179,7 @@ export async function updateOrg(req: OrgRequest, res: Response) {
       action: 'org.update',
       entity_type: 'org',
       entity_id: orgId,
-      metadata: { name, ip_anonymization: anonValue },
+      metadata: { name, ip_anonymization: anonValue, data_retention_days: retentionProvided ? retentionValue : undefined },
     });
 
     return res.json({ success: true, data: rows[0] });

@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS orgs (
   name VARCHAR(255) NOT NULL,
   owner_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   ip_anonymization BOOLEAN DEFAULT false,
+  data_retention_days INTEGER,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -10,6 +10,7 @@ const orgSelect = document.getElementById('orgSelect');
 const orgName = document.getElementById('orgName');
 const orgRole = document.getElementById('orgRole');
 const orgIpAnon = document.getElementById('orgIpAnon');
+const orgRetention = document.getElementById('orgRetention');
 const orgSaveBtn = document.getElementById('orgSaveBtn');
 const orgMsg = document.getElementById('orgMsg');
 const btnChange = document.getElementById('btnChange');
@@ -64,6 +65,7 @@ async function loadOrgSettings() {
     if (orgName) orgName.value = orgData?.name || '';
     if (orgRole) orgRole.value = data.find((o) => o.id === (getActiveOrgId() || orgData?.id))?.role || '';
     if (orgIpAnon) orgIpAnon.checked = Boolean(orgData?.ip_anonymization);
+    if (orgRetention) orgRetention.value = orgData?.data_retention_days ? String(orgData.data_retention_days) : '';
     if (meOrg && orgData?.name) meOrg.textContent = orgData.name;
   } catch (e) {
     if (orgMsg) orgMsg.textContent = e?.message || 'Failed to load orgs.';
@@ -80,12 +82,20 @@ async function saveOrgSettings() {
   if (orgSaveBtn) orgSaveBtn.disabled = true;
   if (orgMsg) orgMsg.textContent = '';
   try {
+    const retentionRaw = orgRetention ? orgRetention.value.trim() : '';
+    const retentionValue = retentionRaw ? Number(retentionRaw) : null;
+    if (retentionRaw && (!Number.isInteger(retentionValue) || retentionValue < 1 || retentionValue > 3650)) {
+      if (orgMsg) orgMsg.textContent = 'Retention must be 1-3650 days.';
+      if (orgSaveBtn) orgSaveBtn.disabled = false;
+      return;
+    }
     await api('/api/org', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name,
         ip_anonymization: orgIpAnon ? orgIpAnon.checked : undefined,
+        data_retention_days: retentionRaw ? retentionValue : null,
       }),
     });
     if (orgMsg) orgMsg.textContent = 'Organization updated.';

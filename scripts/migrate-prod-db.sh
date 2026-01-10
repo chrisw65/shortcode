@@ -75,12 +75,14 @@ ALTER TABLE click_events ADD COLUMN IF NOT EXISTS longitude NUMERIC(9,6);
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL;
 ALTER TABLE orgs ADD COLUMN IF NOT EXISTS ip_anonymization BOOLEAN DEFAULT false;
+ALTER TABLE orgs ADD COLUMN IF NOT EXISTS data_retention_days INTEGER;
 
 CREATE TABLE IF NOT EXISTS orgs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
   owner_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   ip_anonymization BOOLEAN DEFAULT false,
+  data_retention_days INTEGER,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

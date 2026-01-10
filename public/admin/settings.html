@@ -78,6 +78,13 @@
               <input id="orgRole" class="input" type="text" disabled />
             </div>
           </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Click retention (days)</label>
+              <input id="orgRetention" class="input" type="number" min="1" max="3650" placeholder="e.g. 180" />
+              <div class="muted" style="font-size:12px;margin-top:6px">Leave blank for no automatic cleanup.</div>
+            </div>
+          </div>
           <label class="row" style="margin-top:12px;gap:10px">
             <input id="orgIpAnon" type="checkbox" />
             <span class="muted">Anonymize IP addresses in analytics</span>
