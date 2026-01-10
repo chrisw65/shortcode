@@ -2,10 +2,13 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
+import { createHash, randomBytes } from 'crypto';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import db from '../config/database';
 import { getEffectivePlan } from '../services/plan';
 import { recordConsent } from '../services/consent';
 import { getRetentionDefaultDays } from '../services/platformConfig';
+import { defaultScopes, discoverIssuer, normalizeIssuer } from '../services/oidc';
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -35,6 +38,79 @@ function signToken(payload: Record<string, any>) {
 
   const opts: SignOptions = { expiresIn };
   return jwt.sign(payload, secret, opts);
+}
+
+const APP_URL = process.env.PUBLIC_HOST || process.env.BASE_URL || 'https://okleaf.link';
+const OIDC_STATE_COOKIE = 'oidc_state';
+const OIDC_STATE_TTL_SECONDS = 600;
+
+type OidcState = {
+  org_id: string;
+  redirect: string;
+  state: string;
+  nonce: string;
+  code_verifier: string;
+  issuer: string;
+  client_id: string;
+};
+
+function base64url(buffer: Buffer): string {
+  return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function hashSha256(input: string): string {
+  return base64url(createHash('sha256').update(input).digest());
+}
+
+function parseCookies(req: Request): Record<string, string> {
+  const header = req.headers.cookie || '';
+  return header.split(';').reduce((acc, part) => {
+    const [k, ...rest] = part.trim().split('=');
+    if (!k) return acc;
+    acc[k] = decodeURIComponent(rest.join('='));
+    return acc;
+  }, {} as Record<string, string>);
+}
+
+function isSecure(req: Request): boolean {
+  if (req.secure) return true;
+  const xfwd = String(req.headers['x-forwarded-proto'] || '').toLowerCase();
+  return xfwd.includes('https');
+}
+
+function setCookie(res: Response, name: string, value: string, opts: { maxAge?: number; path?: string } = {}) {
+  const parts = [`${name}=${encodeURIComponent(value)}`];
+  if (opts.maxAge !== undefined) parts.push(`Max-Age=${opts.maxAge}`);
+  parts.push(`Path=${opts.path || '/'}`);
+  parts.push('HttpOnly');
+  parts.push('SameSite=Lax');
+  if (isSecure(res.req as Request)) parts.push('Secure');
+  res.setHeader('Set-Cookie', parts.join('; '));
+}
+
+function signOidcState(payload: OidcState): string {
+  const secret: Secret = process.env.JWT_SECRET as Secret;
+  if (!secret) throw new Error('JWT_SECRET missing');
+  return jwt.sign(payload, secret, { expiresIn: OIDC_STATE_TTL_SECONDS });
+}
+
+function verifyOidcState(token: string): OidcState {
+  const secret: Secret = process.env.JWT_SECRET as Secret;
+  if (!secret) throw new Error('JWT_SECRET missing');
+  return jwt.verify(token, secret) as OidcState;
+}
+
+function sanitizeRedirect(input?: string): string {
+  if (!input) return '/admin/dashboard.html';
+  if (input.startsWith('/')) return input;
+  try {
+    const base = new URL(APP_URL);
+    const url = new URL(input, base);
+    if (url.origin === base.origin) {
+      return url.pathname + url.search + url.hash;
+    }
+  } catch {}
+  return '/admin/dashboard.html';
 }
 
 async function loginImpl(req: Request, res: Response) {
@@ -313,12 +389,201 @@ async function changePasswordImpl(req: Request, res: Response) {
   }
 }
 
+async function oidcStartImpl(req: Request, res: Response) {
+  try {
+    const orgId = String(req.query.org_id || '').trim();
+    if (!orgId) return res.status(400).json({ success: false, error: 'org_id is required' });
+    const redirect = sanitizeRedirect(String(req.query.redirect || ''));
+
+    const { rows } = await db.query(
+      `SELECT issuer_url, client_id, client_secret, scopes, enabled
+         FROM org_sso
+        WHERE org_id = $1
+        LIMIT 1`,
+      [orgId]
+    );
+    const sso = rows[0];
+    if (!sso || !sso.enabled) {
+      return res.status(400).json({ success: false, error: 'SSO is not enabled for this org' });
+    }
+
+    const issuer = normalizeIssuer(String(sso.issuer_url || ''));
+    const clientId = String(sso.client_id || '').trim();
+    const clientSecret = String(sso.client_secret || '').trim();
+    if (!issuer || !clientId || !clientSecret) {
+      return res.status(400).json({ success: false, error: 'SSO is missing required configuration' });
+    }
+
+    const discovery = await discoverIssuer(issuer);
+    const state = base64url(randomBytes(16));
+    const nonce = base64url(randomBytes(16));
+    const codeVerifier = base64url(randomBytes(32));
+    const codeChallenge = hashSha256(codeVerifier);
+    const redirectUri = `${APP_URL.replace(/\/+$/, '')}/api/auth/oidc/callback`;
+
+    const token = signOidcState({
+      org_id: orgId,
+      redirect,
+      state,
+      nonce,
+      code_verifier: codeVerifier,
+      issuer,
+      client_id: clientId,
+    });
+    setCookie(res, OIDC_STATE_COOKIE, token, { maxAge: OIDC_STATE_TTL_SECONDS, path: '/api/auth/oidc/callback' });
+
+    const authUrl = new URL(discovery.authorization_endpoint);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('client_id', clientId);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('scope', defaultScopes(sso.scopes || []).join(' '));
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('nonce', nonce);
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+
+    return res.redirect(authUrl.toString());
+  } catch (err) {
+    console.error('auth.oidc.start error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+async function oidcCallbackImpl(req: Request, res: Response) {
+  try {
+    const code = String(req.query.code || '').trim();
+    const state = String(req.query.state || '').trim();
+    if (!code || !state) {
+      return res.status(400).json({ success: false, error: 'Missing code or state' });
+    }
+
+    const cookies = parseCookies(req);
+    const stateToken = cookies[OIDC_STATE_COOKIE];
+    if (!stateToken) return res.status(400).json({ success: false, error: 'Missing OIDC state' });
+    const payload = verifyOidcState(stateToken);
+    if (payload.state !== state) {
+      return res.status(400).json({ success: false, error: 'Invalid OIDC state' });
+    }
+
+    const redirectPath = sanitizeRedirect(payload.redirect);
+    const { rows } = await db.query(
+      `SELECT issuer_url, client_id, client_secret, scopes, enabled
+         FROM org_sso
+        WHERE org_id = $1
+        LIMIT 1`,
+      [payload.org_id]
+    );
+    const sso = rows[0];
+    if (!sso || !sso.enabled) {
+      return res.status(400).json({ success: false, error: 'SSO is not enabled for this org' });
+    }
+
+    const issuer = normalizeIssuer(String(sso.issuer_url || ''));
+    const discovery = await discoverIssuer(issuer);
+    const redirectUri = `${APP_URL.replace(/\/+$/, '')}/api/auth/oidc/callback`;
+
+    const tokenParams = new URLSearchParams();
+    tokenParams.set('grant_type', 'authorization_code');
+    tokenParams.set('code', code);
+    tokenParams.set('redirect_uri', redirectUri);
+    tokenParams.set('client_id', String(sso.client_id || ''));
+    tokenParams.set('client_secret', String(sso.client_secret || ''));
+    tokenParams.set('code_verifier', payload.code_verifier);
+
+    const tokenRes = await fetch(discovery.token_endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: tokenParams.toString(),
+    });
+    if (!tokenRes.ok) {
+      return res.status(400).json({ success: false, error: 'Token exchange failed' });
+    }
+    const tokenJson = await tokenRes.json();
+    const idToken = tokenJson.id_token as string | undefined;
+    if (!idToken) {
+      return res.status(400).json({ success: false, error: 'Missing id_token' });
+    }
+
+    const jwks = createRemoteJWKSet(new URL(discovery.jwks_uri));
+    const { payload: idPayload } = await jwtVerify(idToken, jwks, {
+      issuer: discovery.issuer,
+      audience: String(sso.client_id || ''),
+    });
+    if (idPayload.nonce !== payload.nonce) {
+      return res.status(400).json({ success: false, error: 'Invalid OIDC nonce' });
+    }
+
+    let email = (idPayload.email as string | undefined) || '';
+    let name = (idPayload.name as string | undefined) || (idPayload.preferred_username as string | undefined) || null;
+
+    if (!email && discovery.userinfo_endpoint && tokenJson.access_token) {
+      const infoRes = await fetch(discovery.userinfo_endpoint, {
+        headers: { Authorization: `Bearer ${tokenJson.access_token}` },
+      });
+      if (infoRes.ok) {
+        const info = await infoRes.json();
+        email = String(info.email || '');
+        name = name || info.name || info.preferred_username || null;
+      }
+    }
+
+    email = String(email || '').trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'No email claim available' });
+    }
+
+    const userRes = await db.query(
+      `SELECT id, email, name, is_active, email_verified, is_superadmin
+         FROM users
+        WHERE LOWER(email) = $1
+        LIMIT 1`,
+      [email]
+    );
+
+    let user = userRes.rows[0];
+    if (!user) {
+      const randomPass = base64url(randomBytes(24));
+      const hash = await bcrypt.hash(randomPass, 12);
+      const ins = await db.query(
+        `INSERT INTO users (email, password, name, is_active, email_verified, is_superadmin)
+         VALUES ($1, $2, $3, true, true, false)
+         RETURNING id, email, name, is_active, email_verified, is_superadmin`,
+        [email, hash, name]
+      );
+      user = ins.rows[0];
+    }
+
+    if (user?.is_active === false) {
+      return res.status(403).json({ success: false, error: 'Account disabled' });
+    }
+
+    await db.query(
+      `INSERT INTO org_memberships (org_id, user_id, role)
+       VALUES ($1, $2, 'member')
+       ON CONFLICT (org_id, user_id) DO NOTHING`,
+      [payload.org_id, user.id]
+    );
+
+    const token = signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
+    setCookie(res, OIDC_STATE_COOKIE, '', { maxAge: 0, path: '/api/auth/oidc/callback' });
+
+    const target = new URL(redirectPath, APP_URL);
+    target.hash = `token=${encodeURIComponent(token)}`;
+    return res.redirect(target.toString());
+  } catch (err) {
+    console.error('auth.oidc.callback error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
 // Class export for existing routes
 export class AuthController {
   login = (req: Request, res: Response) => { void loginImpl(req, res); };
   register = (req: Request, res: Response) => { void registerImpl(req, res); };
   me = (req: Request, res: Response) => { void meImpl(req, res); };
   changePassword = (req: Request, res: Response) => { void changePasswordImpl(req, res); };
+  oidcStart = (req: Request, res: Response) => { void oidcStartImpl(req, res); };
+  oidcCallback = (req: Request, res: Response) => { void oidcCallbackImpl(req, res); };
 }
 
 // Named exports (if used elsewhere)
