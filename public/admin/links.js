@@ -57,6 +57,15 @@ const els = {
   variantsMsg: document.getElementById('variantsMsg'),
   variantAdd: document.getElementById('variantAdd'),
   variantsSave: document.getElementById('variantsSave'),
+  variantsTotal: document.getElementById('variantsTotal'),
+  variantsNormalize: document.getElementById('variantsNormalize'),
+  passwordModal: document.getElementById('passwordModal'),
+  passwordBackdrop: document.getElementById('passwordBackdrop'),
+  passwordClose: document.getElementById('passwordClose'),
+  passwordValue: document.getElementById('passwordValue'),
+  passwordMsg: document.getElementById('passwordMsg'),
+  passwordSave: document.getElementById('passwordSave'),
+  passwordClear: document.getElementById('passwordClear'),
   tagName:   document.getElementById('tagName'),
   tagColor:  document.getElementById('tagColor'),
   tagAdd:    document.getElementById('tagAdd'),
@@ -89,6 +98,7 @@ let domains = [];
 let tags = [];
 let groups = [];
 let selectedVariantCode = '';
+let selectedPasswordCode = '';
 
 function setCodeStatus(state, text) {
   if (!els.codeStatus) return;
@@ -271,35 +281,14 @@ function render() {
   els.tbody.querySelectorAll('.btn-protect').forEach(btn => {
     btn.addEventListener('click', async () => {
       const code = btn.dataset.code || '';
-      const pw = window.prompt('Set a password (min 6 chars). Leave blank to cancel.');
-      if (!pw) return;
-      try {
-        await api(`/api/links/${encodeURIComponent(code)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: pw }),
-        });
-        await load();
-      } catch (err) {
-        alert(`Password update failed: ${err.message || err}`);
-      }
+      openPasswordModal(code);
     });
   });
 
   els.tbody.querySelectorAll('.btn-clear').forEach(btn => {
     btn.addEventListener('click', async () => {
       const code = btn.dataset.code || '';
-      if (!confirm('Clear password protection for this link?')) return;
-      try {
-        await api(`/api/links/${encodeURIComponent(code)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clear_password: true }),
-        });
-        await load();
-      } catch (err) {
-        alert(`Password clear failed: ${err.message || err}`);
-      }
+      openPasswordModal(code, true);
     });
   });
 }
@@ -804,6 +793,7 @@ function renderVariantRow(variant = {}) {
         <span class="muted">Weight</span>
         <input class="input variant-weight" type="number" min="1" max="1000" value="${htmlesc(String(variant.weight || 100))}" style="max-width:120px">
       </label>
+      <span class="muted small variant-share">0%</span>
       <label class="row" style="gap:6px">
         <input class="variant-active" type="checkbox" ${variant.active !== false ? 'checked' : ''}>
         <span class="muted">Active</span>
@@ -811,8 +801,52 @@ function renderVariantRow(variant = {}) {
       <button class="btn danger variant-remove" type="button">Remove</button>
     </div>
   `;
-  row.querySelector('.variant-remove').addEventListener('click', () => row.remove());
+  row.querySelector('.variant-remove').addEventListener('click', () => {
+    row.remove();
+    updateVariantsSummary();
+  });
+  row.querySelector('.variant-weight').addEventListener('input', updateVariantsSummary);
+  row.querySelector('.variant-active').addEventListener('change', updateVariantsSummary);
   return row;
+}
+
+function updateVariantsSummary() {
+  if (!els.variantsList) return;
+  const rows = Array.from(els.variantsList.querySelectorAll('.card'));
+  const weights = rows.map((row) => {
+    const active = row.querySelector('.variant-active')?.checked !== false;
+    const weight = Number(row.querySelector('.variant-weight')?.value || 0);
+    return active ? Math.max(0, weight) : 0;
+  });
+  const total = weights.reduce((sum, v) => sum + v, 0);
+  if (els.variantsTotal) {
+    els.variantsTotal.textContent = `Total weight: ${total}`;
+    const state = total === 100 ? 'ok' : total ? 'warn' : 'bad';
+    els.variantsTotal.className = `status small ${state}`;
+  }
+  rows.forEach((row, idx) => {
+    const share = total > 0 ? Math.round((weights[idx] / total) * 100) : 0;
+    const node = row.querySelector('.variant-share');
+    if (node) node.textContent = `${share}%`;
+  });
+}
+
+function normalizeVariants() {
+  if (!els.variantsList) return;
+  const rows = Array.from(els.variantsList.querySelectorAll('.card'));
+  if (!rows.length) return;
+  const activeRows = rows.filter(row => row.querySelector('.variant-active')?.checked !== false);
+  if (!activeRows.length) return;
+  const weights = activeRows.map(row => Number(row.querySelector('.variant-weight')?.value || 0));
+  const total = weights.reduce((sum, v) => sum + v, 0) || 1;
+  const normalized = weights.map(v => Math.max(1, Math.round((v / total) * 100)));
+  const diff = 100 - normalized.reduce((sum, v) => sum + v, 0);
+  normalized[0] = Math.max(1, normalized[0] + diff);
+  activeRows.forEach((row, idx) => {
+    const input = row.querySelector('.variant-weight');
+    if (input) input.value = String(normalized[idx]);
+  });
+  updateVariantsSummary();
 }
 
 async function openVariantsModal(code) {
@@ -831,6 +865,7 @@ async function openVariantsModal(code) {
   } catch (err) {
     els.variantsList.appendChild(renderVariantRow({}));
   }
+  updateVariantsSummary();
   els.variantsModal.classList.add('open');
   els.variantsModal.setAttribute('aria-hidden', 'false');
 }
@@ -842,6 +877,58 @@ function closeVariantsModal() {
   selectedVariantCode = '';
 }
 
+function openPasswordModal(code, allowClear = false) {
+  selectedPasswordCode = code;
+  if (!els.passwordModal) return;
+  if (els.passwordValue) els.passwordValue.value = '';
+  if (els.passwordMsg) els.passwordMsg.textContent = '';
+  if (els.passwordClear) els.passwordClear.style.display = allowClear ? 'inline-flex' : 'none';
+  els.passwordModal.classList.add('open');
+  els.passwordModal.setAttribute('aria-hidden', 'false');
+}
+
+function closePasswordModal() {
+  if (!els.passwordModal) return;
+  els.passwordModal.classList.remove('open');
+  els.passwordModal.setAttribute('aria-hidden', 'true');
+  selectedPasswordCode = '';
+}
+
+async function savePassword() {
+  const pw = (els.passwordValue?.value || '').trim();
+  if (pw.length < 6) {
+    if (els.passwordMsg) els.passwordMsg.textContent = 'Password must be at least 6 characters.';
+    return;
+  }
+  try {
+    await api(`/api/links/${encodeURIComponent(selectedPasswordCode)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    await load();
+    closePasswordModal();
+  } catch (err) {
+    if (els.passwordMsg) els.passwordMsg.textContent = `Save failed: ${err.message || err}`;
+  }
+}
+
+async function clearPassword() {
+  if (!selectedPasswordCode) return;
+  if (!confirm('Clear password protection for this link?')) return;
+  try {
+    await api(`/api/links/${encodeURIComponent(selectedPasswordCode)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clear_password: true }),
+    });
+    await load();
+    closePasswordModal();
+  } catch (err) {
+    if (els.passwordMsg) els.passwordMsg.textContent = `Clear failed: ${err.message || err}`;
+  }
+}
+
 async function saveVariants() {
   if (!selectedVariantCode) return;
   const rows = Array.from(els.variantsList?.querySelectorAll('.card') || []);
@@ -850,6 +937,10 @@ async function saveVariants() {
     weight: Number(row.querySelector('.variant-weight')?.value || 100),
     active: row.querySelector('.variant-active')?.checked !== false,
   })).filter(v => v.url.trim());
+  const total = variants.filter(v => v.active !== false).reduce((sum, v) => sum + (Number(v.weight) || 0), 0);
+  if (total !== 100) {
+    if (!confirm(`Variant weights total ${total}. Save anyway?`)) return;
+  }
   if (els.variantsMsg) els.variantsMsg.textContent = '';
   try {
     await api(`/api/links/${encodeURIComponent(selectedVariantCode)}/variants`, {
@@ -975,12 +1066,19 @@ els.variantsClose?.addEventListener('click', closeVariantsModal);
 els.variantsBackdrop?.addEventListener('click', closeVariantsModal);
 els.variantAdd?.addEventListener('click', () => {
   if (els.variantsList) els.variantsList.appendChild(renderVariantRow({}));
+  updateVariantsSummary();
 });
 els.variantsSave?.addEventListener('click', saveVariants);
+els.variantsNormalize?.addEventListener('click', normalizeVariants);
+els.passwordClose?.addEventListener('click', closePasswordModal);
+els.passwordBackdrop?.addEventListener('click', closePasswordModal);
+els.passwordSave?.addEventListener('click', savePassword);
+els.passwordClear?.addEventListener('click', clearPassword);
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeQrModal();
     closeVariantsModal();
+    closePasswordModal();
   }
 });
 
