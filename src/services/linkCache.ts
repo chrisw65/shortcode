@@ -17,6 +17,13 @@ export type CachedLink = {
   android_fallback_url?: string | null;
   deep_link_enabled?: boolean;
   variants?: Array<{ url: string; weight: number; active: boolean }>;
+  routes?: Array<{
+    rule_type: string;
+    rule_value: string;
+    destination_url: string;
+    priority: number;
+    active: boolean;
+  }>;
 };
 
 function keyFor(code: string) {

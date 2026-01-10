@@ -307,6 +307,20 @@ CREATE TABLE IF NOT EXISTS link_variants (
 );
 CREATE INDEX IF NOT EXISTS idx_link_variants_link_id ON link_variants(link_id);
 
+-- Link routing rules (geo/device overrides)
+CREATE TABLE IF NOT EXISTS link_routes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  link_id UUID REFERENCES links(id) ON DELETE CASCADE,
+  rule_type VARCHAR(20) NOT NULL,
+  rule_value VARCHAR(120) NOT NULL,
+  destination_url TEXT NOT NULL,
+  priority INTEGER NOT NULL DEFAULT 100,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_link_routes_link_id ON link_routes(link_id);
+CREATE INDEX IF NOT EXISTS idx_link_routes_type ON link_routes(rule_type);
+
 -- Link groups / campaigns
 CREATE TABLE IF NOT EXISTS link_groups (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

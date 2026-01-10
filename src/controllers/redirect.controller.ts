@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import { createHmac, timingSafeEqual } from 'crypto';
 import bcrypt from 'bcrypt';
+import UAParser from 'ua-parser-js';
 import db from '../config/database';
 import redisClient from '../config/redis';
 import { lookupGeo } from '../services/geoip';
@@ -123,6 +124,47 @@ function userAgentPlatform(ua: string) {
   return 'other';
 }
 
+function deviceTypeFromUa(ua: string) {
+  const parser = new UAParser(ua);
+  const type = parser.getDevice().type || 'desktop';
+  return String(type).toLowerCase();
+}
+
+function parseRouteValues(value: string | null | undefined): string[] {
+  if (!value) return [];
+  return String(value)
+    .split(',')
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function pickRoutedDestination(params: {
+  routes: Array<{ rule_type: string; rule_value: string; destination_url: string; priority: number; active: boolean }>;
+  geoCountry?: string | null;
+  deviceType?: string;
+  platform?: string;
+}): string | null {
+  const { routes, geoCountry, deviceType, platform } = params;
+  for (const route of routes) {
+    if (route.active === false) continue;
+    const values = parseRouteValues(route.rule_value);
+    if (!values.length) continue;
+    if (route.rule_type === 'country') {
+      if (geoCountry && values.includes(geoCountry.toLowerCase())) return route.destination_url;
+      continue;
+    }
+    if (route.rule_type === 'device') {
+      if (deviceType && values.includes(deviceType)) return route.destination_url;
+      continue;
+    }
+    if (route.rule_type === 'platform') {
+      if (platform && values.includes(platform)) return route.destination_url;
+      continue;
+    }
+  }
+  return null;
+}
+
 function renderDeepLinkPage(res: Response, params: {
   deepLinkUrl: string;
   fallbackUrl: string;
@@ -190,6 +232,13 @@ export class RedirectController {
             ORDER BY created_at ASC`,
           [rows[0].id]
         );
+        const { rows: routes } = await db.query(
+          `SELECT rule_type, rule_value, destination_url, priority, active
+             FROM link_routes
+            WHERE link_id = $1 AND active = true
+            ORDER BY priority ASC, created_at ASC`,
+          [rows[0].id]
+        );
         link = {
           id: rows[0].id,
           original_url: rows[0].original_url,
@@ -203,6 +252,7 @@ export class RedirectController {
           android_fallback_url: rows[0].android_fallback_url || null,
           deep_link_enabled: rows[0].deep_link_enabled === true,
           variants: variants || [],
+          routes: routes || [],
         };
         void setCachedLink(shortCode, link);
       }
@@ -229,9 +279,20 @@ export class RedirectController {
       const ip = link.ip_anonymization ? anonymizeIp(rawIp) : rawIp;
       const referer = (req.get('referer') || null);
       const ua = (req.get('user-agent') || null);
+      const routes = Array.isArray(link.routes) ? link.routes : [];
+      const needsGeo = routes.some((r) => r.rule_type === 'country');
+      const routingGeo = needsGeo ? await lookupGeo(rawIp) : null;
+      const routedUrl = routes.length
+        ? pickRoutedDestination({
+          routes,
+          geoCountry: routingGeo?.country_code ?? null,
+          deviceType: deviceTypeFromUa(String(ua || '')),
+          platform: userAgentPlatform(String(ua || '')),
+        })
+        : null;
 
       const fallbackDirect = async () => {
-        const geo = await lookupGeo(ip);
+        const geo = (!link.ip_anonymization && routingGeo && rawIp === ip) ? routingGeo : await lookupGeo(ip);
         void db.query(`UPDATE links SET click_count = COALESCE(click_count,0) + 1 WHERE id = $1`, [link?.id]);
         void db.query(
           `INSERT INTO click_events (link_id, ip, referer, user_agent, country_code, country_name, region, city, latitude, longitude)
@@ -262,7 +323,7 @@ export class RedirectController {
         void fallbackDirect();
       }
 
-      const destination = pickVariant(link.variants, link.original_url);
+      const destination = routedUrl || pickVariant(link.variants, link.original_url);
       const safeUrl = safeRedirectUrl(destination);
       if (!safeUrl) return res.status(400).send('Invalid destination');
       if (link.deep_link_enabled && link.deep_link_url) {

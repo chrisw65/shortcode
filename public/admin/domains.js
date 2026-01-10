@@ -121,6 +121,13 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       list.unshift(j.data);
       render();
+      if (j.automation && j.automation.status === 'created') {
+        addMsg.textContent = 'DNS records created automatically. You can verify now.';
+      } else if (j.automation && j.automation.status === 'error') {
+        addMsg.textContent = 'DNS automation failed; use manual TXT setup.';
+      } else {
+        addMsg.textContent = '';
+      }
       alert(`Add TXT record:\n_host: _shortlink.${domain}\n_value: ${j.data.verification_token}`);
       domainEl.value = '';
     } catch (e) {

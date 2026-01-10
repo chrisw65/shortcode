@@ -40,6 +40,10 @@ router.get('/', requireApiScope('links:read'), wrap(linkController.getUserLinks)
 router.get('/:shortCode/variants', requireApiScope('links:read'), wrap(linkController.listVariants));
 router.put('/:shortCode/variants', requireApiScope('links:write'), wrap(linkController.replaceVariants));
 
+// Manage link routing rules
+router.get('/:shortCode/routes', requireApiScope('links:read'), wrap(linkController.listRoutes));
+router.put('/:shortCode/routes', requireApiScope('links:write'), wrap(linkController.replaceRoutes));
+
 // Get a single link (by short code, owned by the user)
 router.get('/:shortCode', requireApiScope('links:read'), wrap(linkController.getLinkDetails));
 

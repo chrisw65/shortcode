@@ -7,6 +7,7 @@ import { logAudit } from '../services/audit';
 import { tryGrantReferralReward } from '../services/referrals';
 import { getEffectivePlan, isPaidPlan } from '../services/plan';
 import { getOrgLimits } from '../services/orgLimits';
+import { autoProvisionDns } from '../services/dnsAutomation';
 
 // Local auth-aware request type (your middleware attaches req.user/org)
 type JwtUser = { userId: string; email?: string };
@@ -167,10 +168,12 @@ export async function createDomain(req: AuthedRequest, res: Response) {
       metadata: { domain: row.domain },
     });
 
+    const automation = await autoProvisionDns(row.domain, row.verification_token);
     try { await tryGrantReferralReward(userId, orgId); } catch (err) { console.error('referral reward error:', err); }
     return res.status(201).json({
       success: true,
       data: shape(row),
+      automation,
       instructions: {
         txt_records: [
           { host: `_shortlink.${row.domain}`, value: row.verification_token },

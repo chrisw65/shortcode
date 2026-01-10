@@ -22,6 +22,15 @@ function ensureHttpUrl(raw: string): string | null {
   }
 }
 
+const ALLOWED_ROUTE_TYPES = new Set(['country', 'device', 'platform']);
+
+function normalizeRouteValue(type: string, value: string): string {
+  const parts = value.split(',').map((part) => part.trim()).filter(Boolean);
+  if (!parts.length) return '';
+  if (type === 'country') return parts.map((p) => p.toUpperCase()).join(', ');
+  return parts.map((p) => p.toLowerCase()).join(', ');
+}
+
 function parseHostnameFromUrl(url: string): string | null {
   try {
     const u = new URL(url);
@@ -349,6 +358,7 @@ export async function createLink(req: UserReq, res: Response) {
       android_fallback_url: androidFallbackUrl,
       deep_link_enabled: deepLinkEnabled,
       variants: [],
+      routes: [],
     });
     const tagRows = tagIds.length ? await fetchTags(orgId, tagIds) : [];
     const groupRows = groupIds.length ? await fetchGroups(orgId, groupIds) : [];
@@ -1261,6 +1271,122 @@ export async function replaceVariants(req: UserReq, res: Response) {
   } catch (err) {
     try { await db.query('ROLLBACK'); } catch {}
     console.error('variants.replace error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/links/:shortCode/routes
+ */
+export async function listRoutes(req: UserReq, res: Response) {
+  try {
+    const orgId = req.org.orgId;
+    const { shortCode } = req.params;
+    const { rows: linkRows } = await db.query(
+      `SELECT id FROM links WHERE org_id = $1 AND short_code = $2 LIMIT 1`,
+      [orgId, shortCode]
+    );
+    if (!linkRows.length) return res.status(404).json({ success: false, error: 'Link not found' });
+    const linkId = linkRows[0].id as string;
+    const { rows } = await db.query(
+      `SELECT id, rule_type, rule_value, destination_url, priority, active, created_at
+         FROM link_routes
+        WHERE link_id = $1
+        ORDER BY priority ASC, created_at ASC`,
+      [linkId]
+    );
+    return res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('routes.list error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * PUT /api/links/:shortCode/routes
+ * Body: { routes: [{ type, value, destination_url, priority, active }] }
+ */
+export async function replaceRoutes(req: UserReq, res: Response) {
+  try {
+    const orgId = req.org.orgId;
+    const userId = req.user.userId;
+    const { shortCode } = req.params;
+    const routes = Array.isArray(req.body?.routes) ? req.body.routes : [];
+
+    const { rows: linkRows } = await db.query(
+      `SELECT id FROM links WHERE org_id = $1 AND short_code = $2 LIMIT 1`,
+      [orgId, shortCode]
+    );
+    if (!linkRows.length) return res.status(404).json({ success: false, error: 'Link not found' });
+    const linkId = linkRows[0].id as string;
+
+    const cleaned = routes.map((r: any) => {
+      const type = String(r?.type || r?.rule_type || '').trim().toLowerCase();
+      const value = String(r?.value ?? r?.rule_value ?? '').trim();
+      const destination = ensureHttpUrl(String(r?.destination_url || r?.url || '').trim());
+      const priority = Number.isFinite(Number(r?.priority)) ? Number(r?.priority) : 100;
+      return {
+        rule_type: type,
+        rule_value: normalizeRouteValue(type, value),
+        destination_url: destination,
+        priority,
+        active: r?.active !== false,
+      };
+    });
+
+    for (const r of cleaned) {
+      if (!ALLOWED_ROUTE_TYPES.has(r.rule_type)) {
+        return res.status(400).json({ success: false, error: 'route type must be country, device, or platform' });
+      }
+      if (!r.rule_value) {
+        return res.status(400).json({ success: false, error: 'route value is required' });
+      }
+      if (!r.destination_url) {
+        return res.status(400).json({ success: false, error: 'destination_url must be valid http(s)' });
+      }
+      if (!Number.isFinite(r.priority) || r.priority < 1 || r.priority > 1000) {
+        return res.status(400).json({ success: false, error: 'route priority must be 1-1000' });
+      }
+    }
+
+    await db.query('BEGIN');
+    await db.query(`DELETE FROM link_routes WHERE link_id = $1`, [linkId]);
+    if (cleaned.length) {
+      const values: any[] = [];
+      const placeholders = cleaned.map((r: any, idx: number) => {
+        const base = idx * 6;
+        values.push(linkId, r.rule_type, r.rule_value, r.destination_url, r.priority, r.active);
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`;
+      });
+      await db.query(
+        `INSERT INTO link_routes (link_id, rule_type, rule_value, destination_url, priority, active)
+         VALUES ${placeholders.join(', ')}`,
+        values
+      );
+    }
+    await db.query('COMMIT');
+
+    await logAudit({
+      org_id: orgId,
+      user_id: userId,
+      action: 'link.routes.update',
+      entity_type: 'link',
+      entity_id: linkId,
+      metadata: { count: cleaned.length },
+    });
+    void invalidateCachedLinks([shortCode]);
+
+    const { rows } = await db.query(
+      `SELECT id, rule_type, rule_value, destination_url, priority, active, created_at
+         FROM link_routes
+        WHERE link_id = $1
+        ORDER BY priority ASC, created_at ASC`,
+      [linkId]
+    );
+    return res.json({ success: true, data: rows });
+  } catch (err) {
+    try { await db.query('ROLLBACK'); } catch {}
+    console.error('routes.replace error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

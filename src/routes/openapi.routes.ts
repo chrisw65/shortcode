@@ -23,6 +23,7 @@ router.get('/openapi.json', (_req, res) => {
       '/links/bulk-import': { post: { summary: 'Bulk import links' } },
       '/links/{shortCode}': { get: { summary: 'Get link' }, put: { summary: 'Update link' }, delete: { summary: 'Delete link' } },
       '/links/{shortCode}/variants': { get: { summary: 'List link variants' }, put: { summary: 'Replace link variants' } },
+      '/links/{shortCode}/routes': { get: { summary: 'List link routes' }, put: { summary: 'Replace link routes' } },
       '/links/availability/{shortCode}': { get: { summary: 'Check short code availability' } },
       '/tags': { get: { summary: 'List tags' }, post: { summary: 'Create tag' } },
       '/tags/{id}': { put: { summary: 'Update tag' }, delete: { summary: 'Delete tag' } },

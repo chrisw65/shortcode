@@ -83,6 +83,13 @@ const els = {
   variantsSave: document.getElementById('variantsSave'),
   variantsTotal: document.getElementById('variantsTotal'),
   variantsNormalize: document.getElementById('variantsNormalize'),
+  routesModal: document.getElementById('routesModal'),
+  routesBackdrop: document.getElementById('routesBackdrop'),
+  routesClose: document.getElementById('routesClose'),
+  routesList: document.getElementById('routesList'),
+  routesMsg: document.getElementById('routesMsg'),
+  routeAdd: document.getElementById('routeAdd'),
+  routesSave: document.getElementById('routesSave'),
   passwordModal: document.getElementById('passwordModal'),
   passwordBackdrop: document.getElementById('passwordBackdrop'),
   passwordClose: document.getElementById('passwordClose'),
@@ -124,6 +131,7 @@ let domains = [];
 let tags = [];
 let groups = [];
 let selectedVariantCode = '';
+let selectedRouteCode = '';
 let selectedPasswordCode = '';
 
 function setCodeStatus(state, text) {
@@ -253,6 +261,7 @@ function render() {
           <button class="btn btn-qr" data-type="png" data-code="${htmlesc(code)}">QR PNG</button>
           <button class="btn btn-qr" data-type="svg" data-code="${htmlesc(code)}">QR SVG</button>
           <button class="btn btn-variants" data-code="${htmlesc(code)}">Variants</button>
+          <button class="btn btn-routes" data-code="${htmlesc(code)}">Routing</button>
           <button class="btn btn-protect" data-code="${htmlesc(code)}">${l.password_protected ? 'Reset password' : 'Protect'}</button>
           ${l.password_protected ? `<button class="btn ghost btn-clear" data-code="${htmlesc(code)}">Clear</button>` : ''}
           <a class="btn" href="/admin/analytics.html?code=${encodeURIComponent(code)}">Analytics</a>
@@ -301,6 +310,13 @@ function render() {
     btn.addEventListener('click', () => {
       const code = btn.dataset.code || '';
       openVariantsModal(code);
+    });
+  });
+
+  els.tbody.querySelectorAll('.btn-routes').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.dataset.code || '';
+      openRoutesModal(code);
     });
   });
 
@@ -983,6 +999,105 @@ function closeVariantsModal() {
   selectedVariantCode = '';
 }
 
+function renderRouteRow(route = {}) {
+  const row = document.createElement('div');
+  row.className = 'card';
+  row.setAttribute('data-route-row', 'true');
+  row.innerHTML = `
+    <div class="grid grid-3">
+      <label>
+        <span class="muted">Type</span>
+        <select class="input route-type">
+          <option value="country">Country</option>
+          <option value="device">Device</option>
+          <option value="platform">Platform</option>
+        </select>
+      </label>
+      <label>
+        <span class="muted">Match</span>
+        <input class="input route-value" placeholder="US, GB or mobile" value="${htmlesc(route.rule_value || '')}">
+      </label>
+      <label>
+        <span class="muted">Destination</span>
+        <input class="input route-url" type="url" placeholder="https://example.com/geo" value="${htmlesc(route.destination_url || '')}">
+      </label>
+    </div>
+    <div class="row" style="margin-top:8px;gap:12px;flex-wrap:wrap">
+      <label class="row" style="gap:6px">
+        <span class="muted">Priority</span>
+        <input class="input route-priority" type="number" min="1" max="1000" value="${htmlesc(String(route.priority || 100))}" style="max-width:120px">
+      </label>
+      <label class="row" style="gap:6px">
+        <input class="route-active" type="checkbox" ${route.active !== false ? 'checked' : ''}>
+        <span class="muted">Active</span>
+      </label>
+      <button class="btn danger route-remove" type="button">Remove</button>
+    </div>
+  `;
+  const typeSelect = row.querySelector('.route-type');
+  if (typeSelect && route.rule_type) {
+    typeSelect.value = String(route.rule_type).toLowerCase();
+  }
+  row.querySelector('.route-remove').addEventListener('click', () => row.remove());
+  return row;
+}
+
+function collectRoutesFromDom() {
+  if (!els.routesList) return [];
+  const rows = Array.from(els.routesList.querySelectorAll('[data-route-row]'));
+  return rows.map((row) => ({
+    type: row.querySelector('.route-type')?.value || '',
+    value: row.querySelector('.route-value')?.value || '',
+    destination_url: row.querySelector('.route-url')?.value || '',
+    priority: Number(row.querySelector('.route-priority')?.value || 100),
+    active: row.querySelector('.route-active')?.checked !== false,
+  }));
+}
+
+async function openRoutesModal(code) {
+  selectedRouteCode = code;
+  if (!els.routesModal || !els.routesList) return;
+  els.routesList.innerHTML = '';
+  if (els.routesMsg) els.routesMsg.textContent = '';
+  try {
+    const res = unwrap(await api(`/api/links/${encodeURIComponent(code)}/routes`));
+    const list = Array.isArray(res) ? res : [];
+    if (!list.length) {
+      els.routesList.appendChild(renderRouteRow({}));
+    } else {
+      list.forEach((r) => els.routesList.appendChild(renderRouteRow(r)));
+    }
+  } catch (err) {
+    els.routesList.appendChild(renderRouteRow({}));
+  }
+  els.routesModal.classList.add('open');
+  els.routesModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeRoutesModal() {
+  if (!els.routesModal) return;
+  els.routesModal.classList.remove('open');
+  els.routesModal.setAttribute('aria-hidden', 'true');
+  selectedRouteCode = '';
+}
+
+async function saveRoutes() {
+  if (!selectedRouteCode) return;
+  const routes = collectRoutesFromDom().filter(r => r.value.trim() || r.destination_url.trim());
+  if (els.routesMsg) els.routesMsg.textContent = '';
+  try {
+    await api(`/api/links/${encodeURIComponent(selectedRouteCode)}/routes`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ routes }),
+    });
+    if (els.routesMsg) els.routesMsg.textContent = 'Routing rules saved.';
+    closeRoutesModal();
+  } catch (err) {
+    if (els.routesMsg) els.routesMsg.textContent = `Save failed: ${err.message || err}`;
+  }
+}
+
 function openPasswordModal(code, allowClear = false) {
   selectedPasswordCode = code;
   if (!els.passwordModal) return;
@@ -1204,6 +1319,12 @@ els.variantAdd?.addEventListener('click', () => {
 });
 els.variantsSave?.addEventListener('click', saveVariants);
 els.variantsNormalize?.addEventListener('click', normalizeVariants);
+els.routesClose?.addEventListener('click', closeRoutesModal);
+els.routesBackdrop?.addEventListener('click', closeRoutesModal);
+els.routeAdd?.addEventListener('click', () => {
+  if (els.routesList) els.routesList.appendChild(renderRouteRow({}));
+});
+els.routesSave?.addEventListener('click', saveRoutes);
 els.passwordClose?.addEventListener('click', closePasswordModal);
 els.passwordBackdrop?.addEventListener('click', closePasswordModal);
 els.passwordSave?.addEventListener('click', savePassword);
@@ -1212,6 +1333,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeQrModal();
     closeVariantsModal();
+    closeRoutesModal();
     closePasswordModal();
   }
 });

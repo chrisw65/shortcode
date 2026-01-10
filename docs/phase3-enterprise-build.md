@@ -82,6 +82,11 @@ Tasks:
 2) Automated DNS verification (provider API)
 3) Link routing rules by geo/device
 
+DNS automation (optional):
+- Set `DNS_AUTOMATION_PROVIDER=cloudflare`
+- Set `CLOUDFLARE_API_TOKEN=...`
+- Optional `DNS_CNAME_TARGET=okleaf.link` and `DNS_CNAME_PROXIED=true`
+
 ## 6) Decision Log (Needed)
 Open decisions to lock down before execution:
 - Analytics DB choice: ClickHouse vs TimescaleDB
