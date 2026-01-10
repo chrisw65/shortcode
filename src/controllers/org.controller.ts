@@ -124,7 +124,7 @@ export async function getOrg(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org!.orgId;
     const { rows } = await db.query(
-      `SELECT id, name, owner_user_id, created_at
+      `SELECT id, name, owner_user_id, ip_anonymization, created_at
          FROM orgs
         WHERE id = $1
         LIMIT 1`,
@@ -143,11 +143,17 @@ export async function updateOrg(req: OrgRequest, res: Response) {
     const orgId = req.org!.orgId;
     const actorId = req.user?.userId ?? null;
     const name = String(req.body?.name ?? '').trim();
+    const ipAnonymization = req.body?.ip_anonymization;
     if (!name) return res.status(400).json({ success: false, error: 'name is required' });
+    const anonValue = typeof ipAnonymization === 'boolean' ? ipAnonymization : null;
 
     const { rows } = await db.query(
-      `UPDATE orgs SET name = $1 WHERE id = $2 RETURNING id, name, owner_user_id, created_at`,
-      [name, orgId]
+      `UPDATE orgs
+          SET name = $1,
+              ip_anonymization = COALESCE($2, ip_anonymization)
+        WHERE id = $3
+        RETURNING id, name, owner_user_id, ip_anonymization, created_at`,
+      [name, anonValue, orgId]
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'Org not found' });
 
@@ -157,7 +163,7 @@ export async function updateOrg(req: OrgRequest, res: Response) {
       action: 'org.update',
       entity_type: 'org',
       entity_id: orgId,
-      metadata: { name },
+      metadata: { name, ip_anonymization: anonValue },
     });
 
     return res.json({ success: true, data: rows[0] });

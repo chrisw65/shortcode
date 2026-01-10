@@ -78,6 +78,10 @@
               <input id="orgRole" class="input" type="text" disabled />
             </div>
           </div>
+          <label class="row" style="margin-top:12px;gap:10px">
+            <input id="orgIpAnon" type="checkbox" />
+            <span class="muted">Anonymize IP addresses in analytics</span>
+          </label>
           <div class="row" style="margin-top:12px">
             <button id="orgSaveBtn" class="btn">Save org</button>
             <span id="orgMsg" class="muted"></span>
@@ -93,6 +97,19 @@
           <div class="row" style="margin-top:12px">
             <button id="btnChange" class="btn">Update password</button>
             <span id="msg" class="muted"></span>
+          </div>
+        </section>
+
+        <section class="card" style="max-width:720px;margin-top:18px">
+          <h3>Privacy</h3>
+          <p class="muted">Export your data or request account deletion.</p>
+          <div class="row" style="margin-top:12px">
+            <button id="privacyExportBtn" class="btn ghost">Download my data</button>
+            <button id="privacyAcceptBtn" class="btn ghost">Accept latest terms</button>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button id="privacyDeleteBtn" class="btn danger">Delete my account</button>
+            <span id="privacyMsg" class="muted"></span>
           </div>
         </section>
       </main>

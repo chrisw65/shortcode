@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/site.css" />
 </head>
-<body data-page="register">
+<body data-page="register" data-terms-version="2026-01">
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="/">
@@ -47,6 +47,10 @@
       <input id="email" type="email" placeholder="you@company.com" />
       <label for="password">Password</label>
       <input id="password" type="password" placeholder="At least 8 characters" />
+      <label class="auth-terms">
+        <input id="termsAccepted" type="checkbox" />
+        <span>I agree to the Terms of Service</span>
+      </label>
       <div class="actions">
         <button class="btn primary" id="registerBtn">Start free</button>
         <a class="btn ghost" href="/login.html">Login</a>

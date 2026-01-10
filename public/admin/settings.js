@@ -1,4 +1,4 @@
-import { requireAuth, api, getActiveOrgId, setActiveOrgId } from '/admin/admin-common.js?v=20260112';
+import { requireAuth, api, getActiveOrgId, setActiveOrgId, logoutAndRedirect } from '/admin/admin-common.js?v=20260112';
 
 requireAuth();
 
@@ -9,12 +9,17 @@ const meSuper = document.getElementById('meSuper');
 const orgSelect = document.getElementById('orgSelect');
 const orgName = document.getElementById('orgName');
 const orgRole = document.getElementById('orgRole');
+const orgIpAnon = document.getElementById('orgIpAnon');
 const orgSaveBtn = document.getElementById('orgSaveBtn');
 const orgMsg = document.getElementById('orgMsg');
 const btnChange = document.getElementById('btnChange');
 const curPass = document.getElementById('curPass');
 const newPass = document.getElementById('newPass');
 const msg = document.getElementById('msg');
+const privacyExportBtn = document.getElementById('privacyExportBtn');
+const privacyDeleteBtn = document.getElementById('privacyDeleteBtn');
+const privacyAcceptBtn = document.getElementById('privacyAcceptBtn');
+const privacyMsg = document.getElementById('privacyMsg');
 
 
 function setText(el, value) {
@@ -58,6 +63,7 @@ async function loadOrgSettings() {
     const orgData = orgRes?.data || orgRes;
     if (orgName) orgName.value = orgData?.name || '';
     if (orgRole) orgRole.value = data.find((o) => o.id === (getActiveOrgId() || orgData?.id))?.role || '';
+    if (orgIpAnon) orgIpAnon.checked = Boolean(orgData?.ip_anonymization);
     if (meOrg && orgData?.name) meOrg.textContent = orgData.name;
   } catch (e) {
     if (orgMsg) orgMsg.textContent = e?.message || 'Failed to load orgs.';
@@ -77,7 +83,10 @@ async function saveOrgSettings() {
     await api('/api/org', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({
+        name,
+        ip_anonymization: orgIpAnon ? orgIpAnon.checked : undefined,
+      }),
     });
     if (orgMsg) orgMsg.textContent = 'Organization updated.';
   } catch (e) {
@@ -128,5 +137,27 @@ async function changePassword() {
 btnChange?.addEventListener('click', changePassword);
 orgSaveBtn?.addEventListener('click', saveOrgSettings);
 orgSelect?.addEventListener('change', onOrgSwitch);
+privacyExportBtn?.addEventListener('click', () => {
+  window.location.href = '/api/privacy/export';
+});
+privacyAcceptBtn?.addEventListener('click', async () => {
+  if (privacyMsg) privacyMsg.textContent = '';
+  try {
+    await api('/api/privacy/accept-terms', { method: 'POST' });
+    if (privacyMsg) privacyMsg.textContent = 'Terms accepted.';
+  } catch (e) {
+    if (privacyMsg) privacyMsg.textContent = e?.message || 'Failed to accept terms.';
+  }
+});
+privacyDeleteBtn?.addEventListener('click', async () => {
+  if (!window.confirm('Delete your account? This cannot be undone.')) return;
+  if (privacyMsg) privacyMsg.textContent = '';
+  try {
+    await api('/api/privacy/delete', { method: 'POST' });
+    logoutAndRedirect();
+  } catch (e) {
+    if (privacyMsg) privacyMsg.textContent = e?.message || 'Failed to delete account.';
+  }
+});
 loadMe();
 loadOrgSettings();

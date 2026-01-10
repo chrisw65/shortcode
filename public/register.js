@@ -11,12 +11,18 @@ async function register() {
   const name = document.getElementById('name')?.value || '';
   const email = document.getElementById('email')?.value || '';
   const password = document.getElementById('password')?.value || '';
+  const termsAccepted = document.getElementById('termsAccepted')?.checked || false;
+  const termsVersion = document.body?.dataset?.termsVersion || '2026-01';
   const params = new URLSearchParams(window.location.search);
   const inviteToken = params.get('invite') || '';
   const affiliateCode = params.get('aff') || '';
   const couponCode = params.get('coupon') || '';
   if (!email || !password) {
     setNotice('Email and password are required.', true);
+    return;
+  }
+  if (!termsAccepted) {
+    setNotice('You must accept the terms to continue.', true);
     return;
   }
 
@@ -34,6 +40,8 @@ async function register() {
         invite_token: inviteToken,
         affiliate_code: affiliateCode,
         coupon_code: couponCode,
+        terms_accepted: termsAccepted,
+        terms_version: termsVersion,
       }),
     });
     const data = await res.json().catch(() => null);

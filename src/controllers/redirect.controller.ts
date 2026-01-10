@@ -5,6 +5,7 @@ import redisClient from '../config/redis';
 import { lookupGeo } from '../services/geoip';
 import { enqueueClick } from '../services/clickQueue';
 import { getCachedLink, setCachedLink } from '../services/linkCache';
+import { anonymizeIp } from '../utils/ip';
 
 function nowUtc(): Date { return new Date(); }
 function safeRedirectUrl(raw: string): string | null {
@@ -25,8 +26,9 @@ export class RedirectController {
       let link = await getCachedLink(shortCode);
       if (!link) {
         const q = `
-          SELECT id, original_url, expires_at, active
-            FROM links
+          SELECT l.id, l.original_url, l.expires_at, l.active, l.org_id, o.ip_anonymization
+            FROM links l
+            JOIN orgs o ON o.id = l.org_id
            WHERE short_code = $1
            LIMIT 1
         `;
@@ -37,6 +39,8 @@ export class RedirectController {
           original_url: rows[0].original_url,
           expires_at: rows[0].expires_at,
           active: rows[0].active !== false,
+          org_id: rows[0].org_id,
+          ip_anonymization: rows[0].ip_anonymization === true,
         };
         void setCachedLink(shortCode, link);
       }
@@ -49,7 +53,8 @@ export class RedirectController {
       }
 
       // Best-effort analytics: bump click_count and log click_events
-      const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
+      const rawIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
+      const ip = link.ip_anonymization ? anonymizeIp(rawIp) : rawIp;
       const referer = (req.get('referer') || null);
       const ua = (req.get('user-agent') || null);
 

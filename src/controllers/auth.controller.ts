@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import db from '../config/database';
 import { getEffectivePlan } from '../services/plan';
+import { recordConsent } from '../services/consent';
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -86,6 +87,8 @@ async function registerImpl(req: Request, res: Response) {
     const inviteToken = String(req.body?.invite_token ?? '');
     const couponCode = String(req.body?.coupon_code ?? '');
     const affiliateCode = String(req.body?.affiliate_code ?? '');
+    const termsAccepted = Boolean(req.body?.terms_accepted);
+    const termsVersion = String(req.body?.terms_version || process.env.TERMS_VERSION || '2026-01');
 
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'Email and password are required' });
@@ -224,6 +227,15 @@ async function registerImpl(req: Request, res: Response) {
          VALUES ($1, $2, $3, 0, 'pending')`,
         [affiliate.id, user.id, orgId]
       );
+    }
+
+    if (termsAccepted) {
+      await recordConsent({
+        user_id: user.id,
+        consent_type: 'terms',
+        version: termsVersion,
+        metadata: { source: 'register' },
+      });
     }
 
     await db.query('COMMIT');

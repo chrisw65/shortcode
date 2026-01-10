@@ -9,6 +9,8 @@ export type CachedLink = {
   original_url: string;
   expires_at: string | null;
   active: boolean;
+  org_id?: string;
+  ip_anonymization?: boolean;
 };
 
 function keyFor(code: string) {

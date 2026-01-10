@@ -73,10 +73,14 @@ ALTER TABLE click_events ADD COLUMN IF NOT EXISTS city VARCHAR(120);
 ALTER TABLE click_events ADD COLUMN IF NOT EXISTS latitude NUMERIC(9,6);
 ALTER TABLE click_events ADD COLUMN IF NOT EXISTS longitude NUMERIC(9,6);
 
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL;
+ALTER TABLE orgs ADD COLUMN IF NOT EXISTS ip_anonymization BOOLEAN DEFAULT false;
+
 CREATE TABLE IF NOT EXISTS orgs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
   owner_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  ip_anonymization BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -130,6 +134,16 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   entity_id UUID NULL,
   metadata JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_consents (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  consent_type VARCHAR(40) NOT NULL,
+  version VARCHAR(40) NOT NULL,
+  accepted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  UNIQUE (user_id, consent_type, version)
 );
 
 CREATE TABLE IF NOT EXISTS site_settings (

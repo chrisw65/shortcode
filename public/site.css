@@ -258,6 +258,8 @@ a{color:inherit;text-decoration:none}
 }
 .auth-card{margin:0 auto}
 .auth-card .actions{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}
+.auth-terms{display:flex;align-items:center;gap:10px;margin-top:12px;color:var(--muted);font-size:14px}
+.auth-terms input{margin:0}
 .auth-points{
   margin:12px 0 6px;padding-left:18px;color:var(--muted);font-size:14px
 }
