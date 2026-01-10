@@ -18,6 +18,7 @@ import redirectRoutes from './routes/redirect.routes';
 import apiKeysRoutes from './routes/apiKeys.routes';
 import orgRoutes from './routes/org.routes';
 import orgsRoutes from './routes/orgs.routes';
+import auditRoutes from './routes/audit.routes';
 import siteRoutes from './routes/site.routes';
 import invitesRoutes from './routes/invites.routes';
 import couponsRoutes from './routes/coupons.routes';
@@ -98,6 +99,7 @@ const registerApi = (base: string) => {
   app.use(`${base}/org/invites`, invitesRoutes);
   app.use(`${base}/org`, orgRoutes);
   app.use(`${base}/orgs`, orgsRoutes);
+  app.use(`${base}/org/audit`, auditRoutes);
   app.use(base, siteRoutes);
   app.use(`${base}/coupons`, couponsRoutes);
   app.use(`${base}/plan-grants`, planGrantsRoutes);

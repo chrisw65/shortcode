@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Shortlink Admin - Audit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/admin/admin.css?v=20260113" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
+      </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a href="/admin/domains.html">Domains</a>
+        <a href="/admin/analytics.html">Analytics</a>
+        <a class="active" href="/admin/audit.html">Audit</a>
+        <a href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a href="/admin/site-settings.html">Site</a>
+        <a href="/admin/billing.html">Billing</a>
+        <a href="/admin/affiliates.html">Affiliates</a>
+        <a href="/admin/settings.html">Settings</a>
+      </nav>
+      <div class="side-footer">
+        <button id="logoutBtn" class="btn ghost" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Audit log</h1>
+          <p class="page-sub">Track changes across your org and export for compliance reviews.</p>
+        </div>
+        <div class="row">
+          <button id="exportBtn" class="btn ghost" type="button">Export CSV</button>
+        </div>
+      </header>
+
+      <main class="admin-content">
+        <section class="card">
+          <div class="row-between">
+            <div class="muted">Recent activity</div>
+            <div class="muted" id="auditMeta"></div>
+          </div>
+          <div class="table-wrap" style="margin-top:12px">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Action</th>
+                  <th>User</th>
+                  <th>Entity</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody id="auditRows"></tbody>
+            </table>
+          </div>
+          <div class="row-between" style="margin-top:12px">
+            <button id="prevPage" class="btn ghost" type="button">Prev</button>
+            <button id="nextPage" class="btn ghost" type="button">Next</button>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/admin-common.js?v=20260112"></script>
+  <script type="module" src="/admin/audit.js"></script>
+</body>
+</html>

@@ -161,6 +161,12 @@ body.tabs-ready .admin-content [data-tab].is-active{display:block}
   background:#0d141d;color:var(--text);border-radius:12px
 }
 
+.table-wrap{overflow:auto;border-radius:14px;border:1px solid var(--border)}
+.table{width:100%;border-collapse:collapse;font-size:14px;min-width:720px}
+.table th,.table td{padding:10px 12px;text-align:left;border-bottom:1px solid rgba(224,177,90,.12)}
+.table th{color:var(--muted);font-weight:600;background:rgba(12,18,28,.6)}
+.table tr:hover td{background:rgba(224,177,90,.06)}
+
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .row-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
 .grid{display:grid;gap:18px}

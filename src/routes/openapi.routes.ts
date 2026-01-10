@@ -24,6 +24,8 @@ router.get('/openapi.json', (_req, res) => {
       '/analytics/summary': { get: { summary: 'Analytics summary' } },
       '/org': { get: { summary: 'Get org' }, put: { summary: 'Update org' } },
       '/org/invites': { get: { summary: 'List invites' }, post: { summary: 'Create invite' } },
+      '/org/audit': { get: { summary: 'List audit logs' } },
+      '/org/audit/export': { get: { summary: 'Export audit logs' } },
       '/api-keys': { get: { summary: 'List API keys' }, post: { summary: 'Create API key' } },
       '/qr': { get: { summary: 'Generate QR code' } },
     },
