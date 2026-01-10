@@ -839,7 +839,7 @@ export async function replaceVariants(req: UserReq, res: Response) {
     await db.query(`DELETE FROM link_variants WHERE link_id = $1`, [linkId]);
     if (cleaned.length) {
       const values: any[] = [];
-      const placeholders = cleaned.map((v, idx) => {
+      const placeholders = cleaned.map((v: { url: string; weight: number; active: boolean }, idx: number) => {
         const base = idx * 4;
         values.push(linkId, v.url, v.weight, v.active);
         return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`;
