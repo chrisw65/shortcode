@@ -1,4 +1,4 @@
-import {requireAuth, api, mountNav, htmlesc, fmtDate, getToken, showToast} from '/admin/admin-common.js?v=20260112';
+import {requireAuth, api, mountNav, htmlesc, fmtDate, getToken, showToast} from '/admin/admin-common.js?v=20260120';
 requireAuth(); mountNav('analytics');
 
 const searchInput = document.getElementById('search');

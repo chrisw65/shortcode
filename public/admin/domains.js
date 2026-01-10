@@ -1,4 +1,4 @@
-import { requireAuth, api, mountNav, htmlesc } from '/admin/admin-common.js?v=20260112';
+import { requireAuth, api, mountNav, htmlesc } from '/admin/admin-common.js?v=20260120';
 
 document.addEventListener('DOMContentLoaded', () => {
   requireAuth();

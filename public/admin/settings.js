@@ -1,4 +1,4 @@
-import { requireAuth, api, getActiveOrgId, setActiveOrgId, logoutAndRedirect } from '/admin/admin-common.js?v=20260112';
+import { requireAuth, api, getActiveOrgId, setActiveOrgId, logoutAndRedirect } from '/admin/admin-common.js?v=20260120';
 
 requireAuth();
 

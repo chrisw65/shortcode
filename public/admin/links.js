@@ -1,4 +1,4 @@
-import { requireAuth, api, mountNav, htmlesc, copyText } from '/admin/admin-common.js?v=20260112';
+import { requireAuth, api, mountNav, htmlesc, copyText } from '/admin/admin-common.js?v=20260120';
 
 function fmtDate(v) {
   if (!v) return '—';
