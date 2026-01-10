@@ -15,6 +15,13 @@ These must be true for the MVP to work as intended:
 - The service is running behind a reverse proxy or direct, with `PUBLIC_HOST` or `BASE_URL`
 - The admin UI is served from `/public/admin`
 
+## Recent enhancements (Phase 3.4)
+- Bulk create/delete (JSON + CSV import)
+- Tags/groups and UTM builder in admin UI
+- A/B variants and weighted routing
+- Password-protected links
+- Deep link handling with device fallbacks
+
 ## Local verification checklist
 1) Install deps:
    - `npm install`

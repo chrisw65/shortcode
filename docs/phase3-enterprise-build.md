@@ -2,6 +2,18 @@
 
 Goal: evolve the MVP into a Bitly‑class, enterprise‑grade platform.
 
+## Status (as of current build)
+Delivered in Phase 3.4 scope:
+- Bulk link creation (JSON + CSV import)
+- Bulk delete
+- Link tags and groups with filters
+- UTM parameter builder
+- A/B testing (weighted variants)
+- Password‑protected links
+- Deep links with device fallback
+
+Remaining Phase 3 items are listed below by phase section.
+
 ## 1) Target Architecture
 Services:
 - API Service: auth, link management, domains, admin UI.
