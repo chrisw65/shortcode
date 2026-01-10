@@ -39,12 +39,57 @@
           <h1 class="page-title">Audit log</h1>
           <p class="page-sub">Track changes across your org and export for compliance reviews.</p>
         </div>
-        <div class="row">
-          <button id="exportBtn" class="btn ghost" type="button">Export CSV</button>
-        </div>
       </header>
 
       <main class="admin-content">
+        <section class="admin-hero card">
+          <div class="row-between">
+            <div>
+              <div class="kicker">Compliance controls</div>
+              <h2 class="page-title" style="margin:6px 0">Action history</h2>
+              <p class="muted">Every change in links, domains, API keys, and teams flows through this log.</p>
+            </div>
+            <div class="cta-actions">
+              <button id="exportBtn" class="btn ghost small" type="button">Export CSV</button>
+              <button id="auditRefresh" class="btn ghost small" type="button">Refresh</button>
+            </div>
+          </div>
+          <div class="metric-strip">
+            <div class="metric-card">
+              <strong id="auditTotal">—</strong>
+              <span>Total events</span>
+            </div>
+            <div class="metric-card">
+              <strong id="auditPageLimit">—</strong>
+              <span>Page size</span>
+            </div>
+            <div class="metric-card">
+              <strong id="auditLastEvent">—</strong>
+              <span>Last event</span>
+            </div>
+          </div>
+          <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:18px">
+            <label>
+              Action filter
+              <select id="auditActionFilter" class="input">
+                <option value="">All actions</option>
+              </select>
+            </label>
+            <label>
+              Search user, entity, details
+              <input id="auditSearch" class="input" type="text" placeholder="Type to search">
+            </label>
+            <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
+              <button id="auditApplyFilters" class="btn ghost small" type="button">Apply filters</button>
+              <button id="auditClearFilters" class="btn ghost small" type="button">Clear</button>
+            </div>
+          </div>
+          <div class="callout" style="margin-top:20px">
+            <strong>Retention reminder</strong>
+            Export monthly or archive logs to remain audit ready.
+          </div>
+        </section>
+
         <section class="card">
           <div class="row-between">
             <div class="muted">Recent activity</div>
