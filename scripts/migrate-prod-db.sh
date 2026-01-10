@@ -105,6 +105,50 @@ ALTER TABLE links ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES orgs(id) ON DELETE CASCADE;
 ALTER TABLE domains ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES orgs(id) ON DELETE CASCADE;
 
+CREATE TABLE IF NOT EXISTS link_groups (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  name VARCHAR(120) NOT NULL,
+  description TEXT,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (org_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_link_groups_org_id ON link_groups(org_id);
+
+CREATE TABLE IF NOT EXISTS link_group_links (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  group_id UUID REFERENCES link_groups(id) ON DELETE CASCADE,
+  link_id UUID REFERENCES links(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (group_id, link_id)
+);
+CREATE INDEX IF NOT EXISTS idx_link_group_links_group ON link_group_links(group_id);
+CREATE INDEX IF NOT EXISTS idx_link_group_links_link ON link_group_links(link_id);
+
+CREATE TABLE IF NOT EXISTS link_tags (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  name VARCHAR(80) NOT NULL,
+  color VARCHAR(24),
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (org_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_link_tags_org_id ON link_tags(org_id);
+
+CREATE TABLE IF NOT EXISTS link_tag_links (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tag_id UUID REFERENCES link_tags(id) ON DELETE CASCADE,
+  link_id UUID REFERENCES links(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (tag_id, link_id)
+);
+CREATE INDEX IF NOT EXISTS idx_link_tag_links_tag ON link_tag_links(tag_id);
+CREATE INDEX IF NOT EXISTS idx_link_tag_links_link ON link_tag_links(link_id);
+
 CREATE TABLE IF NOT EXISTS org_memberships (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
