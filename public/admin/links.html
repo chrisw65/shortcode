@@ -98,6 +98,10 @@
                 Domain
                 <select id="inDomain" class="input"></select>
               </label>
+              <label>
+                Password (optional)
+                <input id="inPassword" class="input" type="password" placeholder="Protect this link">
+              </label>
               <div class="muted">Custom domains require a paid plan and verification.</div>
               <div class="grid grid-2">
                 <label>
@@ -152,6 +156,47 @@
           </section>
         </div>
 
+        <div class="grid grid-2" style="margin-top:18px">
+          <section class="card">
+            <h3>Bulk create</h3>
+            <div class="muted">Paste one URL per line. Optional title with comma: https://example.com, Campaign name</div>
+            <textarea id="bulkUrls" class="input" rows="6" placeholder="https://example.com/page"></textarea>
+            <div class="grid grid-2" style="margin-top:10px">
+              <label>
+                Domain
+                <select id="bulkDomain" class="input"></select>
+              </label>
+              <label>
+                Password (optional)
+                <input id="bulkPassword" class="input" type="password" placeholder="Protect all">
+              </label>
+            </div>
+            <div class="grid grid-2" style="margin-top:10px">
+              <label>
+                Tags
+                <select id="bulkTags" class="input" multiple size="4"></select>
+              </label>
+              <label>
+                Group
+                <select id="bulkGroup" class="input"></select>
+              </label>
+            </div>
+            <div class="row" style="margin-top:12px;justify-content:flex-end">
+              <button id="bulkCreateBtn" class="btn">Create links</button>
+            </div>
+            <div class="muted small" id="bulkCreateMsg"></div>
+          </section>
+          <section class="card">
+            <h3>Bulk delete</h3>
+            <div class="muted">Paste one short code per line.</div>
+            <textarea id="bulkDeleteCodes" class="input" rows="6" placeholder="abcd1234"></textarea>
+            <div class="row" style="margin-top:12px;justify-content:flex-end">
+              <button id="bulkDeleteBtn" class="btn danger">Delete links</button>
+            </div>
+            <div class="muted small" id="bulkDeleteMsg"></div>
+          </section>
+        </div>
+
         <section class="card" style="margin-top:18px">
           <table id="tbl" aria-label="Links table">
             <thead>
@@ -160,6 +205,7 @@
                 <th>Tags</th>
                 <th>Group</th>
                 <th data-sort="short_code">Code</th>
+                <th>Security</th>
                 <th>Domain</th>
                 <th>Short URL</th>
                 <th data-sort="click_count">Clicks</th>
@@ -168,7 +214,7 @@
               </tr>
             </thead>
             <tbody id="rows">
-              <tr><td class="empty" colspan="9">Loading...</td></tr>
+              <tr><td class="empty" colspan="10">Loading...</td></tr>
             </tbody>
           </table>
         </section>
@@ -190,6 +236,28 @@
       </div>
       <div class="row" style="justify-content:flex-end">
         <a class="btn ghost" id="qrDownload" download>Download</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="variantsModal" aria-hidden="true">
+    <div class="modal-backdrop" id="variantsBackdrop"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="variantsTitle">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div>
+          <div class="small muted" id="variantsTitle">Variants</div>
+        </div>
+        <button class="btn ghost" id="variantsClose" type="button">Close</button>
+      </div>
+      <div class="modal-body">
+        <div id="variantsList" class="grid" style="gap:10px"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn ghost" id="variantAdd">Add variant</button>
+          <span class="muted small" id="variantsMsg"></span>
+        </div>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn" id="variantsSave">Save variants</button>
       </div>
     </div>
   </div>

@@ -11,6 +11,8 @@ export type CachedLink = {
   active: boolean;
   org_id?: string;
   ip_anonymization?: boolean;
+  password_hash?: string | null;
+  variants?: Array<{ url: string; weight: number; active: boolean }>;
 };
 
 function keyFor(code: string) {

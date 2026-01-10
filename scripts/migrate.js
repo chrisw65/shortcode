@@ -257,10 +257,22 @@ CREATE TABLE IF NOT EXISTS links (
   original_url TEXT NOT NULL,
   title VARCHAR(500),
   click_count BIGINT DEFAULT 0,
+  password_hash VARCHAR(255),
   active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   expires_at TIMESTAMP
 );
+
+-- Link variants (A/B routing)
+CREATE TABLE IF NOT EXISTS link_variants (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  link_id UUID REFERENCES links(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  weight INTEGER NOT NULL DEFAULT 100,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_link_variants_link_id ON link_variants(link_id);
 
 -- Link groups / campaigns
 CREATE TABLE IF NOT EXISTS link_groups (

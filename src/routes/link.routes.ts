@@ -21,6 +21,10 @@ router.use(apiLimiter);
 // Create a new short link
 router.post('/', wrap(linkController.createLink));
 
+// Bulk operations
+router.post('/bulk-create', wrap(linkController.bulkCreateLinks));
+router.post('/bulk-delete', wrap(linkController.bulkDeleteLinks));
+
 // Check short code availability
 router.get('/availability/:shortCode', wrap(linkController.checkAvailability));
 
@@ -29,6 +33,10 @@ router.get('/core-domain', wrap(linkController.getCoreDomain));
 
 // List current user's links
 router.get('/', wrap(linkController.getUserLinks));
+
+// Manage link variants
+router.get('/:shortCode/variants', wrap(linkController.listVariants));
+router.put('/:shortCode/variants', wrap(linkController.replaceVariants));
 
 // Get a single link (by short code, owned by the user)
 router.get('/:shortCode', wrap(linkController.getLinkDetails));

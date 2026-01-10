@@ -1,5 +1,7 @@
 // src/controllers/redirect.controller.ts
 import { Request, Response } from 'express';
+import { createHmac, timingSafeEqual } from 'crypto';
+import bcrypt from 'bcrypt';
 import db from '../config/database';
 import redisClient from '../config/redis';
 import { lookupGeo } from '../services/geoip';
@@ -18,6 +20,102 @@ function safeRedirectUrl(raw: string): string | null {
   }
 }
 
+const PW_COOKIE_TTL_SECONDS = 60 * 60 * 24;
+
+function cookieSecret(): string {
+  return process.env.PW_COOKIE_SECRET || process.env.JWT_SECRET || 'pw-secret';
+}
+
+function base64Url(input: Buffer) {
+  return input.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function signCookie(linkId: string, expiresAt: number) {
+  const payload = `${linkId}.${expiresAt}`;
+  const sig = base64Url(createHmac('sha256', cookieSecret()).update(payload).digest());
+  return `${expiresAt}.${sig}`;
+}
+
+function parseCookies(req: Request): Record<string, string> {
+  const header = req.headers.cookie || '';
+  const out: Record<string, string> = {};
+  header.split(';').forEach((part) => {
+    const [k, ...rest] = part.trim().split('=');
+    if (!k) return;
+    out[k] = rest.join('=');
+  });
+  return out;
+}
+
+function cookieName(linkId: string) {
+  return `okleaf_pw_${linkId}`;
+}
+
+function hasValidPwCookie(req: Request, linkId: string): boolean {
+  const cookies = parseCookies(req);
+  const value = cookies[cookieName(linkId)];
+  if (!value) return false;
+  const [expStr, sig] = value.split('.');
+  if (!expStr || !sig) return false;
+  const expiresAt = Number(expStr);
+  if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) return false;
+  const expected = signCookie(linkId, expiresAt).split('.')[1];
+  if (!expected) return false;
+  try {
+    return timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
+function setPwCookie(res: Response, linkId: string) {
+  const expiresAt = Date.now() + PW_COOKIE_TTL_SECONDS * 1000;
+  const value = signCookie(linkId, expiresAt);
+  res.setHeader('Set-Cookie', `${cookieName(linkId)}=${value}; Max-Age=${PW_COOKIE_TTL_SECONDS}; Path=/; HttpOnly; SameSite=Lax`);
+}
+
+function renderPasswordPrompt(res: Response, shortCode: string, error = false) {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  const message = error ? 'Invalid password. Try again.' : 'This link is password protected.';
+  return res.status(401).send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Protected link</title>
+    <style>
+      body{font-family:Arial,sans-serif;background:#0b0d10;color:#f5f1e8;margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh}
+      .card{background:#151c26;border:1px solid #2a2f3a;border-radius:16px;padding:28px;max-width:360px;width:90%}
+      h1{font-size:20px;margin:0 0 12px}
+      p{color:#b8b3a9;font-size:14px;margin:0 0 18px}
+      input{width:100%;padding:12px;border-radius:12px;border:1px solid #2a2f3a;background:#0f141b;color:#f5f1e8}
+      button{margin-top:14px;width:100%;padding:12px;border-radius:999px;border:0;background:#e0b15a;color:#141414;font-weight:600;cursor:pointer}
+    </style>
+  </head>
+  <body>
+    <form class="card" method="post" action="/${shortCode}">
+      <h1>Protected link</h1>
+      <p>${message}</p>
+      <input type="password" name="password" placeholder="Enter password" required />
+      <button type="submit">Continue</button>
+    </form>
+  </body>
+</html>`);
+}
+
+function pickVariant(variants: Array<{ url: string; weight: number; active: boolean }> | undefined, fallback: string) {
+  const active = (variants || []).filter((v) => v.active !== false);
+  if (!active.length) return fallback;
+  const total = active.reduce((sum, v) => sum + Math.max(1, Number(v.weight) || 1), 0);
+  let roll = Math.random() * total;
+  for (const v of active) {
+    roll -= Math.max(1, Number(v.weight) || 1);
+    if (roll <= 0) return v.url;
+  }
+  return active[0].url;
+}
+
 export class RedirectController {
   public redirect = async (req: Request, res: Response) => {
     try {
@@ -26,7 +124,7 @@ export class RedirectController {
       let link = await getCachedLink(shortCode);
       if (!link) {
         const q = `
-          SELECT l.id, l.original_url, l.expires_at, l.active, l.org_id, o.ip_anonymization
+          SELECT l.id, l.original_url, l.expires_at, l.active, l.org_id, o.ip_anonymization, l.password_hash
             FROM links l
             JOIN orgs o ON o.id = l.org_id
            WHERE short_code = $1
@@ -34,6 +132,13 @@ export class RedirectController {
         `;
         const { rows } = await db.query(q, [shortCode]);
         if (!rows.length) return res.status(404).send('Not found');
+        const { rows: variants } = await db.query(
+          `SELECT url, weight, active
+             FROM link_variants
+            WHERE link_id = $1 AND active = true
+            ORDER BY created_at ASC`,
+          [rows[0].id]
+        );
         link = {
           id: rows[0].id,
           original_url: rows[0].original_url,
@@ -41,6 +146,8 @@ export class RedirectController {
           active: rows[0].active !== false,
           org_id: rows[0].org_id,
           ip_anonymization: rows[0].ip_anonymization === true,
+          password_hash: rows[0].password_hash || null,
+          variants: variants || [],
         };
         void setCachedLink(shortCode, link);
       }
@@ -50,6 +157,16 @@ export class RedirectController {
       }
       if (link.expires_at && new Date(link.expires_at) <= nowUtc()) {
         return res.status(410).send('Link expired');
+      }
+
+      if (link.password_hash) {
+        if (!hasValidPwCookie(req, link.id)) {
+          const provided = String((req.body as any)?.password || req.query?.pw || '').trim();
+          if (!provided) return renderPasswordPrompt(res, shortCode);
+          const ok = await bcrypt.compare(provided, link.password_hash);
+          if (!ok) return renderPasswordPrompt(res, shortCode, true);
+          setPwCookie(res, link.id);
+        }
       }
 
       // Best-effort analytics: bump click_count and log click_events
@@ -90,7 +207,8 @@ export class RedirectController {
         void fallbackDirect();
       }
 
-      const safeUrl = safeRedirectUrl(link.original_url);
+      const destination = pickVariant(link.variants, link.original_url);
+      const safeUrl = safeRedirectUrl(destination);
       if (!safeUrl) return res.status(400).send('Invalid destination');
       return res.redirect(302, safeUrl);
     } catch (e) {

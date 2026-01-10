@@ -19,6 +19,7 @@ const els = {
   inTitle:   document.getElementById('inTitle'),
   inCode:    document.getElementById('inCode'),
   inDomain:  document.getElementById('inDomain'),
+  inPassword: document.getElementById('inPassword'),
   inTags:    document.getElementById('inTags'),
   inGroup:   document.getElementById('inGroup'),
   utmSource: document.getElementById('utmSource'),
@@ -45,6 +46,13 @@ const els = {
   qrImage:   document.getElementById('qrImage'),
   qrTitle:   document.getElementById('qrTitle'),
   qrDownload:document.getElementById('qrDownload'),
+  variantsModal: document.getElementById('variantsModal'),
+  variantsBackdrop: document.getElementById('variantsBackdrop'),
+  variantsClose: document.getElementById('variantsClose'),
+  variantsList: document.getElementById('variantsList'),
+  variantsMsg: document.getElementById('variantsMsg'),
+  variantAdd: document.getElementById('variantAdd'),
+  variantsSave: document.getElementById('variantsSave'),
   tagName:   document.getElementById('tagName'),
   tagColor:  document.getElementById('tagColor'),
   tagAdd:    document.getElementById('tagAdd'),
@@ -53,6 +61,16 @@ const els = {
   groupDesc: document.getElementById('groupDesc'),
   groupAdd:  document.getElementById('groupAdd'),
   groupsList:document.getElementById('groupsList'),
+  bulkUrls: document.getElementById('bulkUrls'),
+  bulkDomain: document.getElementById('bulkDomain'),
+  bulkPassword: document.getElementById('bulkPassword'),
+  bulkTags: document.getElementById('bulkTags'),
+  bulkGroup: document.getElementById('bulkGroup'),
+  bulkCreateBtn: document.getElementById('bulkCreateBtn'),
+  bulkCreateMsg: document.getElementById('bulkCreateMsg'),
+  bulkDeleteCodes: document.getElementById('bulkDeleteCodes'),
+  bulkDeleteBtn: document.getElementById('bulkDeleteBtn'),
+  bulkDeleteMsg: document.getElementById('bulkDeleteMsg'),
 };
 
 let allLinks = [];
@@ -66,6 +84,7 @@ let effectivePlan = 'free';
 let domains = [];
 let tags = [];
 let groups = [];
+let selectedVariantCode = '';
 
 function setCodeStatus(state, text) {
   if (!els.codeStatus) return;
@@ -114,6 +133,22 @@ function renderDomainSelect() {
   updatePreviewHost();
 }
 
+function renderBulkDomainSelect() {
+  if (!els.bulkDomain) return;
+  const options = [];
+  const coreLabel = coreHost.replace(/^https?:\/\//, '');
+  options.push(`<option value="">${coreLabel} (core)</option>`);
+
+  const available = domains.filter(d => d.verified && d.is_active);
+  if (isPaid()) {
+    for (const d of available) {
+      options.push(`<option value="${htmlesc(d.id)}">${htmlesc(d.domain)}</option>`);
+    }
+  }
+  els.bulkDomain.innerHTML = options.join('');
+  els.bulkDomain.disabled = !isPaid();
+}
+
 function isPaid() {
   return String(effectivePlan || '').toLowerCase() !== 'free';
 }
@@ -140,7 +175,7 @@ function applySort(list) {
 function render() {
   const list = applySort(applyFilter(allLinks));
   if (!list.length) {
-    els.tbody.innerHTML = `<tr><td class="empty" colspan="9">No links found.</td></tr>`;
+    els.tbody.innerHTML = `<tr><td class="empty" colspan="10">No links found.</td></tr>`;
     return;
   }
 
@@ -150,6 +185,7 @@ function render() {
     const short  = l.short_url || '';
     const clicks = l.click_count ?? 0;
     const created= fmtDate(l.created_at);
+    const security = l.password_protected ? '<span class="badge">Protected</span>' : '<span class="muted">—</span>';
     const tagHtml = (l.tags || []).length
       ? (l.tags || []).map(t => {
         const color = t.color ? ` style="border-color:${htmlesc(t.color)};color:${htmlesc(t.color)}"` : '';
@@ -165,6 +201,7 @@ function render() {
         <td>${tagHtml}</td>
         <td>${groupHtml}</td>
         <td><span class="pill">${htmlesc(code)}</span></td>
+        <td>${security}</td>
         <td>${htmlesc(domain)}</td>
         <td>
           <a href="${short}" target="_blank" rel="noopener">${short}</a>
@@ -175,6 +212,9 @@ function render() {
         <td class="row" style="gap:6px">
           <button class="btn btn-qr" data-type="png" data-code="${htmlesc(code)}">QR PNG</button>
           <button class="btn btn-qr" data-type="svg" data-code="${htmlesc(code)}">QR SVG</button>
+          <button class="btn btn-variants" data-code="${htmlesc(code)}">Variants</button>
+          <button class="btn btn-protect" data-code="${htmlesc(code)}">${l.password_protected ? 'Reset password' : 'Protect'}</button>
+          ${l.password_protected ? `<button class="btn ghost btn-clear" data-code="${htmlesc(code)}">Clear</button>` : ''}
           <a class="btn" href="/admin/analytics.html?code=${encodeURIComponent(code)}">Analytics</a>
           <button class="btn danger btn-del">Delete</button>
         </td>
@@ -216,6 +256,48 @@ function render() {
       openQrModal(code, type);
     });
   });
+
+  els.tbody.querySelectorAll('.btn-variants').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.dataset.code || '';
+      openVariantsModal(code);
+    });
+  });
+
+  els.tbody.querySelectorAll('.btn-protect').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const code = btn.dataset.code || '';
+      const pw = window.prompt('Set a password (min 6 chars). Leave blank to cancel.');
+      if (!pw) return;
+      try {
+        await api(`/api/links/${encodeURIComponent(code)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw }),
+        });
+        await load();
+      } catch (err) {
+        alert(`Password update failed: ${err.message || err}`);
+      }
+    });
+  });
+
+  els.tbody.querySelectorAll('.btn-clear').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const code = btn.dataset.code || '';
+      if (!confirm('Clear password protection for this link?')) return;
+      try {
+        await api(`/api/links/${encodeURIComponent(code)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clear_password: true }),
+        });
+        await load();
+      } catch (err) {
+        alert(`Password clear failed: ${err.message || err}`);
+      }
+    });
+  });
 }
 
 async function load() {
@@ -229,13 +311,14 @@ async function load() {
       short_url: x.short_url,
       click_count: x.click_count ?? 0,
       created_at: x.created_at,
+      password_protected: Boolean(x.password_protected),
       tags: Array.isArray(x.tags) ? x.tags : [],
       groups: Array.isArray(x.groups) ? x.groups : [],
     }));
     render();
   } catch (err) {
     console.error('Load error:', err);
-    els.tbody.innerHTML = `<tr><td class="empty danger" colspan="9">Failed to load links.</td></tr>`;
+    els.tbody.innerHTML = `<tr><td class="empty danger" colspan="10">Failed to load links.</td></tr>`;
   }
 }
 
@@ -266,8 +349,10 @@ async function loadContext() {
     console.warn('Context load failed:', err);
   } finally {
     renderDomainSelect();
+    renderBulkDomainSelect();
     renderTagSelects();
     renderGroupSelects();
+    renderBulkSelects();
     renderTagsList();
     renderGroupsList();
     const host = selectedDomain().host;
@@ -304,6 +389,19 @@ function renderGroupSelects() {
     els.filterGroup.innerHTML = options.join('');
     if (filterGroupId && !groups.find(g => g.id === filterGroupId)) filterGroupId = '';
     els.filterGroup.value = filterGroupId || '';
+  }
+}
+
+function renderBulkSelects() {
+  if (els.bulkTags) {
+    const options = tags.map(t => `<option value="${htmlesc(t.id)}">${htmlesc(t.name)}</option>`);
+    els.bulkTags.innerHTML = options.join('');
+  }
+  if (els.bulkGroup) {
+    const options = ['<option value="">No group</option>'].concat(
+      groups.map(g => `<option value="${htmlesc(g.id)}">${htmlesc(g.name)}</option>`)
+    );
+    els.bulkGroup.innerHTML = options.join('');
   }
 }
 
@@ -460,6 +558,7 @@ async function refreshTags() {
     const data = unwrap(await api('/api/tags'));
     tags = Array.isArray(data) ? data : [];
     renderTagSelects();
+    renderBulkSelects();
     renderTagsList();
   } catch (err) {
     console.warn('Tag refresh failed:', err);
@@ -471,6 +570,7 @@ async function refreshGroups() {
     const data = unwrap(await api('/api/groups'));
     groups = Array.isArray(data) ? data : [];
     renderGroupSelects();
+    renderBulkSelects();
     renderGroupsList();
   } catch (err) {
     console.warn('Group refresh failed:', err);
@@ -518,6 +618,7 @@ async function createLink() {
   const title = (els.inTitle.value || '').trim();
   const code = (els.inCode.value || '').trim();
   const domain = selectedDomain();
+  const password = (els.inPassword?.value || '').trim();
   const tagIds = Array.from(els.inTags?.selectedOptions || []).map(opt => opt.value).filter(Boolean);
   const groupId = (els.inGroup?.value || '').trim();
   const utmParams = readUtmParams();
@@ -535,6 +636,7 @@ async function createLink() {
     if (domain.id) body.domain_id = domain.id;
     if (tagIds.length) body.tag_ids = tagIds;
     if (groupId) body.group_ids = [groupId];
+    if (password) body.password = password;
     const res = unwrap(await api('/api/links', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -543,6 +645,7 @@ async function createLink() {
     // Prepend newly created (if API returns a single item)
     await load();
     els.inUrl.value = ''; els.inTitle.value = ''; els.inCode.value = '';
+    if (els.inPassword) els.inPassword.value = '';
     if (els.inTags) Array.from(els.inTags.options).forEach(o => { o.selected = false; });
     if (els.inGroup) els.inGroup.value = '';
     if (els.utmSource) els.utmSource.value = '';
@@ -557,6 +660,81 @@ async function createLink() {
     alert(`Create failed: ${err.message || err}`);
   } finally {
     els.btnCreate.disabled = false;
+  }
+}
+
+function parseBulkLines(raw) {
+  return raw.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
+    const split = line.includes('|') ? line.split('|') : line.split(',');
+    if (split.length > 1) {
+      const url = split.shift().trim();
+      const title = split.join('|').trim();
+      return { url, title: title || null };
+    }
+    return { url: line, title: null };
+  });
+}
+
+async function bulkCreate() {
+  if (!els.bulkUrls) return;
+  const items = parseBulkLines(els.bulkUrls.value || '');
+  if (!items.length) {
+    if (els.bulkCreateMsg) els.bulkCreateMsg.textContent = 'Paste at least one URL.';
+    return;
+  }
+  const tagIds = Array.from(els.bulkTags?.selectedOptions || []).map(opt => opt.value).filter(Boolean);
+  const groupId = (els.bulkGroup?.value || '').trim();
+  const domainId = (els.bulkDomain?.value || '').trim();
+  const password = (els.bulkPassword?.value || '').trim();
+  if (els.bulkCreateBtn) els.bulkCreateBtn.disabled = true;
+  if (els.bulkCreateMsg) els.bulkCreateMsg.textContent = 'Creating links...';
+  try {
+    const res = unwrap(await api('/api/links/bulk-create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items,
+        domain_id: domainId || null,
+        tag_ids: tagIds,
+        group_ids: groupId ? [groupId] : [],
+        password: password || null,
+      }),
+    }));
+    const successes = (res || []).filter(r => r.success).length;
+    const failures = (res || []).filter(r => !r.success).length;
+    if (els.bulkCreateMsg) {
+      els.bulkCreateMsg.textContent = `Created ${successes} links${failures ? `, ${failures} failed` : ''}.`;
+    }
+    await load();
+  } catch (err) {
+    if (els.bulkCreateMsg) els.bulkCreateMsg.textContent = `Bulk create failed: ${err.message || err}`;
+  } finally {
+    if (els.bulkCreateBtn) els.bulkCreateBtn.disabled = false;
+  }
+}
+
+async function bulkDelete() {
+  if (!els.bulkDeleteCodes) return;
+  const codes = (els.bulkDeleteCodes.value || '').split('\n').map(c => c.trim()).filter(Boolean);
+  if (!codes.length) {
+    if (els.bulkDeleteMsg) els.bulkDeleteMsg.textContent = 'Paste at least one code.';
+    return;
+  }
+  if (!confirm(`Delete ${codes.length} links?`)) return;
+  if (els.bulkDeleteBtn) els.bulkDeleteBtn.disabled = true;
+  if (els.bulkDeleteMsg) els.bulkDeleteMsg.textContent = 'Deleting links...';
+  try {
+    const res = unwrap(await api('/api/links/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codes }),
+    }));
+    if (els.bulkDeleteMsg) els.bulkDeleteMsg.textContent = `Deleted ${res?.count || 0} links.`;
+    await load();
+  } catch (err) {
+    if (els.bulkDeleteMsg) els.bulkDeleteMsg.textContent = `Bulk delete failed: ${err.message || err}`;
+  } finally {
+    if (els.bulkDeleteBtn) els.bulkDeleteBtn.disabled = false;
   }
 }
 
@@ -597,6 +775,77 @@ function closeQrModal() {
   els.qrModal.classList.remove('open');
   els.qrModal.setAttribute('aria-hidden', 'true');
   if (els.qrImage) els.qrImage.src = '';
+}
+
+function renderVariantRow(variant = {}) {
+  const row = document.createElement('div');
+  row.className = 'card';
+  row.innerHTML = `
+    <label class="muted">URL</label>
+    <input class="input variant-url" value="${htmlesc(variant.url || '')}" placeholder="https://example.com/variant">
+    <div class="row" style="margin-top:8px">
+      <label class="row" style="gap:6px">
+        <span class="muted">Weight</span>
+        <input class="input variant-weight" type="number" min="1" max="1000" value="${htmlesc(String(variant.weight || 100))}" style="max-width:120px">
+      </label>
+      <label class="row" style="gap:6px">
+        <input class="variant-active" type="checkbox" ${variant.active !== false ? 'checked' : ''}>
+        <span class="muted">Active</span>
+      </label>
+      <button class="btn danger variant-remove" type="button">Remove</button>
+    </div>
+  `;
+  row.querySelector('.variant-remove').addEventListener('click', () => row.remove());
+  return row;
+}
+
+async function openVariantsModal(code) {
+  selectedVariantCode = code;
+  if (!els.variantsModal || !els.variantsList) return;
+  els.variantsList.innerHTML = '';
+  if (els.variantsMsg) els.variantsMsg.textContent = '';
+  try {
+    const res = unwrap(await api(`/api/links/${encodeURIComponent(code)}/variants`));
+    const list = Array.isArray(res) ? res : [];
+    if (!list.length) {
+      els.variantsList.appendChild(renderVariantRow({}));
+    } else {
+      list.forEach(v => els.variantsList.appendChild(renderVariantRow(v)));
+    }
+  } catch (err) {
+    els.variantsList.appendChild(renderVariantRow({}));
+  }
+  els.variantsModal.classList.add('open');
+  els.variantsModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeVariantsModal() {
+  if (!els.variantsModal) return;
+  els.variantsModal.classList.remove('open');
+  els.variantsModal.setAttribute('aria-hidden', 'true');
+  selectedVariantCode = '';
+}
+
+async function saveVariants() {
+  if (!selectedVariantCode) return;
+  const rows = Array.from(els.variantsList?.querySelectorAll('.card') || []);
+  const variants = rows.map((row) => ({
+    url: row.querySelector('.variant-url')?.value || '',
+    weight: Number(row.querySelector('.variant-weight')?.value || 100),
+    active: row.querySelector('.variant-active')?.checked !== false,
+  })).filter(v => v.url.trim());
+  if (els.variantsMsg) els.variantsMsg.textContent = '';
+  try {
+    await api(`/api/links/${encodeURIComponent(selectedVariantCode)}/variants`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variants }),
+    });
+    if (els.variantsMsg) els.variantsMsg.textContent = 'Variants saved.';
+    closeVariantsModal();
+  } catch (err) {
+    if (els.variantsMsg) els.variantsMsg.textContent = `Save failed: ${err.message || err}`;
+  }
 }
 function csvCell(v) {
   if (v == null) return '';
@@ -677,6 +926,8 @@ els.inDomain?.addEventListener('change', () => {
 els.btnCreate.addEventListener('click', createLink);
 els.btnRefresh.addEventListener('click', load);
 els.btnExport.addEventListener('click', exportCSV);
+els.bulkCreateBtn?.addEventListener('click', bulkCreate);
+els.bulkDeleteBtn?.addEventListener('click', bulkDelete);
 els.tagAdd?.addEventListener('click', createTag);
 els.groupAdd?.addEventListener('click', createGroup);
 els.utmApply?.addEventListener('click', () => {
@@ -704,8 +955,17 @@ els.utmClear?.addEventListener('click', () => {
 });
 els.qrClose?.addEventListener('click', closeQrModal);
 els.qrBackdrop?.addEventListener('click', closeQrModal);
+els.variantsClose?.addEventListener('click', closeVariantsModal);
+els.variantsBackdrop?.addEventListener('click', closeVariantsModal);
+els.variantAdd?.addEventListener('click', () => {
+  if (els.variantsList) els.variantsList.appendChild(renderVariantRow({}));
+});
+els.variantsSave?.addEventListener('click', saveVariants);
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeQrModal();
+  if (e.key === 'Escape') {
+    closeQrModal();
+    closeVariantsModal();
+  }
 });
 
 // Go

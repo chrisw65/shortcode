@@ -7,5 +7,6 @@ const router = Router();
 const redirectController = new RedirectController();
 
 router.get('/:shortCode', perIp600rpmRedis, redirectController.redirect);
+router.post('/:shortCode', perIp600rpmRedis, redirectController.redirect);
 
 export default router;

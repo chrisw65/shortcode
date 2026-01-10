@@ -1,6 +1,7 @@
 // src/controllers/link.controller.ts
 import { Request, Response } from 'express';
 import { nanoid } from 'nanoid';
+import bcrypt from 'bcrypt';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
 import { tryGrantReferralReward } from '../services/referrals';
@@ -83,6 +84,7 @@ function shapeLink(row: any, coreBase: string) {
     active: row.active !== false, // default true
     short_url: `${baseUrl}/${row.short_code}`,
     domain,
+    password_protected: Boolean(row.password_protected),
     tags,
     groups,
   };
@@ -139,7 +141,7 @@ export async function createLink(req: UserReq, res: Response) {
   try {
     const userId = req.user.userId;
     const orgId = req.org.orgId;
-    const { url, title, short_code, expires_at, domain_id, tag_ids, group_ids } = req.body ?? {};
+    const { url, title, short_code, expires_at, domain_id, tag_ids, group_ids, password } = req.body ?? {};
     if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
 
     const normalizedUrl = ensureHttpUrl(String(url).trim());
@@ -187,6 +189,7 @@ export async function createLink(req: UserReq, res: Response) {
     const coreBase = coreBaseUrl();
     let domainId: string | null = null;
     let domainHost: string | null = null;
+    let passwordHash: string | null = null;
 
     if (domain_id) {
       const plan = await getEffectivePlan(userId, orgId);
@@ -211,13 +214,22 @@ export async function createLink(req: UserReq, res: Response) {
       domainHost = d.domain;
     }
 
+    if (password) {
+      const raw = String(password).trim();
+      if (raw.length < 6) {
+        return res.status(400).json({ success: false, error: 'Password must be at least 6 characters' });
+      }
+      passwordHash = await bcrypt.hash(raw, 12);
+    }
+
     await db.query('BEGIN');
     const q = `
-      INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, expires_at, active)
-      VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, $8, true)
-      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active
+      INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, expires_at, active, password_hash)
+      VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, $8, true, $9)
+      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
+                (password_hash IS NOT NULL) AS password_protected
     `;
-    const { rows } = await db.query(q, [orgId, userId, code, normalizedUrl, title ?? null, autoTitle, domainId, expires_at ?? null]);
+    const { rows } = await db.query(q, [orgId, userId, code, normalizedUrl, title ?? null, autoTitle, domainId, expires_at ?? null, passwordHash]);
     const linkId = rows[0].id as string;
     await setLinkTags(linkId, tagIds);
     await setLinkGroups(linkId, groupIds);
@@ -238,6 +250,8 @@ export async function createLink(req: UserReq, res: Response) {
       original_url: rows[0].original_url,
       expires_at: rows[0].expires_at,
       active: rows[0].active !== false,
+      password_hash: passwordHash,
+      variants: [],
     });
     const tagRows = tagIds.length ? await fetchTags(orgId, tagIds) : [];
     const groupRows = groupIds.length ? await fetchGroups(orgId, groupIds) : [];
@@ -307,6 +321,7 @@ export async function getUserLinks(req: UserReq, res: Response) {
     const { rows } = await db.query(
       `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
               d.domain AS domain,
+              (l.password_hash IS NOT NULL) AS password_protected,
               COALESCE(
                 (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                    FROM link_tag_links ltl
@@ -340,6 +355,7 @@ export async function getLinkDetails(req: UserReq, res: Response) {
     const { rows } = await db.query(
       `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
               d.domain AS domain,
+              (l.password_hash IS NOT NULL) AS password_protected,
               COALESCE(
                 (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                    FROM link_tag_links ltl
@@ -374,7 +390,7 @@ export async function updateLink(req: UserReq, res: Response) {
   try {
     const orgId = req.org.orgId;
     const { shortCode } = req.params;
-    const { url, title, expires_at, short_code, tag_ids, group_ids } = req.body ?? {};
+    const { url, title, expires_at, short_code, tag_ids, group_ids, password, clear_password } = req.body ?? {};
 
     const { rows: existing } = await db.query(
       `SELECT id FROM links WHERE org_id = $1 AND short_code = $2`,
@@ -424,6 +440,18 @@ export async function updateLink(req: UserReq, res: Response) {
       }
     }
 
+    if (clear_password) {
+      sets.push(`password_hash = NULL`);
+    } else if (password) {
+      const raw = String(password).trim();
+      if (raw.length < 6) {
+        return res.status(400).json({ success: false, error: 'Password must be at least 6 characters' });
+      }
+      const passwordHash = await bcrypt.hash(raw, 12);
+      sets.push(`password_hash = $${i++}`);
+      vals.push(passwordHash);
+    }
+
     if (!sets.length && tagIds === null && groupIds === null) {
       return res.json({ success: true, data: { updated: false } });
     }
@@ -438,6 +466,7 @@ export async function updateLink(req: UserReq, res: Response) {
          WHERE org_id = $${i++} AND short_code = $${i++}
         RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
                   (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain,
+                  (password_hash IS NOT NULL) AS password_protected,
                   COALESCE(
                     (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                        FROM link_tag_links ltl
@@ -455,6 +484,7 @@ export async function updateLink(req: UserReq, res: Response) {
       const result = await db.query(
         `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
                 (SELECT domain FROM domains d WHERE d.id = l.domain_id) AS domain,
+                (l.password_hash IS NOT NULL) AS password_protected,
                 COALESCE(
                   (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                      FROM link_tag_links ltl
@@ -479,6 +509,7 @@ export async function updateLink(req: UserReq, res: Response) {
       const refreshed = await db.query(
         `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
                 (SELECT domain FROM domains d WHERE d.id = l.domain_id) AS domain,
+                (l.password_hash IS NOT NULL) AS password_protected,
                 COALESCE(
                   (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                      FROM link_tag_links ltl
@@ -541,6 +572,7 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
         WHERE org_id = $2 AND short_code = $3
       RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
                 (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain,
+                (password_hash IS NOT NULL) AS password_protected,
                 COALESCE(
                   (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                      FROM link_tag_links ltl
@@ -597,6 +629,250 @@ export async function deleteLink(req: UserReq, res: Response) {
     return res.json({ success: true, data: { deleted: result.rowCount ? result.rowCount > 0 : false, short_code: shortCode } });
   } catch (e) {
     console.error('deleteLink error:', e);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/links/bulk-create
+ * Body: { items: [{ url, title? }], domain_id?, tag_ids?, group_ids?, password? }
+ */
+export async function bulkCreateLinks(req: UserReq, res: Response) {
+  try {
+    const userId = req.user.userId;
+    const orgId = req.org.orgId;
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    const domainId = req.body?.domain_id || null;
+    const tagIds = Array.isArray(req.body?.tag_ids) ? req.body.tag_ids.filter(Boolean) : [];
+    const groupIds = Array.isArray(req.body?.group_ids) ? req.body.group_ids.filter(Boolean) : [];
+    const password = req.body?.password ? String(req.body.password).trim() : '';
+    if (!items.length) return res.status(400).json({ success: false, error: 'items are required' });
+
+    if (tagIds.length) {
+      const tags = await fetchTags(orgId, tagIds);
+      if (tags.length !== tagIds.length) {
+        return res.status(400).json({ success: false, error: 'One or more tags are invalid' });
+      }
+    }
+    if (groupIds.length) {
+      const groups = await fetchGroups(orgId, groupIds);
+      if (groups.length !== groupIds.length) {
+        return res.status(400).json({ success: false, error: 'One or more groups are invalid' });
+      }
+    }
+
+    let domainHost: string | null = null;
+    let resolvedDomainId: string | null = null;
+    if (domainId) {
+      const plan = await getEffectivePlan(userId, orgId);
+      if (!isPaidPlan(plan)) {
+        return res.status(403).json({ success: false, error: 'Custom domains require a paid plan' });
+      }
+      const { rows: domainRows } = await db.query(
+        `SELECT id, domain, is_active, verified
+           FROM domains
+          WHERE id = $1 AND org_id = $2
+          LIMIT 1`,
+        [domainId, orgId],
+      );
+      if (!domainRows.length) {
+        return res.status(400).json({ success: false, error: 'Domain not found' });
+      }
+      const d = domainRows[0];
+      if (!d.is_active) return res.status(400).json({ success: false, error: 'Domain is not active' });
+      if (!d.verified) return res.status(400).json({ success: false, error: 'Domain is not verified' });
+      resolvedDomainId = d.id;
+      domainHost = d.domain;
+    }
+
+    let passwordHash: string | null = null;
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ success: false, error: 'Password must be at least 6 characters' });
+      }
+      passwordHash = await bcrypt.hash(password, 12);
+    }
+
+    const coreBase = coreBaseUrl();
+    const results: any[] = [];
+    for (const item of items) {
+      const rawUrl = String(item?.url || '').trim();
+      const title = item?.title ? String(item.title).trim() : null;
+      if (!rawUrl) {
+        results.push({ url: rawUrl, success: false, error: 'Missing URL' });
+        continue;
+      }
+      const normalizedUrl = ensureHttpUrl(rawUrl);
+      if (!normalizedUrl) {
+        results.push({ url: rawUrl, success: false, error: 'URL must be http(s)' });
+        continue;
+      }
+
+      let code = '';
+      let attempts = 0;
+      do {
+        code = nanoid(8);
+        attempts += 1;
+      } while ((RESERVED.has(code.toLowerCase()) || await isShortCodeTaken(code)) && attempts < 5);
+      if (await isShortCodeTaken(code)) {
+        results.push({ url: rawUrl, success: false, error: 'Failed to generate code' });
+        continue;
+      }
+
+      const autoTitle = parseHostnameFromUrl(normalizedUrl) || 'link';
+      await db.query('BEGIN');
+      try {
+        const { rows } = await db.query(
+          `INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, active, password_hash)
+           VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, true, $8)
+           RETURNING id, short_code, original_url, title, click_count, created_at, expires_at, active,
+                     (password_hash IS NOT NULL) AS password_protected`,
+          [orgId, userId, code, normalizedUrl, title, autoTitle, resolvedDomainId, passwordHash],
+        );
+        const linkId = rows[0].id as string;
+        await setLinkTags(linkId, tagIds);
+        await setLinkGroups(linkId, groupIds);
+        await db.query('COMMIT');
+        const tagRows = tagIds.length ? await fetchTags(orgId, tagIds) : [];
+        const groupRows = groupIds.length ? await fetchGroups(orgId, groupIds) : [];
+        results.push({
+          success: true,
+          data: shapeLink({ ...rows[0], domain: domainHost, tags: tagRows, groups: groupRows }, coreBase),
+        });
+      } catch (err) {
+        try { await db.query('ROLLBACK'); } catch {}
+        results.push({ url: rawUrl, success: false, error: 'Insert failed' });
+      }
+    }
+
+    return res.json({ success: true, data: results });
+  } catch (err) {
+    console.error('bulkCreate error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/links/bulk-delete
+ * Body: { codes: string[] }
+ */
+export async function bulkDeleteLinks(req: UserReq, res: Response) {
+  try {
+    const orgId = req.org.orgId;
+    const codes = Array.isArray(req.body?.codes)
+      ? req.body.codes.map((c: any) => normalizeShortCode(c)).filter(Boolean)
+      : [];
+    if (!codes.length) return res.status(400).json({ success: false, error: 'codes are required' });
+
+    const { rows } = await db.query(
+      `DELETE FROM links WHERE org_id = $1 AND short_code = ANY($2::text[])
+       RETURNING short_code`,
+      [orgId, codes]
+    );
+    const deleted = rows.map((r) => r.short_code);
+    void invalidateCachedLinks(deleted);
+    return res.json({ success: true, data: { deleted, count: deleted.length } });
+  } catch (err) {
+    console.error('bulkDelete error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/links/:shortCode/variants
+ */
+export async function listVariants(req: UserReq, res: Response) {
+  try {
+    const orgId = req.org.orgId;
+    const { shortCode } = req.params;
+    const { rows: linkRows } = await db.query(
+      `SELECT id FROM links WHERE org_id = $1 AND short_code = $2 LIMIT 1`,
+      [orgId, shortCode]
+    );
+    if (!linkRows.length) return res.status(404).json({ success: false, error: 'Link not found' });
+    const linkId = linkRows[0].id as string;
+    const { rows } = await db.query(
+      `SELECT id, url, weight, active, created_at
+         FROM link_variants
+        WHERE link_id = $1
+        ORDER BY created_at ASC`,
+      [linkId]
+    );
+    return res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('variants.list error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * PUT /api/links/:shortCode/variants
+ * Body: { variants: [{ url, weight, active }] }
+ */
+export async function replaceVariants(req: UserReq, res: Response) {
+  try {
+    const orgId = req.org.orgId;
+    const userId = req.user.userId;
+    const { shortCode } = req.params;
+    const variants = Array.isArray(req.body?.variants) ? req.body.variants : [];
+
+    const { rows: linkRows } = await db.query(
+      `SELECT id FROM links WHERE org_id = $1 AND short_code = $2 LIMIT 1`,
+      [orgId, shortCode]
+    );
+    if (!linkRows.length) return res.status(404).json({ success: false, error: 'Link not found' });
+    const linkId = linkRows[0].id as string;
+
+    const cleaned = variants.map((v: any) => ({
+      url: ensureHttpUrl(String(v?.url || '').trim()),
+      weight: Number(v?.weight || 1),
+      active: v?.active !== false,
+    }));
+    for (const v of cleaned) {
+      if (!v.url) return res.status(400).json({ success: false, error: 'All variant URLs must be valid http(s)' });
+      if (!Number.isFinite(v.weight) || v.weight < 1 || v.weight > 1000) {
+        return res.status(400).json({ success: false, error: 'Variant weight must be 1-1000' });
+      }
+    }
+
+    await db.query('BEGIN');
+    await db.query(`DELETE FROM link_variants WHERE link_id = $1`, [linkId]);
+    if (cleaned.length) {
+      const values: any[] = [];
+      const placeholders = cleaned.map((v, idx) => {
+        const base = idx * 4;
+        values.push(linkId, v.url, v.weight, v.active);
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`;
+      });
+      await db.query(
+        `INSERT INTO link_variants (link_id, url, weight, active)
+         VALUES ${placeholders.join(', ')}`,
+        values
+      );
+    }
+    await db.query('COMMIT');
+
+    await logAudit({
+      org_id: orgId,
+      user_id: userId,
+      action: 'link.variants.update',
+      entity_type: 'link',
+      entity_id: linkId,
+      metadata: { count: cleaned.length },
+    });
+    void invalidateCachedLinks([shortCode]);
+
+    const { rows } = await db.query(
+      `SELECT id, url, weight, active, created_at
+         FROM link_variants
+        WHERE link_id = $1
+        ORDER BY created_at ASC`,
+      [linkId]
+    );
+    return res.json({ success: true, data: rows });
+  } catch (err) {
+    try { await db.query('ROLLBACK'); } catch {}
+    console.error('variants.replace error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
