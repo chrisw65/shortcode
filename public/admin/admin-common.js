@@ -15,6 +15,27 @@ export const setActiveOrgId = (orgId) => {
   else localStorage.removeItem(ORG_KEY);
 };
 
+function captureTokenFromUrl() {
+  const url = new URL(window.location.href);
+  let token = url.searchParams.get('token');
+  let hashParams = null;
+  if (!token && url.hash) {
+    hashParams = new URLSearchParams(url.hash.slice(1));
+    token = hashParams.get('token');
+  }
+  if (token) {
+    setToken(token);
+    url.searchParams.delete('token');
+    if (hashParams) {
+      hashParams.delete('token');
+      url.hash = hashParams.toString() ? `#${hashParams}` : '';
+    }
+    window.history.replaceState({}, '', url.toString());
+  }
+}
+
+captureTokenFromUrl();
+
 export function requireAuth() {
   if (!getToken()) {
     // redirect to login, then throw to stop page logic
