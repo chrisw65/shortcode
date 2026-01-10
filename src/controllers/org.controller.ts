@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import type { OrgRequest } from '../middleware/org';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
+import { clearOrgLimitCache } from '../services/orgLimits';
 
 function tempPassword() {
   return randomBytes(9).toString('hex');
@@ -124,7 +125,8 @@ export async function getOrg(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org!.orgId;
     const { rows } = await db.query(
-      `SELECT id, name, owner_user_id, ip_anonymization, data_retention_days, created_at
+      `SELECT id, name, owner_user_id, ip_anonymization, data_retention_days,
+              api_rate_limit_rpm, link_limit, domain_limit, created_at
          FROM orgs
         WHERE id = $1
         LIMIT 1`,
@@ -145,6 +147,9 @@ export async function updateOrg(req: OrgRequest, res: Response) {
     const name = String(req.body?.name ?? '').trim();
     const ipAnonymization = req.body?.ip_anonymization;
     const retentionRaw = req.body?.data_retention_days;
+    const apiRateRaw = req.body?.api_rate_limit_rpm;
+    const linkLimitRaw = req.body?.link_limit;
+    const domainLimitRaw = req.body?.domain_limit;
     if (!name) return res.status(400).json({ success: false, error: 'name is required' });
     const anonValue = typeof ipAnonymization === 'boolean' ? ipAnonymization : null;
     let retentionProvided = false;
@@ -162,14 +167,63 @@ export async function updateOrg(req: OrgRequest, res: Response) {
       }
     }
 
+    let apiRateProvided = false;
+    let apiRateValue: number | null = null;
+    if (typeof apiRateRaw !== 'undefined') {
+      apiRateProvided = true;
+      if (apiRateRaw === null || apiRateRaw === '') {
+        apiRateValue = null;
+      } else {
+        const parsed = Number(apiRateRaw);
+        if (!Number.isInteger(parsed) || parsed < 30 || parsed > 100000) {
+          return res.status(400).json({ success: false, error: 'api_rate_limit_rpm must be 30-100000' });
+        }
+        apiRateValue = parsed;
+      }
+    }
+
+    let linkLimitProvided = false;
+    let linkLimitValue: number | null = null;
+    if (typeof linkLimitRaw !== 'undefined') {
+      linkLimitProvided = true;
+      if (linkLimitRaw === null || linkLimitRaw === '') {
+        linkLimitValue = null;
+      } else {
+        const parsed = Number(linkLimitRaw);
+        if (!Number.isInteger(parsed) || parsed < 1 || parsed > 1000000) {
+          return res.status(400).json({ success: false, error: 'link_limit must be 1-1000000' });
+        }
+        linkLimitValue = parsed;
+      }
+    }
+
+    let domainLimitProvided = false;
+    let domainLimitValue: number | null = null;
+    if (typeof domainLimitRaw !== 'undefined') {
+      domainLimitProvided = true;
+      if (domainLimitRaw === null || domainLimitRaw === '') {
+        domainLimitValue = null;
+      } else {
+        const parsed = Number(domainLimitRaw);
+        if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100000) {
+          return res.status(400).json({ success: false, error: 'domain_limit must be 1-100000' });
+        }
+        domainLimitValue = parsed;
+      }
+    }
+
     const { rows } = await db.query(
       `UPDATE orgs
           SET name = $1,
               ip_anonymization = COALESCE($2, ip_anonymization),
-              data_retention_days = CASE WHEN $3 THEN $4 ELSE data_retention_days END
-        WHERE id = $5
-        RETURNING id, name, owner_user_id, ip_anonymization, data_retention_days, created_at`,
-      [name, anonValue, retentionProvided, retentionValue, orgId]
+              data_retention_days = CASE WHEN $3 THEN $4 ELSE data_retention_days END,
+              api_rate_limit_rpm = CASE WHEN $5 THEN $6 ELSE api_rate_limit_rpm END,
+              link_limit = CASE WHEN $7 THEN $8 ELSE link_limit END,
+              domain_limit = CASE WHEN $9 THEN $10 ELSE domain_limit END
+        WHERE id = $11
+        RETURNING id, name, owner_user_id, ip_anonymization, data_retention_days,
+                  api_rate_limit_rpm, link_limit, domain_limit, created_at`,
+      [name, anonValue, retentionProvided, retentionValue, apiRateProvided, apiRateValue, linkLimitProvided, linkLimitValue, domainLimitProvided, domainLimitValue, orgId]
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'Org not found' });
 
@@ -179,9 +233,17 @@ export async function updateOrg(req: OrgRequest, res: Response) {
       action: 'org.update',
       entity_type: 'org',
       entity_id: orgId,
-      metadata: { name, ip_anonymization: anonValue, data_retention_days: retentionProvided ? retentionValue : undefined },
+      metadata: {
+        name,
+        ip_anonymization: anonValue,
+        data_retention_days: retentionProvided ? retentionValue : undefined,
+        api_rate_limit_rpm: apiRateProvided ? apiRateValue : undefined,
+        link_limit: linkLimitProvided ? linkLimitValue : undefined,
+        domain_limit: domainLimitProvided ? domainLimitValue : undefined,
+      },
     });
 
+    clearOrgLimitCache(orgId);
     return res.json({ success: true, data: rows[0] });
   } catch (e) {
     console.error('updateOrg error:', e);

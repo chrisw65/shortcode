@@ -8,6 +8,7 @@ import { logAudit } from '../services/audit';
 import { tryGrantReferralReward } from '../services/referrals';
 import { getEffectivePlan, isPaidPlan } from '../services/plan';
 import { invalidateCachedLinks, setCachedLink } from '../services/linkCache';
+import { getOrgLimits } from '../services/orgLimits';
 
 type UserReq = Request & { user: { userId: string }; org: { orgId: string } };
 
@@ -42,6 +43,18 @@ function normalizeDeepLink(raw: any): string | null {
   } catch {
     return null;
   }
+}
+
+async function ensureLinkQuota(orgId: string, requested: number) {
+  if (requested <= 0) return null;
+  const limits = await getOrgLimits(orgId);
+  if (!limits.linkLimit) return null;
+  const { rows } = await db.query(`SELECT COUNT(*)::int AS count FROM links WHERE org_id = $1`, [orgId]);
+  const used = rows[0]?.count ?? 0;
+  if (used + requested > limits.linkLimit) {
+    return { allowed: false, remaining: Math.max(0, limits.linkLimit - used), limit: limits.linkLimit };
+  }
+  return null;
 }
 
 const RESERVED = new Set([
@@ -179,6 +192,14 @@ export async function createLink(req: UserReq, res: Response) {
     const normalizedUrl = ensureHttpUrl(String(url).trim());
     if (!normalizedUrl) {
       return res.status(400).json({ success: false, error: 'URL must be http(s)' });
+    }
+
+    const quota = await ensureLinkQuota(orgId, 1);
+    if (quota && !quota.allowed) {
+      return res.status(403).json({
+        success: false,
+        error: `Link limit reached (${quota.limit}).`,
+      });
     }
 
     const autoTitle = parseHostnameFromUrl(normalizedUrl) || 'link';
@@ -790,6 +811,15 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
     const deepLinkEnabled = Boolean(req.body?.deep_link_enabled) || Boolean(deepLinkUrl);
     if (!items.length) return res.status(400).json({ success: false, error: 'items are required' });
 
+    const candidateCount = items.filter((item) => String(item?.url || '').trim()).length;
+    const quota = await ensureLinkQuota(orgId, candidateCount);
+    if (quota && !quota.allowed) {
+      return res.status(403).json({
+        success: false,
+        error: `Link limit reached (${quota.limit}).`,
+      });
+    }
+
     if (tagIds.length) {
       const tags = await fetchTags(orgId, tagIds);
       if (tags.length !== tagIds.length) {
@@ -950,6 +980,14 @@ export async function bulkImportLinks(req: UserReq, res: Response) {
 
     if (!items.length) {
       return res.status(400).json({ success: false, error: 'CSV has no usable rows' });
+    }
+
+    const quota = await ensureLinkQuota(orgId, items.length);
+    if (quota && !quota.allowed) {
+      return res.status(403).json({
+        success: false,
+        error: `Link limit reached (${quota.limit}).`,
+      });
     }
 
     const tagIds = Array.isArray(req.body?.tag_ids) ? req.body.tag_ids.filter(Boolean) : [];

@@ -6,6 +6,7 @@ import db from '../config/database';
 import { logAudit } from '../services/audit';
 import { tryGrantReferralReward } from '../services/referrals';
 import { getEffectivePlan, isPaidPlan } from '../services/plan';
+import { getOrgLimits } from '../services/orgLimits';
 
 // Local auth-aware request type (your middleware attaches req.user/org)
 type JwtUser = { userId: string; email?: string };
@@ -33,6 +34,17 @@ function normalizeDomain(input: string): string {
 function newVerificationToken(): string {
   // 32 bytes -> 64 hex chars
   return randomBytes(32).toString('hex');
+}
+
+async function ensureDomainQuota(orgId: string) {
+  const limits = await getOrgLimits(orgId);
+  if (!limits.domainLimit) return null;
+  const { rows } = await db.query(`SELECT COUNT(*)::int AS count FROM domains WHERE org_id = $1`, [orgId]);
+  const used = rows[0]?.count ?? 0;
+  if (used + 1 > limits.domainLimit) {
+    return { allowed: false, remaining: Math.max(0, limits.domainLimit - used), limit: limits.domainLimit };
+  }
+  return null;
 }
 
 function shape(row: any) {
@@ -86,6 +98,11 @@ export async function createDomain(req: AuthedRequest, res: Response) {
 
     if (!domain || typeof domain !== 'string') {
       return res.status(400).json({ success: false, error: 'domain is required' });
+    }
+
+    const quota = await ensureDomainQuota(orgId);
+    if (quota && !quota.allowed) {
+      return res.status(403).json({ success: false, error: `Domain limit reached (${quota.limit}).` });
     }
 
     const d = normalizeDomain(domain);

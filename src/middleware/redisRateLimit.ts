@@ -2,6 +2,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { RateLimiterRedis, RateLimiterMemory } from 'rate-limiter-flexible';
 import redisClient from '../config/redis';
+import { getOrgLimits } from '../services/orgLimits';
 
 function ipv6SafeKey(req: Request): string {
   const cfip = (req.headers['cf-connecting-ip'] as string | undefined)?.trim();
@@ -88,3 +89,46 @@ export const perUser120rpmRedis = makeMiddleware(
   },
   'json'
 );
+
+const orgLimiterCache = new Map<number, ReturnType<typeof buildLimiter>>();
+
+function getOrgLimiter(points: number) {
+  const existing = orgLimiterCache.get(points);
+  if (existing) return existing;
+  const limiter = buildLimiter(points, 60, `rl:org:${points}`);
+  orgLimiterCache.set(points, limiter);
+  return limiter;
+}
+
+export async function perOrgApiRpmRedis(req: Request, res: Response, next: NextFunction) {
+  const bypassToken = process.env.RATE_LIMIT_BYPASS_TOKEN;
+  if (bypassToken && req.headers['x-rate-bypass'] === bypassToken) {
+    return next();
+  }
+  const orgId = (req as any)?.org?.orgId as string | undefined;
+  if (!orgId) return next();
+
+  try {
+    const limits = await getOrgLimits(orgId);
+    const points = scaled(limits.apiRateLimitRpm);
+    const limiter = getOrgLimiter(points);
+    const key = `org:${orgId}`;
+    const useRedis = redisClient.isReady;
+    const result = await (useRedis ? limiter.redis : limiter.memory).consume(key);
+    const reset = Math.ceil((Date.now() + (result.msBeforeNext ?? 0)) / 1000);
+    res.setHeader('X-RateLimit-Limit', String(points));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(0, result.remainingPoints ?? 0)));
+    res.setHeader('X-RateLimit-Reset', String(reset));
+    return next();
+  } catch (err: any) {
+    const msBeforeNext = err?.msBeforeNext ?? 60_000;
+    const remaining = err?.remainingPoints ?? 0;
+    const reset = Math.ceil((Date.now() + msBeforeNext) / 1000);
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(0, remaining)));
+    res.setHeader('X-RateLimit-Reset', String(reset));
+    if (msBeforeNext > 0) {
+      res.setHeader('Retry-After', String(Math.ceil(msBeforeNext / 1000)));
+    }
+    return res.status(429).json({ success: false, error: 'Too many requests' });
+  }
+}

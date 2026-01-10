@@ -11,6 +11,9 @@ const orgName = document.getElementById('orgName');
 const orgRole = document.getElementById('orgRole');
 const orgIpAnon = document.getElementById('orgIpAnon');
 const orgRetention = document.getElementById('orgRetention');
+const orgApiRpm = document.getElementById('orgApiRpm');
+const orgLinkLimit = document.getElementById('orgLinkLimit');
+const orgDomainLimit = document.getElementById('orgDomainLimit');
 const orgSaveBtn = document.getElementById('orgSaveBtn');
 const orgMsg = document.getElementById('orgMsg');
 const btnChange = document.getElementById('btnChange');
@@ -66,6 +69,9 @@ async function loadOrgSettings() {
     if (orgRole) orgRole.value = data.find((o) => o.id === (getActiveOrgId() || orgData?.id))?.role || '';
     if (orgIpAnon) orgIpAnon.checked = Boolean(orgData?.ip_anonymization);
     if (orgRetention) orgRetention.value = orgData?.data_retention_days ? String(orgData.data_retention_days) : '';
+    if (orgApiRpm) orgApiRpm.value = orgData?.api_rate_limit_rpm ? String(orgData.api_rate_limit_rpm) : '';
+    if (orgLinkLimit) orgLinkLimit.value = orgData?.link_limit ? String(orgData.link_limit) : '';
+    if (orgDomainLimit) orgDomainLimit.value = orgData?.domain_limit ? String(orgData.domain_limit) : '';
     if (meOrg && orgData?.name) meOrg.textContent = orgData.name;
   } catch (e) {
     if (orgMsg) orgMsg.textContent = e?.message || 'Failed to load orgs.';
@@ -89,6 +95,27 @@ async function saveOrgSettings() {
       if (orgSaveBtn) orgSaveBtn.disabled = false;
       return;
     }
+    const apiRaw = orgApiRpm ? orgApiRpm.value.trim() : '';
+    const apiValue = apiRaw ? Number(apiRaw) : null;
+    if (apiRaw && (!Number.isInteger(apiValue) || apiValue < 30 || apiValue > 100000)) {
+      if (orgMsg) orgMsg.textContent = 'API rate limit must be 30-100000 rpm.';
+      if (orgSaveBtn) orgSaveBtn.disabled = false;
+      return;
+    }
+    const linkRaw = orgLinkLimit ? orgLinkLimit.value.trim() : '';
+    const linkValue = linkRaw ? Number(linkRaw) : null;
+    if (linkRaw && (!Number.isInteger(linkValue) || linkValue < 1 || linkValue > 1000000)) {
+      if (orgMsg) orgMsg.textContent = 'Link limit must be 1-1000000.';
+      if (orgSaveBtn) orgSaveBtn.disabled = false;
+      return;
+    }
+    const domainRaw = orgDomainLimit ? orgDomainLimit.value.trim() : '';
+    const domainValue = domainRaw ? Number(domainRaw) : null;
+    if (domainRaw && (!Number.isInteger(domainValue) || domainValue < 1 || domainValue > 100000)) {
+      if (orgMsg) orgMsg.textContent = 'Domain limit must be 1-100000.';
+      if (orgSaveBtn) orgSaveBtn.disabled = false;
+      return;
+    }
     await api('/api/org', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -96,6 +123,9 @@ async function saveOrgSettings() {
         name,
         ip_anonymization: orgIpAnon ? orgIpAnon.checked : undefined,
         data_retention_days: retentionRaw ? retentionValue : null,
+        api_rate_limit_rpm: apiRaw ? apiValue : null,
+        link_limit: linkRaw ? linkValue : null,
+        domain_limit: domainRaw ? domainValue : null,
       }),
     });
     if (orgMsg) orgMsg.textContent = 'Organization updated.';

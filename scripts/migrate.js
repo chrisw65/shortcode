@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS orgs (
   owner_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   ip_anonymization BOOLEAN DEFAULT false,
   data_retention_days INTEGER,
+  api_rate_limit_rpm INTEGER,
+  link_limit INTEGER,
+  domain_limit INTEGER,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -353,6 +356,9 @@ ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS scopes TEXT[] NOT NULL DEFAULT ARR
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL;
 ALTER TABLE orgs ADD COLUMN IF NOT EXISTS ip_anonymization BOOLEAN DEFAULT false;
+ALTER TABLE orgs ADD COLUMN IF NOT EXISTS api_rate_limit_rpm INTEGER;
+ALTER TABLE orgs ADD COLUMN IF NOT EXISTS link_limit INTEGER;
+ALTER TABLE orgs ADD COLUMN IF NOT EXISTS domain_limit INTEGER;
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_links_short_code ON links(short_code);

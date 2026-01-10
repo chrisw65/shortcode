@@ -3,7 +3,7 @@ import { Router, type RequestHandler } from 'express';
 import * as linkController from '../controllers/link.controller';
 import { authenticate } from '../middleware/auth';
 import { requireOrg } from '../middleware/org';
-import { perUser120rpmRedis } from '../middleware/redisRateLimit';
+import { perOrgApiRpmRedis } from '../middleware/redisRateLimit';
 import { requireApiScope } from '../middleware/apiScope';
 
 const router = Router();
@@ -12,7 +12,7 @@ const router = Router();
 const wrap = (fn: any): RequestHandler =>
   (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const noLimit: RequestHandler = (_req, _res, next) => next();
-const apiLimiter = process.env.RATE_LIMIT_API_DISABLED === '1' ? noLimit : perUser120rpmRedis;
+const apiLimiter = process.env.RATE_LIMIT_API_DISABLED === '1' ? noLimit : perOrgApiRpmRedis;
 
 // All link endpoints require auth
 router.use(authenticate);
