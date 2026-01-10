@@ -21,6 +21,7 @@ function safeRedirectUrl(raw: string): string | null {
 }
 
 const PW_COOKIE_TTL_SECONDS = 60 * 60 * 24;
+const DEEP_LINK_TIMEOUT_MS = 1500;
 
 function cookieSecret(): string {
   return process.env.PW_COOKIE_SECRET || process.env.JWT_SECRET || 'pw-secret';
@@ -116,6 +117,55 @@ function pickVariant(variants: Array<{ url: string; weight: number; active: bool
   return active[0].url;
 }
 
+function userAgentPlatform(ua: string) {
+  if (/android/i.test(ua)) return 'android';
+  if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
+  return 'other';
+}
+
+function renderDeepLinkPage(res: Response, params: {
+  deepLinkUrl: string;
+  fallbackUrl: string;
+  shortCode: string;
+}) {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  const { deepLinkUrl, fallbackUrl, shortCode } = params;
+  return res.status(200).send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Opening app…</title>
+    <style>
+      body{font-family:Arial,sans-serif;background:#0b0d10;color:#f5f1e8;margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh}
+      .card{background:#151c26;border:1px solid #2a2f3a;border-radius:16px;padding:28px;max-width:420px;width:90%}
+      h1{font-size:20px;margin:0 0 12px}
+      p{color:#b8b3a9;font-size:14px;margin:0 0 14px}
+      a{color:#e0b15a;text-decoration:none}
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Opening your app…</h1>
+      <p>If nothing happens, <a href="${fallbackUrl}">continue to the web link</a>.</p>
+      <p class="muted">Short code: ${shortCode}</p>
+    </div>
+    <script>
+      const deepLink = ${JSON.stringify(deepLinkUrl)};
+      const fallback = ${JSON.stringify(fallbackUrl)};
+      const start = Date.now();
+      window.location.href = deepLink;
+      setTimeout(() => {
+        if (Date.now() - start < ${DEEP_LINK_TIMEOUT_MS} + 500) {
+          window.location.href = fallback;
+        }
+      }, ${DEEP_LINK_TIMEOUT_MS});
+    </script>
+  </body>
+</html>`);
+}
+
 export class RedirectController {
   public redirect = async (req: Request, res: Response) => {
     try {
@@ -124,7 +174,8 @@ export class RedirectController {
       let link = await getCachedLink(shortCode);
       if (!link) {
         const q = `
-          SELECT l.id, l.original_url, l.expires_at, l.active, l.org_id, o.ip_anonymization, l.password_hash
+          SELECT l.id, l.original_url, l.expires_at, l.active, l.org_id, o.ip_anonymization, l.password_hash,
+                 l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled
             FROM links l
             JOIN orgs o ON o.id = l.org_id
            WHERE short_code = $1
@@ -147,6 +198,10 @@ export class RedirectController {
           org_id: rows[0].org_id,
           ip_anonymization: rows[0].ip_anonymization === true,
           password_hash: rows[0].password_hash || null,
+          deep_link_url: rows[0].deep_link_url || null,
+          ios_fallback_url: rows[0].ios_fallback_url || null,
+          android_fallback_url: rows[0].android_fallback_url || null,
+          deep_link_enabled: rows[0].deep_link_enabled === true,
           variants: variants || [],
         };
         void setCachedLink(shortCode, link);
@@ -210,6 +265,20 @@ export class RedirectController {
       const destination = pickVariant(link.variants, link.original_url);
       const safeUrl = safeRedirectUrl(destination);
       if (!safeUrl) return res.status(400).send('Invalid destination');
+      if (link.deep_link_enabled && link.deep_link_url) {
+        const ua = String(req.headers['user-agent'] || '');
+        const platform = userAgentPlatform(ua);
+        if (platform !== 'other') {
+          const fallbackUrl = platform === 'ios'
+            ? (link.ios_fallback_url || safeUrl)
+            : (link.android_fallback_url || safeUrl);
+          return renderDeepLinkPage(res, {
+            deepLinkUrl: link.deep_link_url,
+            fallbackUrl,
+            shortCode,
+          });
+        }
+      }
       return res.redirect(302, safeUrl);
     } catch (e) {
       console.error('redirect error:', e);

@@ -20,6 +20,10 @@ const els = {
   inCode:    document.getElementById('inCode'),
   inDomain:  document.getElementById('inDomain'),
   inPassword: document.getElementById('inPassword'),
+  inDeepLink: document.getElementById('inDeepLink'),
+  inDeepLinkEnabled: document.getElementById('inDeepLinkEnabled'),
+  inIosFallback: document.getElementById('inIosFallback'),
+  inAndroidFallback: document.getElementById('inAndroidFallback'),
   inTags:    document.getElementById('inTags'),
   inGroup:   document.getElementById('inGroup'),
   utmSource: document.getElementById('utmSource'),
@@ -619,6 +623,10 @@ async function createLink() {
   const code = (els.inCode.value || '').trim();
   const domain = selectedDomain();
   const password = (els.inPassword?.value || '').trim();
+  const deepLinkUrl = (els.inDeepLink?.value || '').trim();
+  const iosFallback = (els.inIosFallback?.value || '').trim();
+  const androidFallback = (els.inAndroidFallback?.value || '').trim();
+  const deepLinkEnabledRaw = (els.inDeepLinkEnabled?.value || 'auto').trim();
   const tagIds = Array.from(els.inTags?.selectedOptions || []).map(opt => opt.value).filter(Boolean);
   const groupId = (els.inGroup?.value || '').trim();
   const utmParams = readUtmParams();
@@ -637,6 +645,10 @@ async function createLink() {
     if (tagIds.length) body.tag_ids = tagIds;
     if (groupId) body.group_ids = [groupId];
     if (password) body.password = password;
+    if (deepLinkUrl) body.deep_link_url = deepLinkUrl;
+    if (iosFallback) body.ios_fallback_url = iosFallback;
+    if (androidFallback) body.android_fallback_url = androidFallback;
+    if (deepLinkEnabledRaw !== 'auto') body.deep_link_enabled = deepLinkEnabledRaw === 'true';
     const res = unwrap(await api('/api/links', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -646,6 +658,10 @@ async function createLink() {
     await load();
     els.inUrl.value = ''; els.inTitle.value = ''; els.inCode.value = '';
     if (els.inPassword) els.inPassword.value = '';
+    if (els.inDeepLink) els.inDeepLink.value = '';
+    if (els.inIosFallback) els.inIosFallback.value = '';
+    if (els.inAndroidFallback) els.inAndroidFallback.value = '';
+    if (els.inDeepLinkEnabled) els.inDeepLinkEnabled.value = 'auto';
     if (els.inTags) Array.from(els.inTags.options).forEach(o => { o.selected = false; });
     if (els.inGroup) els.inGroup.value = '';
     if (els.utmSource) els.utmSource.value = '';

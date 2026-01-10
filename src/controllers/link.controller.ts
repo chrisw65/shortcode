@@ -29,6 +29,20 @@ function parseHostnameFromUrl(url: string): string | null {
   }
 }
 
+function normalizeDeepLink(raw: any): string | null {
+  const value = String(raw || '').trim();
+  if (!value) return null;
+  try {
+    const u = new URL(value);
+    const scheme = u.protocol.replace(':', '').toLowerCase();
+    if (!/^[a-z][a-z0-9+.-]*$/.test(scheme)) return null;
+    if (['javascript', 'data'].includes(scheme)) return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 const RESERVED = new Set([
   'admin','api','login','logout','register','health','ready','favicon.ico',
   'robots.txt','sitemap.xml','manifest.json','service-worker.js'
@@ -85,6 +99,10 @@ function shapeLink(row: any, coreBase: string) {
     short_url: `${baseUrl}/${row.short_code}`,
     domain,
     password_protected: Boolean(row.password_protected),
+    deep_link_url: row.deep_link_url ?? null,
+    ios_fallback_url: row.ios_fallback_url ?? null,
+    android_fallback_url: row.android_fallback_url ?? null,
+    deep_link_enabled: row.deep_link_enabled === true,
     tags,
     groups,
   };
@@ -141,7 +159,20 @@ export async function createLink(req: UserReq, res: Response) {
   try {
     const userId = req.user.userId;
     const orgId = req.org.orgId;
-    const { url, title, short_code, expires_at, domain_id, tag_ids, group_ids, password } = req.body ?? {};
+    const {
+      url,
+      title,
+      short_code,
+      expires_at,
+      domain_id,
+      tag_ids,
+      group_ids,
+      password,
+      deep_link_url,
+      ios_fallback_url,
+      android_fallback_url,
+      deep_link_enabled,
+    } = req.body ?? {};
     if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
 
     const normalizedUrl = ensureHttpUrl(String(url).trim());
@@ -190,6 +221,10 @@ export async function createLink(req: UserReq, res: Response) {
     let domainId: string | null = null;
     let domainHost: string | null = null;
     let passwordHash: string | null = null;
+    let deepLinkUrl: string | null = null;
+    let iosFallbackUrl: string | null = null;
+    let androidFallbackUrl: string | null = null;
+    let deepLinkEnabled = false;
 
     if (domain_id) {
       const plan = await getEffectivePlan(userId, orgId);
@@ -222,14 +257,50 @@ export async function createLink(req: UserReq, res: Response) {
       passwordHash = await bcrypt.hash(raw, 12);
     }
 
+    if (deep_link_url) {
+      deepLinkUrl = normalizeDeepLink(deep_link_url);
+      if (!deepLinkUrl) {
+        return res.status(400).json({ success: false, error: 'Deep link URL is invalid' });
+      }
+    }
+    if (ios_fallback_url !== undefined) {
+      iosFallbackUrl = ios_fallback_url ? ensureHttpUrl(String(ios_fallback_url).trim()) : null;
+      if (ios_fallback_url && !iosFallbackUrl) {
+        return res.status(400).json({ success: false, error: 'iOS fallback must be http(s)' });
+      }
+    }
+    if (android_fallback_url !== undefined) {
+      androidFallbackUrl = android_fallback_url ? ensureHttpUrl(String(android_fallback_url).trim()) : null;
+      if (android_fallback_url && !androidFallbackUrl) {
+        return res.status(400).json({ success: false, error: 'Android fallback must be http(s)' });
+      }
+    }
+    deepLinkEnabled = Boolean(deep_link_enabled) || Boolean(deepLinkUrl);
+
     await db.query('BEGIN');
     const q = `
-      INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, expires_at, active, password_hash)
-      VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, $8, true, $9)
+      INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, expires_at, active, password_hash,
+                         deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled)
+      VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, $8, true, $9, $10, $11, $12, $13)
       RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
-                (password_hash IS NOT NULL) AS password_protected
+                (password_hash IS NOT NULL) AS password_protected,
+                deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled
     `;
-    const { rows } = await db.query(q, [orgId, userId, code, normalizedUrl, title ?? null, autoTitle, domainId, expires_at ?? null, passwordHash]);
+    const { rows } = await db.query(q, [
+      orgId,
+      userId,
+      code,
+      normalizedUrl,
+      title ?? null,
+      autoTitle,
+      domainId,
+      expires_at ?? null,
+      passwordHash,
+      deepLinkUrl,
+      iosFallbackUrl,
+      androidFallbackUrl,
+      deepLinkEnabled,
+    ]);
     const linkId = rows[0].id as string;
     await setLinkTags(linkId, tagIds);
     await setLinkGroups(linkId, groupIds);
@@ -251,6 +322,10 @@ export async function createLink(req: UserReq, res: Response) {
       expires_at: rows[0].expires_at,
       active: rows[0].active !== false,
       password_hash: passwordHash,
+      deep_link_url: deepLinkUrl,
+      ios_fallback_url: iosFallbackUrl,
+      android_fallback_url: androidFallbackUrl,
+      deep_link_enabled: deepLinkEnabled,
       variants: [],
     });
     const tagRows = tagIds.length ? await fetchTags(orgId, tagIds) : [];
@@ -322,6 +397,7 @@ export async function getUserLinks(req: UserReq, res: Response) {
       `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
               d.domain AS domain,
               (l.password_hash IS NOT NULL) AS password_protected,
+              l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled,
               COALESCE(
                 (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                    FROM link_tag_links ltl
@@ -356,6 +432,7 @@ export async function getLinkDetails(req: UserReq, res: Response) {
       `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
               d.domain AS domain,
               (l.password_hash IS NOT NULL) AS password_protected,
+              l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled,
               COALESCE(
                 (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                    FROM link_tag_links ltl
@@ -390,7 +467,20 @@ export async function updateLink(req: UserReq, res: Response) {
   try {
     const orgId = req.org.orgId;
     const { shortCode } = req.params;
-    const { url, title, expires_at, short_code, tag_ids, group_ids, password, clear_password } = req.body ?? {};
+    const {
+      url,
+      title,
+      expires_at,
+      short_code,
+      tag_ids,
+      group_ids,
+      password,
+      clear_password,
+      deep_link_url,
+      ios_fallback_url,
+      android_fallback_url,
+      deep_link_enabled,
+    } = req.body ?? {};
 
     const { rows: existing } = await db.query(
       `SELECT id FROM links WHERE org_id = $1 AND short_code = $2`,
@@ -452,6 +542,49 @@ export async function updateLink(req: UserReq, res: Response) {
       vals.push(passwordHash);
     }
 
+    if (deep_link_url !== undefined) {
+      if (!deep_link_url) {
+        sets.push(`deep_link_url = NULL`);
+        sets.push(`deep_link_enabled = false`);
+      } else {
+        const normalized = normalizeDeepLink(deep_link_url);
+        if (!normalized) {
+          return res.status(400).json({ success: false, error: 'Deep link URL is invalid' });
+        }
+        sets.push(`deep_link_url = $${i++}`);
+        vals.push(normalized);
+      }
+    }
+    if (ios_fallback_url !== undefined) {
+      const normalized = ios_fallback_url ? ensureHttpUrl(String(ios_fallback_url).trim()) : null;
+      if (ios_fallback_url && !normalized) {
+        return res.status(400).json({ success: false, error: 'iOS fallback must be http(s)' });
+      }
+      sets.push(`ios_fallback_url = $${i++}`);
+      vals.push(normalized);
+    }
+    if (android_fallback_url !== undefined) {
+      const normalized = android_fallback_url ? ensureHttpUrl(String(android_fallback_url).trim()) : null;
+      if (android_fallback_url && !normalized) {
+        return res.status(400).json({ success: false, error: 'Android fallback must be http(s)' });
+      }
+      sets.push(`android_fallback_url = $${i++}`);
+      vals.push(normalized);
+    }
+    if (typeof deep_link_enabled === 'boolean') {
+      if (deep_link_enabled && deep_link_url === undefined) {
+        const hasExisting = await db.query(
+          `SELECT deep_link_url FROM links WHERE org_id = $1 AND short_code = $2 LIMIT 1`,
+          [orgId, shortCode]
+        );
+        if (!hasExisting.rows[0]?.deep_link_url) {
+          return res.status(400).json({ success: false, error: 'Deep link URL required to enable' });
+        }
+      }
+      sets.push(`deep_link_enabled = $${i++}`);
+      vals.push(deep_link_enabled);
+    }
+
     if (!sets.length && tagIds === null && groupIds === null) {
       return res.json({ success: true, data: { updated: false } });
     }
@@ -467,6 +600,7 @@ export async function updateLink(req: UserReq, res: Response) {
         RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
                   (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain,
                   (password_hash IS NOT NULL) AS password_protected,
+                  deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled,
                   COALESCE(
                     (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                        FROM link_tag_links ltl
@@ -485,6 +619,7 @@ export async function updateLink(req: UserReq, res: Response) {
         `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
                 (SELECT domain FROM domains d WHERE d.id = l.domain_id) AS domain,
                 (l.password_hash IS NOT NULL) AS password_protected,
+                l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled,
                 COALESCE(
                   (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                      FROM link_tag_links ltl
@@ -510,6 +645,7 @@ export async function updateLink(req: UserReq, res: Response) {
         `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
                 (SELECT domain FROM domains d WHERE d.id = l.domain_id) AS domain,
                 (l.password_hash IS NOT NULL) AS password_protected,
+                l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled,
                 COALESCE(
                   (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                      FROM link_tag_links ltl
@@ -573,6 +709,7 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
       RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
                 (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain,
                 (password_hash IS NOT NULL) AS password_protected,
+                deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled,
                 COALESCE(
                   (SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
                      FROM link_tag_links ltl
@@ -646,6 +783,10 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
     const tagIds = Array.isArray(req.body?.tag_ids) ? req.body.tag_ids.filter(Boolean) : [];
     const groupIds = Array.isArray(req.body?.group_ids) ? req.body.group_ids.filter(Boolean) : [];
     const password = req.body?.password ? String(req.body.password).trim() : '';
+    const deepLinkUrl = req.body?.deep_link_url ? normalizeDeepLink(req.body.deep_link_url) : null;
+    const iosFallbackUrl = req.body?.ios_fallback_url ? ensureHttpUrl(String(req.body.ios_fallback_url).trim()) : null;
+    const androidFallbackUrl = req.body?.android_fallback_url ? ensureHttpUrl(String(req.body.android_fallback_url).trim()) : null;
+    const deepLinkEnabled = Boolean(req.body?.deep_link_enabled) || Boolean(deepLinkUrl);
     if (!items.length) return res.status(400).json({ success: false, error: 'items are required' });
 
     if (tagIds.length) {
@@ -659,6 +800,16 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
       if (groups.length !== groupIds.length) {
         return res.status(400).json({ success: false, error: 'One or more groups are invalid' });
       }
+    }
+
+    if (req.body?.deep_link_url && !deepLinkUrl) {
+      return res.status(400).json({ success: false, error: 'Deep link URL is invalid' });
+    }
+    if (req.body?.ios_fallback_url && !iosFallbackUrl) {
+      return res.status(400).json({ success: false, error: 'iOS fallback must be http(s)' });
+    }
+    if (req.body?.android_fallback_url && !androidFallbackUrl) {
+      return res.status(400).json({ success: false, error: 'Android fallback must be http(s)' });
     }
 
     let domainHost: string | null = null;
@@ -723,11 +874,26 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
       await db.query('BEGIN');
       try {
         const { rows } = await db.query(
-          `INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, active, password_hash)
-           VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, true, $8)
+          `INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, active, password_hash,
+                              deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled)
+           VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, true, $8, $9, $10, $11, $12)
            RETURNING id, short_code, original_url, title, click_count, created_at, expires_at, active,
-                     (password_hash IS NOT NULL) AS password_protected`,
-          [orgId, userId, code, normalizedUrl, title, autoTitle, resolvedDomainId, passwordHash],
+                     (password_hash IS NOT NULL) AS password_protected,
+                     deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled`,
+          [
+            orgId,
+            userId,
+            code,
+            normalizedUrl,
+            title,
+            autoTitle,
+            resolvedDomainId,
+            passwordHash,
+            deepLinkUrl,
+            iosFallbackUrl,
+            androidFallbackUrl,
+            deepLinkEnabled,
+          ],
         );
         const linkId = rows[0].id as string;
         await setLinkTags(linkId, tagIds);

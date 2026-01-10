@@ -12,6 +12,10 @@ export type CachedLink = {
   org_id?: string;
   ip_anonymization?: boolean;
   password_hash?: string | null;
+  deep_link_url?: string | null;
+  ios_fallback_url?: string | null;
+  android_fallback_url?: string | null;
+  deep_link_enabled?: boolean;
   variants?: Array<{ url: string; weight: number; active: boolean }>;
 };
 

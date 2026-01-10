@@ -258,6 +258,10 @@ CREATE TABLE IF NOT EXISTS links (
   title VARCHAR(500),
   click_count BIGINT DEFAULT 0,
   password_hash VARCHAR(255),
+  deep_link_url TEXT,
+  ios_fallback_url TEXT,
+  android_fallback_url TEXT,
+  deep_link_enabled BOOLEAN DEFAULT false,
   active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   expires_at TIMESTAMP

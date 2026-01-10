@@ -102,6 +102,30 @@
                 Password (optional)
                 <input id="inPassword" class="input" type="password" placeholder="Protect this link">
               </label>
+              <div class="grid grid-2">
+                <label>
+                  Deep link URL (app)
+                  <input id="inDeepLink" class="input" type="text" placeholder="myapp://path">
+                </label>
+                <label>
+                  Deep link enabled
+                  <select id="inDeepLinkEnabled" class="input">
+                    <option value="auto" selected>Auto-enable</option>
+                    <option value="true">Enabled</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </label>
+              </div>
+              <div class="grid grid-2">
+                <label>
+                  iOS fallback URL
+                  <input id="inIosFallback" class="input" type="url" placeholder="https://example.com/ios">
+                </label>
+                <label>
+                  Android fallback URL
+                  <input id="inAndroidFallback" class="input" type="url" placeholder="https://example.com/android">
+                </label>
+              </div>
               <div class="muted">Custom domains require a paid plan and verification.</div>
               <div class="grid grid-2">
                 <label>
