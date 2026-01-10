@@ -14,6 +14,7 @@ const orgRetention = document.getElementById('orgRetention');
 const orgApiRpm = document.getElementById('orgApiRpm');
 const orgLinkLimit = document.getElementById('orgLinkLimit');
 const orgDomainLimit = document.getElementById('orgDomainLimit');
+const orgRequireSso = document.getElementById('orgRequireSso');
 const orgSaveBtn = document.getElementById('orgSaveBtn');
 const orgMsg = document.getElementById('orgMsg');
 const btnChange = document.getElementById('btnChange');
@@ -83,6 +84,16 @@ async function loadOrgSettings() {
     if (meOrg && orgData?.name) meOrg.textContent = orgData.name;
   } catch (e) {
     if (orgMsg) orgMsg.textContent = e?.message || 'Failed to load orgs.';
+  }
+}
+
+async function loadOrgPolicy() {
+  try {
+    const res = await api('/api/org/policy');
+    const data = res?.data || res;
+    if (orgRequireSso) orgRequireSso.checked = Boolean(data?.require_sso);
+  } catch (e) {
+    if (orgMsg) orgMsg.textContent = e?.message || 'Failed to load org policy.';
   }
 }
 
@@ -177,6 +188,13 @@ async function saveOrgSettings() {
         domain_limit: domainRaw ? domainValue : null,
       }),
     });
+    await api('/api/org/policy', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        require_sso: orgRequireSso ? orgRequireSso.checked : false,
+      }),
+    });
     if (orgMsg) orgMsg.textContent = 'Organization updated.';
   } catch (e) {
     if (orgMsg) orgMsg.textContent = e?.message || 'Failed to update org.';
@@ -251,4 +269,5 @@ privacyDeleteBtn?.addEventListener('click', async () => {
 });
 loadMe();
 loadOrgSettings();
+loadOrgPolicy();
 loadSsoSettings();

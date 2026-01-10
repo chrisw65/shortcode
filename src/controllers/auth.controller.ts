@@ -140,6 +140,18 @@ async function loginImpl(req: Request, res: Response) {
       return res.status(403).json({ success: false, error: 'Account disabled' });
     }
 
+    const { rows: policyRows } = await db.query(
+      `SELECT 1
+         FROM org_memberships m
+         JOIN org_policies p ON p.org_id = m.org_id
+        WHERE m.user_id = $1 AND p.require_sso = true
+        LIMIT 1`,
+      [user.id]
+    );
+    if (policyRows.length) {
+      return res.status(403).json({ success: false, error: 'SSO is required for your organization' });
+    }
+
     // compare, with a guard for accidental leading/trailing spaces
     let ok = await bcrypt.compare(rawPass, user.password_hash);
     if (!ok && (/^\s/.test(rawPass) || /\s$/.test(rawPass))) {

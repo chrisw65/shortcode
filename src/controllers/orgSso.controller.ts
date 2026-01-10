@@ -62,6 +62,21 @@ export async function updateOrgSso(req: OrgRequest, res: Response) {
     if (enabled && (!issuerUrl || !clientId)) {
       return res.status(400).json({ success: false, error: 'issuer_url and client_id are required when enabled' });
     }
+    if (!enabled) {
+      const { rows: policyRows } = await db.query(
+        `SELECT require_sso
+           FROM org_policies
+          WHERE org_id = $1
+          LIMIT 1`,
+        [orgId]
+      );
+      if (policyRows[0]?.require_sso) {
+        return res.status(400).json({
+          success: false,
+          error: 'Disable the Require SSO policy before turning off SSO.',
+        });
+      }
+    }
 
     const existing = await db.query(`SELECT id, client_secret FROM org_sso WHERE org_id = $1 LIMIT 1`, [orgId]);
     const secretToStore = clientSecret || existing.rows[0]?.client_secret || null;

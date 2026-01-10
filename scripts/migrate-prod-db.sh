@@ -194,6 +194,15 @@ CREATE TABLE IF NOT EXISTS org_sso (
   UNIQUE (org_id)
 );
 
+CREATE TABLE IF NOT EXISTS org_policies (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  require_sso BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (org_id)
+);
+
 CREATE TABLE IF NOT EXISTS api_keys (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
