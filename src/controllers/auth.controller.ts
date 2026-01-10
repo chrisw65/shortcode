@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import { createHash, randomBytes } from 'crypto';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { authenticator } from 'otplib';
+import { generateSecret, generateURI, verify } from 'otplib';
 import qrcode from 'qrcode';
 import db from '../config/database';
 import { getEffectivePlan } from '../services/plan';
@@ -64,10 +64,7 @@ const APP_URL = process.env.PUBLIC_HOST || process.env.BASE_URL || 'https://okle
 const OIDC_STATE_COOKIE = 'oidc_state';
 const OIDC_STATE_TTL_SECONDS = 600;
 const TWO_FA_ISSUER = process.env.TOTP_ISSUER || 'OkLeaf';
-
-authenticator.options = {
-  window: Number(process.env.TOTP_WINDOW || '1'),
-};
+const TOTP_EPOCH_TOLERANCE = Number(process.env.TOTP_EPOCH_TOLERANCE || '30');
 
 type OidcState = {
   org_id: string;
@@ -646,7 +643,7 @@ async function twoFactorSetupImpl(req: Request, res: Response) {
       return res.status(400).json({ success: false, error: 'Two-factor authentication already enabled' });
     }
 
-    const secret = authenticator.generateSecret();
+    const secret = generateSecret();
     await db.query(
       `UPDATE users
           SET totp_secret = $1,
@@ -657,7 +654,7 @@ async function twoFactorSetupImpl(req: Request, res: Response) {
     );
 
     const email = String(rows[0].email || '').trim();
-    const otpauth = authenticator.keyuri(email, TWO_FA_ISSUER, secret);
+    const otpauth = generateURI({ issuer: TWO_FA_ISSUER, label: email, secret });
     const qrDataUrl = await qrcode.toDataURL(otpauth);
 
     return res.json({ success: true, data: { secret, otpauth_url: otpauth, qr_data_url: qrDataUrl } });
@@ -683,8 +680,8 @@ async function twoFactorVerifyImpl(req: Request, res: Response) {
     const secret = rows[0].totp_secret;
     if (!secret) return res.status(400).json({ success: false, error: 'Two-factor setup not initialized' });
 
-    const ok = authenticator.check(code, secret);
-    if (!ok) return res.status(400).json({ success: false, error: 'Invalid code' });
+    const result = await verify({ secret, token: code, epochTolerance: TOTP_EPOCH_TOLERANCE });
+    if (!result.valid) return res.status(400).json({ success: false, error: 'Invalid code' });
 
     await db.query(
       `UPDATE users
@@ -724,7 +721,12 @@ async function twoFactorDisableImpl(req: Request, res: Response) {
 
     const ok = await bcrypt.compare(current_password, rows[0].password_hash);
     if (!ok) return res.status(401).json({ success: false, error: 'Invalid current password' });
-    if (!authenticator.check(code, rows[0].totp_secret)) {
+    const verifyResult = await verify({
+      secret: rows[0].totp_secret,
+      token: code,
+      epochTolerance: TOTP_EPOCH_TOLERANCE,
+    });
+    if (!verifyResult.valid) {
       return res.status(400).json({ success: false, error: 'Invalid code' });
     }
 
@@ -772,8 +774,12 @@ async function twoFactorConfirmImpl(req: Request, res: Response) {
       return res.status(400).json({ success: false, error: 'Two-factor authentication not enabled' });
     }
 
-    const ok = authenticator.check(code, userRow.totp_secret);
-    if (!ok) return res.status(400).json({ success: false, error: 'Invalid code' });
+    const verifyResult = await verify({
+      secret: userRow.totp_secret,
+      token: code,
+      epochTolerance: TOTP_EPOCH_TOLERANCE,
+    });
+    if (!verifyResult.valid) return res.status(400).json({ success: false, error: 'Invalid code' });
 
     await db.query(`UPDATE users SET totp_last_used = NOW() WHERE id = $1`, [userRow.id]);
     const token = signToken({ userId: userRow.id, email: userRow.email, is_superadmin: userRow.is_superadmin });
