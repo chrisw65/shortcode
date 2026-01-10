@@ -42,3 +42,8 @@ Use this checklist to validate the Phase 3.4 product features in staging or prod
 - Toasts fire for create/update/delete actions.
 - QR modal opens in-page (not a new tab).
 
+## Run log
+- 2026-01-10 15:53:19 UTC (prod https://okleaf.link)
+- Pass: login, tag/group create, short code availability, custom code create, password prompt (401 HTML), deep link page (mobile UA), variants update, bulk create, bulk import, bulk delete, analytics summary.
+- Notes: bulk create auto-generates short codes (no custom short_code input); bulk delete expects `codes` in request body.
+- Manual pending (UI-only): UTM builder, tags/groups filters, toasts, QR modal, in-admin CSV upload, and click distribution verification for variants.
