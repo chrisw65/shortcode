@@ -24,6 +24,7 @@ router.post('/', wrap(linkController.createLink));
 // Bulk operations
 router.post('/bulk-create', wrap(linkController.bulkCreateLinks));
 router.post('/bulk-delete', wrap(linkController.bulkDeleteLinks));
+router.post('/bulk-import', wrap(linkController.bulkImportLinks));
 
 // Check short code availability
 router.get('/availability/:shortCode', wrap(linkController.checkAvailability));

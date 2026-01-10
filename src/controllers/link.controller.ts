@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { nanoid } from 'nanoid';
 import bcrypt from 'bcrypt';
 import db from '../config/database';
+import { parse } from 'csv-parse/sync';
 import { logAudit } from '../services/audit';
 import { tryGrantReferralReward } from '../services/referrals';
 import { getEffectivePlan, isPaidPlan } from '../services/plan';
@@ -846,16 +847,16 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
 
     const coreBase = coreBaseUrl();
     const results: any[] = [];
-    for (const item of items) {
+    for (const [index, item] of items.entries()) {
       const rawUrl = String(item?.url || '').trim();
       const title = item?.title ? String(item.title).trim() : null;
       if (!rawUrl) {
-        results.push({ url: rawUrl, success: false, error: 'Missing URL' });
+        results.push({ row: index + 1, url: rawUrl, success: false, error: 'Missing URL' });
         continue;
       }
       const normalizedUrl = ensureHttpUrl(rawUrl);
       if (!normalizedUrl) {
-        results.push({ url: rawUrl, success: false, error: 'URL must be http(s)' });
+        results.push({ row: index + 1, url: rawUrl, success: false, error: 'URL must be http(s)' });
         continue;
       }
 
@@ -866,7 +867,7 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
         attempts += 1;
       } while ((RESERVED.has(code.toLowerCase()) || await isShortCodeTaken(code)) && attempts < 5);
       if (await isShortCodeTaken(code)) {
-        results.push({ url: rawUrl, success: false, error: 'Failed to generate code' });
+        results.push({ row: index + 1, url: rawUrl, success: false, error: 'Failed to generate code' });
         continue;
       }
 
@@ -902,18 +903,201 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
         const tagRows = tagIds.length ? await fetchTags(orgId, tagIds) : [];
         const groupRows = groupIds.length ? await fetchGroups(orgId, groupIds) : [];
         results.push({
+          row: index + 1,
           success: true,
           data: shapeLink({ ...rows[0], domain: domainHost, tags: tagRows, groups: groupRows }, coreBase),
         });
       } catch (err) {
         try { await db.query('ROLLBACK'); } catch {}
-        results.push({ url: rawUrl, success: false, error: 'Insert failed' });
+        results.push({ row: index + 1, url: rawUrl, success: false, error: 'Insert failed' });
       }
     }
 
     return res.json({ success: true, data: results });
   } catch (err) {
     console.error('bulkCreate error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/links/bulk-import
+ * Body: { csv: string, domain_id?, tag_ids?, group_ids?, password?, deep_link_url?, ios_fallback_url?, android_fallback_url?, deep_link_enabled? }
+ */
+export async function bulkImportLinks(req: UserReq, res: Response) {
+  try {
+    const userId = req.user.userId;
+    const orgId = req.org.orgId;
+    const csv = String(req.body?.csv || '');
+    if (!csv.trim()) return res.status(400).json({ success: false, error: 'csv is required' });
+
+    let records: any[] = [];
+    try {
+      records = parse(csv, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+      });
+    } catch (err) {
+      return res.status(400).json({ success: false, error: 'Invalid CSV format' });
+    }
+
+    const items = records.map((row) => ({
+      url: row.url || row.URL || row.destination || row.link || '',
+      title: row.title || row.name || '',
+      short_code: row.short_code || row.code || row.slug || '',
+    })).filter((row) => row.url || row.short_code || row.title);
+
+    if (!items.length) {
+      return res.status(400).json({ success: false, error: 'CSV has no usable rows' });
+    }
+
+    const tagIds = Array.isArray(req.body?.tag_ids) ? req.body.tag_ids.filter(Boolean) : [];
+    const groupIds = Array.isArray(req.body?.group_ids) ? req.body.group_ids.filter(Boolean) : [];
+    const domainId = req.body?.domain_id || null;
+    const password = req.body?.password ? String(req.body.password).trim() : '';
+    const deepLinkUrl = req.body?.deep_link_url ? normalizeDeepLink(req.body.deep_link_url) : null;
+    const iosFallbackUrl = req.body?.ios_fallback_url ? ensureHttpUrl(String(req.body.ios_fallback_url).trim()) : null;
+    const androidFallbackUrl = req.body?.android_fallback_url ? ensureHttpUrl(String(req.body.android_fallback_url).trim()) : null;
+    const deepLinkEnabled = Boolean(req.body?.deep_link_enabled) || Boolean(deepLinkUrl);
+
+    if (tagIds.length) {
+      const tags = await fetchTags(orgId, tagIds);
+      if (tags.length !== tagIds.length) {
+        return res.status(400).json({ success: false, error: 'One or more tags are invalid' });
+      }
+    }
+    if (groupIds.length) {
+      const groups = await fetchGroups(orgId, groupIds);
+      if (groups.length !== groupIds.length) {
+        return res.status(400).json({ success: false, error: 'One or more groups are invalid' });
+      }
+    }
+    if (req.body?.deep_link_url && !deepLinkUrl) {
+      return res.status(400).json({ success: false, error: 'Deep link URL is invalid' });
+    }
+    if (req.body?.ios_fallback_url && !iosFallbackUrl) {
+      return res.status(400).json({ success: false, error: 'iOS fallback must be http(s)' });
+    }
+    if (req.body?.android_fallback_url && !androidFallbackUrl) {
+      return res.status(400).json({ success: false, error: 'Android fallback must be http(s)' });
+    }
+
+    let domainHost: string | null = null;
+    let resolvedDomainId: string | null = null;
+    if (domainId) {
+      const plan = await getEffectivePlan(userId, orgId);
+      if (!isPaidPlan(plan)) {
+        return res.status(403).json({ success: false, error: 'Custom domains require a paid plan' });
+      }
+      const { rows: domainRows } = await db.query(
+        `SELECT id, domain, is_active, verified
+           FROM domains
+          WHERE id = $1 AND org_id = $2
+          LIMIT 1`,
+        [domainId, orgId],
+      );
+      if (!domainRows.length) {
+        return res.status(400).json({ success: false, error: 'Domain not found' });
+      }
+      const d = domainRows[0];
+      if (!d.is_active) return res.status(400).json({ success: false, error: 'Domain is not active' });
+      if (!d.verified) return res.status(400).json({ success: false, error: 'Domain is not verified' });
+      resolvedDomainId = d.id;
+      domainHost = d.domain;
+    }
+
+    let passwordHash: string | null = null;
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ success: false, error: 'Password must be at least 6 characters' });
+      }
+      passwordHash = await bcrypt.hash(password, 12);
+    }
+
+    const coreBase = coreBaseUrl();
+    const results: any[] = [];
+    for (const [index, item] of items.entries()) {
+      const rawUrl = String(item?.url || '').trim();
+      const title = item?.title ? String(item.title).trim() : null;
+      const customCode = item?.short_code ? normalizeShortCode(item.short_code) : '';
+      if (!rawUrl) {
+        results.push({ row: index + 1, url: rawUrl, success: false, error: 'Missing URL' });
+        continue;
+      }
+      const normalizedUrl = ensureHttpUrl(rawUrl);
+      if (!normalizedUrl) {
+        results.push({ row: index + 1, url: rawUrl, success: false, error: 'URL must be http(s)' });
+        continue;
+      }
+      let code = customCode;
+      if (customCode) {
+        const v = validateCustomCode(code);
+        if (!v.ok) {
+          results.push({ row: index + 1, url: rawUrl, success: false, error: v.error });
+          continue;
+        }
+        if (await isShortCodeTaken(code)) {
+          results.push({ row: index + 1, url: rawUrl, success: false, error: 'short_code already exists' });
+          continue;
+        }
+      } else {
+        let attempts = 0;
+        do {
+          code = nanoid(8);
+          attempts += 1;
+        } while ((RESERVED.has(code.toLowerCase()) || await isShortCodeTaken(code)) && attempts < 5);
+        if (await isShortCodeTaken(code)) {
+          results.push({ row: index + 1, url: rawUrl, success: false, error: 'Failed to generate code' });
+          continue;
+        }
+      }
+
+      const autoTitle = parseHostnameFromUrl(normalizedUrl) || 'link';
+      await db.query('BEGIN');
+      try {
+        const { rows } = await db.query(
+          `INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, active, password_hash,
+                              deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled)
+           VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, true, $8, $9, $10, $11, $12)
+           RETURNING id, short_code, original_url, title, click_count, created_at, expires_at, active,
+                     (password_hash IS NOT NULL) AS password_protected,
+                     deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled`,
+          [
+            orgId,
+            userId,
+            code,
+            normalizedUrl,
+            title,
+            autoTitle,
+            resolvedDomainId,
+            passwordHash,
+            deepLinkUrl,
+            iosFallbackUrl,
+            androidFallbackUrl,
+            deepLinkEnabled,
+          ],
+        );
+        const linkId = rows[0].id as string;
+        await setLinkTags(linkId, tagIds);
+        await setLinkGroups(linkId, groupIds);
+        await db.query('COMMIT');
+        const tagRows = tagIds.length ? await fetchTags(orgId, tagIds) : [];
+        const groupRows = groupIds.length ? await fetchGroups(orgId, groupIds) : [];
+        results.push({
+          row: index + 1,
+          success: true,
+          data: shapeLink({ ...rows[0], domain: domainHost, tags: tagRows, groups: groupRows }, coreBase),
+        });
+      } catch (err) {
+        try { await db.query('ROLLBACK'); } catch {}
+        results.push({ row: index + 1, url: rawUrl, success: false, error: 'Insert failed' });
+      }
+    }
+
+    return res.json({ success: true, data: results });
+  } catch (err) {
+    console.error('bulkImport error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

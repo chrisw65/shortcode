@@ -77,6 +77,8 @@ const els = {
   bulkUrls: document.getElementById('bulkUrls'),
   bulkDomain: document.getElementById('bulkDomain'),
   bulkPassword: document.getElementById('bulkPassword'),
+  bulkCsv: document.getElementById('bulkCsv'),
+  bulkImportMode: document.getElementById('bulkImportMode'),
   bulkTags: document.getElementById('bulkTags'),
   bulkGroup: document.getElementById('bulkGroup'),
   bulkCreateBtn: document.getElementById('bulkCreateBtn'),
@@ -706,15 +708,82 @@ async function bulkCreate() {
       }),
     }));
     const successes = (res || []).filter(r => r.success).length;
-    const failures = (res || []).filter(r => !r.success).length;
+    const failures = (res || []).filter(r => !r.success);
     if (els.bulkCreateMsg) {
-      els.bulkCreateMsg.textContent = `Created ${successes} links${failures ? `, ${failures} failed` : ''}.`;
+      els.bulkCreateMsg.textContent = `Created ${successes} links${failures.length ? `, ${failures.length} failed` : ''}.`;
+    }
+    if (failures.length) {
+      downloadErrorReport(
+        failures.map((r, idx) => ({
+          row: r.row || idx + 1,
+          url: r.url || '',
+          title: r.title || '',
+          short_code: r.short_code || '',
+          error: r.error || 'Failed',
+        })),
+        `bulk-create-errors-${Date.now()}.csv`,
+      );
     }
     await load();
   } catch (err) {
     if (els.bulkCreateMsg) els.bulkCreateMsg.textContent = `Bulk create failed: ${err.message || err}`;
   } finally {
     if (els.bulkCreateBtn) els.bulkCreateBtn.disabled = false;
+  }
+}
+
+async function bulkImportCsv() {
+  if (!els.bulkCsv || !els.bulkCsv.files || !els.bulkCsv.files.length) {
+    if (els.bulkCreateMsg) els.bulkCreateMsg.textContent = 'Select a CSV file to import.';
+    return;
+  }
+  const file = els.bulkCsv.files[0];
+  const text = await file.text();
+  const tagIds = Array.from(els.bulkTags?.selectedOptions || []).map(opt => opt.value).filter(Boolean);
+  const groupId = (els.bulkGroup?.value || '').trim();
+  const domainId = (els.bulkDomain?.value || '').trim();
+  const password = (els.bulkPassword?.value || '').trim();
+  const mode = (els.bulkImportMode?.value || 'append').trim();
+  if (els.bulkCreateBtn) els.bulkCreateBtn.disabled = true;
+  if (els.bulkCreateMsg) els.bulkCreateMsg.textContent = 'Importing CSV...';
+  try {
+    const res = unwrap(await api('/api/links/bulk-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        csv: text,
+        domain_id: domainId || null,
+        tag_ids: tagIds,
+        group_ids: groupId ? [groupId] : [],
+        password: password || null,
+      }),
+    }));
+    const successes = (res || []).filter(r => r.success).length;
+    const failures = (res || []).filter(r => !r.success);
+    if (els.bulkCreateMsg) {
+      els.bulkCreateMsg.textContent = `Imported ${successes} links${failures.length ? `, ${failures.length} failed` : ''}.`;
+    }
+    if (failures.length) {
+      downloadErrorReport(
+        failures.map((r, idx) => ({
+          row: r.row || idx + 1,
+          url: r.url || '',
+          title: r.title || '',
+          short_code: r.short_code || '',
+          error: r.error || 'Failed',
+        })),
+        `bulk-import-errors-${Date.now()}.csv`,
+      );
+    }
+    if (mode === 'replace') {
+      els.bulkUrls.value = '';
+    }
+    await load();
+  } catch (err) {
+    if (els.bulkCreateMsg) els.bulkCreateMsg.textContent = `CSV import failed: ${err.message || err}`;
+  } finally {
+    if (els.bulkCreateBtn) els.bulkCreateBtn.disabled = false;
+    if (els.bulkCsv) els.bulkCsv.value = '';
   }
 }
 
@@ -960,6 +1029,23 @@ function csvCell(v) {
   return /[",\n]/.test(s) ? `"${s}"` : s;
 }
 
+function downloadErrorReport(rows, filename) {
+  if (!rows.length) return;
+  const header = ['row', 'url', 'title', 'short_code', 'error'];
+  const lines = [header.join(',')];
+  rows.forEach((r) => {
+    lines.push(header.map((key) => csvCell(r[key] ?? '')).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 0);
+}
+
 // Sorting
 els.table.querySelectorAll('th[data-sort]').forEach(th => {
   th.style.cursor = 'pointer';
@@ -1035,6 +1121,7 @@ els.btnRefresh.addEventListener('click', load);
 els.btnExport.addEventListener('click', exportCSV);
 els.bulkCreateBtn?.addEventListener('click', bulkCreate);
 els.bulkDeleteBtn?.addEventListener('click', bulkDelete);
+els.bulkCsv?.addEventListener('change', bulkImportCsv);
 els.tagAdd?.addEventListener('click', createTag);
 els.groupAdd?.addEventListener('click', createGroup);
 els.utmApply?.addEventListener('click', () => {

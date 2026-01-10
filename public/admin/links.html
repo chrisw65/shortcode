@@ -197,6 +197,20 @@
             </div>
             <div class="grid grid-2" style="margin-top:10px">
               <label>
+                CSV import
+                <input id="bulkCsv" class="input" type="file" accept=".csv,text/csv">
+              </label>
+              <label>
+                Import mode
+                <select id="bulkImportMode" class="input">
+                  <option value="append" selected>Append</option>
+                  <option value="replace">Replace list</option>
+                </select>
+              </label>
+            </div>
+            <div class="muted small">CSV columns: url, title, short_code (optional).</div>
+            <div class="grid grid-2" style="margin-top:10px">
+              <label>
                 Tags
                 <select id="bulkTags" class="input" multiple size="4"></select>
               </label>
