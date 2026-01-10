@@ -37,25 +37,36 @@
   </header>
 
   <main class="auth-wrap">
-    <div class="auth-card reveal">
-      <h2 data-page-title>Create your OkLeaf account</h2>
-      <p class="notice" data-page-subtitle>Get a branded short link workspace in minutes.</p>
-      <ul class="auth-points" data-page-bullets></ul>
-      <label for="name">Name</label>
-      <input id="name" type="text" placeholder="Your name" />
-      <label for="email">Email</label>
-      <input id="email" type="email" placeholder="you@company.com" />
-      <label for="password">Password</label>
-      <input id="password" type="password" placeholder="At least 8 characters" />
-      <label class="auth-terms">
-        <input id="termsAccepted" type="checkbox" />
-        <span>I agree to the Terms of Service</span>
-      </label>
-      <div class="actions">
-        <button class="btn primary" id="registerBtn">Start free</button>
-        <a class="btn ghost" href="/login.html">Login</a>
+    <div class="auth-grid reveal">
+      <div class="auth-side">
+        <div class="kicker">Start free</div>
+        <h3>Launch branded links in minutes.</h3>
+        <p class="notice" data-page-subtitle>Get a branded short link workspace in minutes.</p>
+        <ul class="auth-points" data-page-bullets></ul>
+        <ul>
+          <li>Invite teammates and assign roles instantly.</li>
+          <li>Track clicks by region, device, and referrer.</li>
+          <li>Upgrade when you add more domains.</li>
+        </ul>
       </div>
-      <div class="notice" id="registerNotice"></div>
+      <div class="auth-card">
+        <h2 data-page-title>Create your OkLeaf account</h2>
+        <label for="name">Name</label>
+        <input id="name" type="text" placeholder="Your name" />
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="you@company.com" />
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="At least 8 characters" />
+        <label class="auth-terms">
+          <input id="termsAccepted" type="checkbox" />
+          <span>I agree to the Terms of Service</span>
+        </label>
+        <div class="actions">
+          <button class="btn primary" id="registerBtn">Start free</button>
+          <a class="btn ghost" href="/login.html">Login</a>
+        </div>
+        <div class="notice" id="registerNotice"></div>
+      </div>
     </div>
   </main>
 

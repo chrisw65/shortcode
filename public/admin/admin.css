@@ -78,6 +78,13 @@ body{
     radial-gradient(1000px 600px at 92% -12%, rgba(47,183,164,.2), transparent 55%),
     linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%);
 }
+body::before{
+  content:"";
+  position:fixed;inset:0;
+  background-image:radial-gradient(rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size:28px 28px;
+  opacity:.35;pointer-events:none;mix-blend-mode:screen;
+}
 a{color:inherit;text-decoration:none}
 
 .admin-shell{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
@@ -111,7 +118,8 @@ a{color:inherit;text-decoration:none}
 
 .admin-main{display:flex;flex-direction:column}
 .admin-top{
-  padding:26px 32px 0;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap
+  padding:26px 32px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+  border-bottom:1px solid rgba(213,162,75,.18);background:rgba(12,18,28,.6);backdrop-filter:blur(8px)
 }
 .page-title{font-family:"Newsreader","Space Grotesk",serif;font-size:28px;margin:0}
 .page-sub{color:var(--muted);margin:6px 0 0}
@@ -179,8 +187,9 @@ body.tabs-ready .admin-content [data-tab].is-active{display:block}
 
 table{width:100%;border-collapse:collapse}
 th,td{padding:10px 8px;border-bottom:1px solid rgba(42,47,58,.8);text-align:left}
-th{color:#d9d2c4;font-weight:600}
+th{color:#d9d2c4;font-weight:600;background:rgba(10,15,22,.6)}
 tr.sel{background:rgba(255,255,255,.03)}
+tbody tr:hover td{background:rgba(213,162,75,.06)}
 
 .badge{padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:#121a26;color:var(--muted)}
 .pill{display:inline-block;padding:4px 10px;border-radius:999px;background:#182335;color:#f2ddb7;border:1px solid #2b3954}

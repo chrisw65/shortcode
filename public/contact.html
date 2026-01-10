@@ -37,38 +37,52 @@
     </div>
   </header>
 
-  <main class="container section">
-    <div class="reveal">
-      <h1 class="section-title" data-page-title>Let's talk about your org</h1>
-      <p class="section-sub" data-page-subtitle>Tell us about your current link workflows and we'll tailor a plan that fits your scale.</p>
-
-      <div class="auth-card" style="max-width:720px">
-        <label for="name">Name</label>
-        <input id="name" type="text" placeholder="Your name">
-        <label for="company">Company</label>
-        <input id="company" type="text" placeholder="Company name">
-        <label for="org">Existing OkLeaf org (optional)</label>
-        <input id="org" type="text" placeholder="Org name or ID">
-        <label for="email">Email</label>
-        <input id="email" type="email" placeholder="you@company.com">
-        <label for="message">What do you need help with?</label>
-        <textarea id="message" rows="4" placeholder="Short links, branded domains, analytics"></textarea>
-        <div class="hp-field">
-          <label for="website">Website</label>
-          <input id="website" type="text" autocomplete="off" tabindex="-1">
+  <main>
+    <section class="page-hero">
+      <div class="container form-grid reveal">
+        <div>
+          <div class="kicker">Contact</div>
+          <h1 class="section-title" data-page-title>Let's talk about your org</h1>
+          <p class="section-sub" data-page-subtitle>Tell us about your current link workflows and we'll tailor a plan that fits your scale.</p>
+          <div class="stack-grid" style="margin-top:18px">
+            <div class="callout">
+              <strong>Enterprise support</strong>
+              Dedicated onboarding, priority support, and security reviews for regulated teams.
+            </div>
+            <div class="quote-card">
+              <p class="quote">“OkLeaf turned our chaotic short links into a governed program in less than a week.”</p>
+              <div class="quote-meta">Head of Growth, Fintech</div>
+            </div>
+          </div>
         </div>
-        <div id="contactCaptchaWrap">
-          <label for="captchaAnswer" data-page-captcha-question>What is 3 + 4?</label>
-          <input id="captchaAnswer" type="text" placeholder="Answer">
-          <div id="turnstileWidget" style="margin-top:12px"></div>
+        <div class="form-panel">
+          <label for="name">Name</label>
+          <input id="name" type="text" placeholder="Your name">
+          <label for="company">Company</label>
+          <input id="company" type="text" placeholder="Company name">
+          <label for="org">Existing OkLeaf org (optional)</label>
+          <input id="org" type="text" placeholder="Org name or ID">
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="you@company.com">
+          <label for="message">What do you need help with?</label>
+          <textarea id="message" rows="4" placeholder="Short links, branded domains, analytics"></textarea>
+          <div class="hp-field">
+            <label for="website">Website</label>
+            <input id="website" type="text" autocomplete="off" tabindex="-1">
+          </div>
+          <div id="contactCaptchaWrap">
+            <label for="captchaAnswer" data-page-captcha-question>What is 3 + 4?</label>
+            <input id="captchaAnswer" type="text" placeholder="Answer">
+            <div id="turnstileWidget" style="margin-top:12px"></div>
+          </div>
+          <div class="actions">
+            <button class="btn primary" id="contactSendBtn" type="button" data-page-cta-primary>Send message</button>
+            <a class="btn ghost" href="/register.html" data-page-cta-secondary>Start free</a>
+          </div>
+          <div class="notice" id="contactNotice">We usually reply within 1 business day.</div>
         </div>
-        <div class="actions">
-          <button class="btn primary" id="contactSendBtn" type="button" data-page-cta-primary>Send message</button>
-          <a class="btn ghost" href="/register.html" data-page-cta-secondary>Start free</a>
-        </div>
-        <div class="notice" id="contactNotice">We usually reply within 1 business day.</div>
       </div>
-    </div>
+    </section>
   </main>
 
   <footer class="footer">
