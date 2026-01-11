@@ -43,7 +43,7 @@ async function resetPassword() {
       headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ token, password }),
     });
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
     if (!res.ok) throw new Error(data?.error || 'Reset failed');
     setNotice('Password updated. Redirecting to login…');
     setTimeout(() => {

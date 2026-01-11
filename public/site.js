@@ -14,7 +14,7 @@ async function fetchConfig() {
   }
 
   const res = await fetch(path, { credentials: 'same-origin' });
-  const data = await res.json().catch(() => null);
+  const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
   if (!res.ok) throw new Error(data?.error || 'Failed to load site config');
   if (preview && data?.data?.draft) return data.data.draft;
   return data.data || {};

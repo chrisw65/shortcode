@@ -9,7 +9,7 @@ async function api(path) {
   const res = await fetch(path, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  const data = await res.json().catch(() => null);
+  const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
   if (!res.ok) throw new Error(data?.error || 'Request failed');
   return data.data || {};
 }

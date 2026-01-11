@@ -31,7 +31,7 @@ async function loginAffiliate() {
       headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
     if (!res.ok) throw new Error(data?.error || 'Login failed');
 
     localStorage.setItem('affiliate_token', data.data.token);

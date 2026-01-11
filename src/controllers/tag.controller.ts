@@ -52,8 +52,11 @@ export async function createTag(req: OrgRequest, res: Response) {
     });
 
     return res.status(201).json({ success: true, data: rows[0] });
-  } catch (err: any) {
-    if (err?.code === '23505') {
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err
+      ? String((err as { code?: string }).code)
+      : '';
+    if (code === '23505') {
       return res.status(409).json({ success: false, error: 'Tag already exists' });
     }
     log('error', 'tags.create error', { error: String(err) });
@@ -93,8 +96,11 @@ export async function updateTag(req: OrgRequest, res: Response) {
     });
 
     return res.json({ success: true, data: rows[0] });
-  } catch (err: any) {
-    if (err?.code === '23505') {
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err
+      ? String((err as { code?: string }).code)
+      : '';
+    if (code === '23505') {
       return res.status(409).json({ success: false, error: 'Tag already exists' });
     }
     log('error', 'tags.update error', { error: String(err) });

@@ -306,7 +306,7 @@ app.use((req: Request, res: Response) => {
 
 // Error handler
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const reqWithId = req as RequestWithId;
   log('error', 'unhandled_error', { error: String(err), request_id: reqWithId.id });
   if (res.headersSent) return;

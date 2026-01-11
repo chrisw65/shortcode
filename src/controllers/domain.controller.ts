@@ -183,8 +183,11 @@ export async function createDomain(req: AuthedRequest, res: Response) {
         note: 'After adding the TXT record, call POST /api/domains/:id/verify.',
       },
     });
-  } catch (e: any) {
-    if (e?.code === '23505') {
+  } catch (e) {
+    const code = e && typeof e === 'object' && 'code' in e
+      ? String((e as { code?: string }).code)
+      : '';
+    if (code === '23505') {
       return res.status(409).json({ success: false, error: 'Domain already exists' });
     }
     log('error', 'createDomain error', { error: String(e) });
@@ -256,8 +259,11 @@ export async function verifyDomain(req: AuthedRequest, res: Response) {
         txts = flat;
         method = 'dns';
       }
-    } catch (e: any) {
-      if (!['ENOTFOUND', 'ENODATA', 'ETIMEOUT', 'EAI_AGAIN', 'SERVFAIL'].includes(e?.code)) {
+    } catch (e) {
+      const code = e && typeof e === 'object' && 'code' in e
+        ? String((e as { code?: string }).code)
+        : '';
+      if (!['ENOTFOUND', 'ENODATA', 'ETIMEOUT', 'EAI_AGAIN', 'SERVFAIL'].includes(code)) {
         log('warn', `TXT lookup error for ${host1}`, { error: String(e) });
       }
     }
@@ -271,10 +277,13 @@ export async function verifyDomain(req: AuthedRequest, res: Response) {
           txts = flat2;
           method = 'dns-root';
         }
-      } catch (e: any) {
-      if (!['ENOTFOUND', 'ENODATA', 'ETIMEOUT', 'EAI_AGAIN', 'SERVFAIL'].includes(e?.code)) {
-        log('warn', `TXT lookup error for ${row.domain}`, { error: String(e) });
-      }
+      } catch (e) {
+        const code = e && typeof e === 'object' && 'code' in e
+          ? String((e as { code?: string }).code)
+          : '';
+        if (!['ENOTFOUND', 'ENODATA', 'ETIMEOUT', 'EAI_AGAIN', 'SERVFAIL'].includes(code)) {
+          log('warn', `TXT lookup error for ${row.domain}`, { error: String(e) });
+        }
       }
     }
 

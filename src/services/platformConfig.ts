@@ -12,8 +12,11 @@ export async function getPlatformConfigRaw(): Promise<PlatformConfig> {
   try {
     const { rows } = await db.query(`SELECT value FROM site_settings WHERE key = $1 LIMIT 1`, ['platform_config']);
     return { ...DEFAULT_PLATFORM_CONFIG, ...(rows[0]?.value || {}) };
-  } catch (err: any) {
-    if (err?.code === '42P01') return DEFAULT_PLATFORM_CONFIG;
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err
+      ? String((err as { code?: string }).code)
+      : '';
+    if (code === '42P01') return DEFAULT_PLATFORM_CONFIG;
     throw err;
   }
 }

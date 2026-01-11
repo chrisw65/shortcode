@@ -369,9 +369,12 @@ export async function createLink(req: UserReq, res: Response) {
     const linkData = shapeLink({ ...rows[0], domain: domainHost, tags: tagRows, groups: groupRows }, coreBase);
     void emitWebhook('link.created', { link: linkData, org_id: orgId, user_id: userId });
     return res.status(201).json({ success: true, data: linkData });
-  } catch (e: any) {
+  } catch (e) {
     try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'createLink.rollback_failed', { error: String(rbErr) }); }
-    if (e?.code === '23505') {
+    const code = e && typeof e === 'object' && 'code' in e
+      ? String((e as { code?: string }).code)
+      : '';
+    if (code === '23505') {
       return res.status(409).json({ success: false, error: 'short_code already exists' });
     }
     log('error', 'createLink error', { error: String(e) });
@@ -713,9 +716,12 @@ export async function updateLink(req: UserReq, res: Response) {
     void invalidateCachedLinks(invalidate);
     const coreBase = coreBaseUrl();
     return res.json({ success: true, data: shapeLink(rows[0], coreBase) });
-  } catch (e: any) {
+  } catch (e) {
     try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'updateLink.rollback_failed', { error: String(rbErr) }); }
-    if (e?.code === '23505') {
+    const code = e && typeof e === 'object' && 'code' in e
+      ? String((e as { code?: string }).code)
+      : '';
+    if (code === '23505') {
       return res.status(409).json({ success: false, error: 'short_code already exists' });
     }
     log('error', 'updateLink error', { error: String(e) });

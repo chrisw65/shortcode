@@ -1,7 +1,7 @@
 async function applyAffiliateTheme() {
   try {
     const res = await fetch('/api/public/site-config', { credentials: 'same-origin' });
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
     const theme = data?.data?.ui?.affiliateTheme || 'noir';
     const tokens = data?.data?.ui?.affiliateThemeTokens || {};
     document.body.classList.add(`theme-${theme}`);

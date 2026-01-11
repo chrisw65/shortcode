@@ -36,8 +36,11 @@ async function getBillingConfigRaw(): Promise<BillingConfig> {
   try {
     const { rows } = await db.query(`SELECT value FROM site_settings WHERE key = $1 LIMIT 1`, ['billing_config']);
     return { ...DEFAULT_BILLING_CONFIG, ...(rows[0]?.value || {}) };
-  } catch (err: any) {
-    if (err?.code === '42P01') return DEFAULT_BILLING_CONFIG;
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err
+      ? String((err as { code?: string }).code)
+      : '';
+    if (code === '42P01') return DEFAULT_BILLING_CONFIG;
     throw err;
   }
 }

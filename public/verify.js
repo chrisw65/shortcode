@@ -29,7 +29,7 @@ async function verifyEmail() {
       headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ token }),
     });
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
     if (!res.ok) throw new Error(data?.error || 'Verification failed');
     setNotice('Email verified. You can now log in.');
   } catch (err) {

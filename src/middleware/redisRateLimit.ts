@@ -57,9 +57,10 @@ function makeMiddleware(
       const result = await (useRedis ? limiter.redis : limiter.memory).consume(key);
       setRateHeaders(res, result.remainingPoints ?? 0, result.msBeforeNext ?? 0);
       return next();
-    } catch (err: any) {
-      const remaining = err?.remainingPoints ?? 0;
-      const msBeforeNext = err?.msBeforeNext ?? Math.ceil(duration * 1000);
+    } catch (err) {
+      const meta = err && typeof err === 'object' ? (err as { remainingPoints?: number; msBeforeNext?: number }) : {};
+      const remaining = meta.remainingPoints ?? 0;
+      const msBeforeNext = meta.msBeforeNext ?? Math.ceil(duration * 1000);
       setRateHeaders(res, remaining, msBeforeNext);
       if (mode === 'json') {
         return res.status(429).json({ success: false, error: 'Too many requests' });
@@ -122,9 +123,10 @@ export async function perOrgApiRpmRedis(req: Request, res: Response, next: NextF
     res.setHeader('X-RateLimit-Remaining', String(Math.max(0, result.remainingPoints ?? 0)));
     res.setHeader('X-RateLimit-Reset', String(reset));
     return next();
-  } catch (err: any) {
-    const msBeforeNext = err?.msBeforeNext ?? 60_000;
-    const remaining = err?.remainingPoints ?? 0;
+  } catch (err) {
+    const meta = err && typeof err === 'object' ? (err as { remainingPoints?: number; msBeforeNext?: number }) : {};
+    const msBeforeNext = meta.msBeforeNext ?? 60_000;
+    const remaining = meta.remainingPoints ?? 0;
     const reset = Math.ceil((Date.now() + msBeforeNext) / 1000);
     res.setHeader('X-RateLimit-Remaining', String(Math.max(0, remaining)));
     res.setHeader('X-RateLimit-Reset', String(reset));

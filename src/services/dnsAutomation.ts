@@ -38,7 +38,9 @@ async function cfRequest(path: string, init: RequestInit = {}) {
   });
   const json = await res.json();
   if (!json?.success) {
-    const message = json?.errors?.map((e: any) => e.message).join('; ') || res.statusText;
+    const message = Array.isArray(json?.errors)
+      ? json.errors.map((e: { message?: string }) => e?.message).filter(Boolean).join('; ')
+      : '';
     throw new Error(message || 'Cloudflare API error');
   }
   return json;
@@ -135,8 +137,11 @@ export async function autoProvisionDns(domain: string, verificationToken: string
     }
 
     return { provider, status: 'created', details };
-  } catch (err: any) {
-    details.push(err?.message || 'unknown error');
+  } catch (err) {
+    const message = err && typeof err === 'object' && 'message' in err
+      ? String((err as { message?: string }).message)
+      : 'unknown error';
+    details.push(message);
     return { provider, status: 'error', details };
   }
 }

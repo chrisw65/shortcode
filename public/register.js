@@ -50,7 +50,7 @@ async function register() {
         terms_version: termsVersion,
       }),
     });
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
     if (!res.ok) throw new Error(data?.error || 'Registration failed');
 
     if (data?.data?.requires_email_verification) {

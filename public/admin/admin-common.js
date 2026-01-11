@@ -67,12 +67,15 @@ export function requireAuth() {
     throw new Error('Not authenticated');
   }
   apiFetch('/api/auth/me').catch(() => {
+    console.warn('Auth session check failed.');
     window.location.href = '/admin/index.html';
   });
 }
 
 export function logoutAndRedirect() {
-  apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  apiFetch('/api/auth/logout', { method: 'POST' }).catch((err) => {
+    console.warn('Logout failed.', err);
+  });
   document.cookie = `${AUTH_PRESENT_COOKIE}=; Max-Age=0; Path=/`;
   window.location.href = '/admin/index.html';
 }
@@ -108,7 +111,9 @@ export async function apiFetch(path, opts = {}) {
         body: JSON.stringify({}),
       });
       return apiFetch(path, { ...opts, _retry: true });
-    } catch {}
+    } catch (err) {
+      console.warn('Auth refresh failed.', err);
+    }
   }
 
   // Attempt to parse JSON; if not JSON, still let 2xx return an empty object
@@ -170,7 +175,7 @@ function applyAdminBrand(config) {
 async function applyAdminTheme() {
   try {
     const res = await fetch('/api/public/site-config', { credentials: 'same-origin' });
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
     const config = data?.data || {};
     const theme = config?.ui?.adminTheme || 'noir';
     const tokens = config?.ui?.adminThemeTokens || {};

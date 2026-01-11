@@ -40,7 +40,7 @@ async function sendContact() {
       headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ name, company, org, email, message, website, captchaAnswer, captchaToken }),
     });
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
     if (!res.ok) throw new Error(data?.error || 'Failed to send');
     notify(data?.message || 'Thanks! We will get back to you within 1 business day.');
   } catch (err) {

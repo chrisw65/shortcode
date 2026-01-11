@@ -28,7 +28,7 @@ async function requestReset() {
       headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ email }),
     });
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
     if (!res.ok) throw new Error(data?.error || 'Request failed');
     setNotice('If the email exists, a reset link has been sent.');
   } catch (err) {

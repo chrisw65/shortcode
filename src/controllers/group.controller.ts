@@ -51,8 +51,11 @@ export async function createGroup(req: OrgRequest, res: Response) {
     });
 
     return res.status(201).json({ success: true, data: rows[0] });
-  } catch (err: any) {
-    if (err?.code === '23505') {
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err
+      ? String((err as { code?: string }).code)
+      : '';
+    if (code === '23505') {
       return res.status(409).json({ success: false, error: 'Group already exists' });
     }
     log('error', 'groups.create error', { error: String(err) });
@@ -91,8 +94,11 @@ export async function updateGroup(req: OrgRequest, res: Response) {
     });
 
     return res.json({ success: true, data: rows[0] });
-  } catch (err: any) {
-    if (err?.code === '23505') {
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err
+      ? String((err as { code?: string }).code)
+      : '';
+    if (code === '23505') {
       return res.status(409).json({ success: false, error: 'Group already exists' });
     }
     log('error', 'groups.update error', { error: String(err) });

@@ -615,8 +615,11 @@ export async function getSiteSetting(key: string) {
   try {
     const { rows } = await db.query(`SELECT value FROM site_settings WHERE key = $1 LIMIT 1`, [key]);
     return rows[0]?.value ?? null;
-  } catch (err: any) {
-    if (err?.code === '42P01') {
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err
+      ? String((err as { code?: string }).code)
+      : '';
+    if (code === '42P01') {
       return null;
     }
     throw err;

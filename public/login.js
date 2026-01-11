@@ -33,7 +33,7 @@ async function login() {
       headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
     if (!res.ok) {
       if (data?.requires_email_verification) {
         setNotice('Email not verified. Use resend verification to get a new link.', true);
@@ -82,7 +82,7 @@ async function resendVerification() {
       headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ email }),
     });
-    const data = await res.json().catch(() => null);
+    const data = await res.json().catch((err) => { console.warn('Failed to parse JSON response', err); return null; });
     if (!res.ok) throw new Error(data?.error || 'Request failed');
     setNotice('Verification email sent if the address exists.');
   } catch (err) {
