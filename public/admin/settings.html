@@ -42,7 +42,12 @@
       </header>
 
       <main class="admin-content">
-        <section class="card" style="max-width:720px">
+        <div class="tabs">
+          <button class="tab-btn active" type="button" data-tab="account">Account</button>
+          <button class="tab-btn" type="button" data-tab="security">Security</button>
+          <button class="tab-btn" type="button" data-tab="privacy">Privacy</button>
+        </div>
+        <section class="card tab-panel" data-panel="account" style="max-width:720px">
           <h3>Account</h3>
           <div class="grid grid-2" style="margin-top:10px">
             <div class="card">
@@ -64,7 +69,7 @@
           </div>
         </section>
 
-        <section class="card" style="max-width:720px;margin-top:18px">
+        <section class="card tab-panel" data-panel="account" style="max-width:720px;margin-top:18px">
           <h3>Organization</h3>
           <label class="muted">Active organization</label>
           <select id="orgSelect" class="input"></select>
@@ -114,7 +119,7 @@
           </div>
         </section>
 
-        <section class="card" style="max-width:720px;margin-top:18px">
+        <section class="card tab-panel" data-panel="security" style="max-width:720px;margin-top:18px">
           <h3>Change password</h3>
           <label class="muted">Current password</label>
           <input id="curPass" class="input" type="password" placeholder="Current password" />
@@ -126,7 +131,7 @@
           </div>
         </section>
 
-        <section class="card" style="max-width:720px;margin-top:18px">
+        <section class="card tab-panel" data-panel="security" style="max-width:720px;margin-top:18px">
           <h3>Two-factor authentication</h3>
           <div class="muted small">Use an authenticator app for extra protection.</div>
           <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
@@ -146,7 +151,7 @@
           </div>
         </section>
 
-        <section class="card" style="max-width:720px;margin-top:18px">
+        <section class="card tab-panel" data-panel="security" style="max-width:720px;margin-top:18px">
           <h3>SSO (OIDC)</h3>
           <div class="grid grid-2" style="margin-top:10px">
             <div>
@@ -204,7 +209,7 @@
           </div>
         </section>
 
-        <section class="card" style="max-width:720px;margin-top:18px">
+        <section class="card tab-panel" data-panel="privacy" style="max-width:720px;margin-top:18px">
           <h3>Privacy</h3>
           <p class="muted">Export your data or request account deletion.</p>
           <div class="row" style="margin-top:12px">

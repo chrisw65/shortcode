@@ -2,6 +2,24 @@ import { requireAuth, api, getActiveOrgId, setActiveOrgId, logoutAndRedirect } f
 
 requireAuth();
 
+const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
+const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+
+function activateSettingsTab(tabName = 'account') {
+  tabButtons.forEach((btn) => {
+    const active = btn.dataset.tab === tabName;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', String(active));
+  });
+  tabPanels.forEach((panel) => {
+    panel.style.display = panel.dataset.panel === tabName ? 'block' : 'none';
+  });
+}
+tabButtons.forEach((btn) => {
+  btn.addEventListener('click', () => activateSettingsTab(btn.dataset.tab || 'account'));
+});
+activateSettingsTab('account');
+
 const meEmail = document.getElementById('meEmail');
 const meRole = document.getElementById('meRole');
 const meOrg = document.getElementById('meOrg');

@@ -74,7 +74,9 @@ function applyTheme(theme = {}) {
 function renderNavLinks(links = []) {
   const nav = qs('[data-nav-links]');
   if (!nav) return;
-  const normalized = Array.isArray(links) ? [...links] : [];
+  const baseLinks = Array.isArray(links) ? links : [];
+  if (!baseLinks.length) return;
+  const normalized = [...baseLinks];
   if (!normalized.some((link) => link.href === '/ecosystem.html')) {
     normalized.push({ label: 'Ecosystem', href: '/ecosystem.html' });
   }
