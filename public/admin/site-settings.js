@@ -5,7 +5,7 @@ requireAuth();
 const qs = (sel, root = document) => root.querySelector(sel);
 const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-const state = { config: null, history: [], pageKey: 'about', pageDrafts: {}, customThemes: [] };
+const state = { config: null, history: [], pageKey: 'about', pageDrafts: {}, customThemes: [], smtpPassword: '' };
 
 const THEMES = [
   { id: 'noir', label: 'Noir (default)', accent: '#e0b15a', accent2: '#2fb7b2', bg: '#0b0d10' },
@@ -668,11 +668,30 @@ function collectConfig() {
         href: qs('[data-field="href"]', card).value.trim(),
       })),
     },
+    smtp: {
+      host: qs('#smtpHost').value.trim(),
+      port: normalizeNumber(qs('#smtpPort').value.trim()) || 587,
+      user: qs('#smtpUser').value.trim(),
+      password: qs('#smtpPass').value ? qs('#smtpPass').value : (state.smtpPassword || ''),
+      from_name: qs('#smtpFromName').value.trim(),
+      from_email: qs('#smtpFromEmail').value.trim(),
+      reply_to: qs('#smtpReplyTo').value.trim(),
+    },
     emails: {
       invite: {
         subject: qs('#inviteSubject').value.trim(),
         text: qs('#inviteText').value,
         html: qs('#inviteHtml').value,
+      },
+      verify: {
+        subject: qs('#verifySubject').value.trim(),
+        text: qs('#verifyText').value,
+        html: qs('#verifyHtml').value,
+      },
+      reset: {
+        subject: qs('#resetSubject').value.trim(),
+        text: qs('#resetText').value,
+        html: qs('#resetHtml').value,
       },
     },
     pages: state.pageDrafts || {},
@@ -767,9 +786,23 @@ function applyConfig(config) {
   qs('#footerHeadingSupport').value = config.footer?.headings?.support || '';
   qs('#footerHeadingCompany').value = config.footer?.headings?.company || '';
   qs('#footerHeadingSocial').value = config.footer?.headings?.social || '';
+  qs('#smtpHost').value = config.smtp?.host || '';
+  qs('#smtpPort').value = config.smtp?.port ? String(config.smtp.port) : '';
+  qs('#smtpUser').value = config.smtp?.user || '';
+  qs('#smtpPass').value = '';
+  state.smtpPassword = config.smtp?.password || '';
+  qs('#smtpFromName').value = config.smtp?.from_name || '';
+  qs('#smtpFromEmail').value = config.smtp?.from_email || '';
+  qs('#smtpReplyTo').value = config.smtp?.reply_to || '';
   qs('#inviteSubject').value = config.emails?.invite?.subject || '';
   qs('#inviteText').value = config.emails?.invite?.text || '';
   qs('#inviteHtml').value = config.emails?.invite?.html || '';
+  qs('#verifySubject').value = config.emails?.verify?.subject || '';
+  qs('#verifyText').value = config.emails?.verify?.text || '';
+  qs('#verifyHtml').value = config.emails?.verify?.html || '';
+  qs('#resetSubject').value = config.emails?.reset?.subject || '';
+  qs('#resetText').value = config.emails?.reset?.text || '';
+  qs('#resetHtml').value = config.emails?.reset?.html || '';
   state.customThemes = Array.isArray(config.ui?.customThemes) ? config.ui.customThemes : [];
   const themes = getAllThemes();
   renderThemeOptions(qs('#adminTheme'), themes, config.ui?.adminTheme);
@@ -1505,6 +1538,94 @@ function getDefaultInviteTemplate() {
   };
 }
 
+function getDefaultVerifyTemplate() {
+  return {
+    subject: 'Verify your email for {{brandName}}',
+    text: [
+      'Hello,',
+      '',
+      'Confirm your email address to activate your {{brandName}} account.',
+      'Verify here:',
+      '{{verifyUrl}}',
+      '',
+      'If you did not create this account, you can ignore this email.',
+      'Need help? Contact {{supportEmail}}.',
+    ].join('\n'),
+    html: [
+      '<div style="background:#f8fafc;padding:32px 12px;font-family:Helvetica,Arial,sans-serif;color:#0f172a;">',
+      '  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e2e8f0;">',
+      '    <tr>',
+      '      <td style="padding:28px 32px;background:#0f172a;color:#ffffff;">',
+      '        <div style="font-size:20px;font-weight:700;">{{brandName}}</div>',
+      '        <div style="opacity:0.8;font-size:13px;margin-top:6px;">Email verification</div>',
+      '      </td>',
+      '    </tr>',
+      '    <tr>',
+      '      <td style="padding:32px;">',
+      '        <h2 style="margin:0 0 12px;font-size:22px;color:#0f172a;">Verify your email</h2>',
+      '        <p style="margin:0 0 16px;line-height:1.7;color:#334155;">Confirm your email address to activate your {{brandName}} account.</p>',
+      '        <div style="margin:22px 0;">',
+      '          <a href="{{verifyUrl}}" style="display:inline-block;padding:12px 22px;background:#2563eb;color:#ffffff;border-radius:999px;text-decoration:none;font-weight:600;">Verify email</a>',
+      '        </div>',
+      '        <div style="font-size:13px;color:#64748b;margin-top:12px;">If the button doesn\'t work, copy this link:</div>',
+      '        <div style="font-size:13px;color:#2563eb;word-break:break-all;">{{verifyUrl}}</div>',
+      '      </td>',
+      '    </tr>',
+      '    <tr>',
+      '      <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;">',
+      '        Need help? Contact <a href="mailto:{{supportEmail}}" style="color:#2563eb;text-decoration:none;">{{supportEmail}}</a>.',
+      '      </td>',
+      '    </tr>',
+      '  </table>',
+      '</div>',
+    ].join(''),
+  };
+}
+
+function getDefaultResetTemplate() {
+  return {
+    subject: 'Reset your {{brandName}} password',
+    text: [
+      'Hello,',
+      '',
+      'We received a request to reset your {{brandName}} password.',
+      'Reset it here:',
+      '{{resetUrl}}',
+      '',
+      'If you did not request this, you can ignore this email.',
+      'Need help? Contact {{supportEmail}}.',
+    ].join('\n'),
+    html: [
+      '<div style="background:#f8fafc;padding:32px 12px;font-family:Helvetica,Arial,sans-serif;color:#0f172a;">',
+      '  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e2e8f0;">',
+      '    <tr>',
+      '      <td style="padding:28px 32px;background:#0f172a;color:#ffffff;">',
+      '        <div style="font-size:20px;font-weight:700;">{{brandName}}</div>',
+      '        <div style="opacity:0.8;font-size:13px;margin-top:6px;">Password reset</div>',
+      '      </td>',
+      '    </tr>',
+      '    <tr>',
+      '      <td style="padding:32px;">',
+      '        <h2 style="margin:0 0 12px;font-size:22px;color:#0f172a;">Reset your password</h2>',
+      '        <p style="margin:0 0 16px;line-height:1.7;color:#334155;">Use the link below to set a new password for your {{brandName}} account.</p>',
+      '        <div style="margin:22px 0;">',
+      '          <a href="{{resetUrl}}" style="display:inline-block;padding:12px 22px;background:#2563eb;color:#ffffff;border-radius:999px;text-decoration:none;font-weight:600;">Reset password</a>',
+      '        </div>',
+      '        <div style="font-size:13px;color:#64748b;margin-top:12px;">If the button doesn\'t work, copy this link:</div>',
+      '        <div style="font-size:13px;color:#2563eb;word-break:break-all;">{{resetUrl}}</div>',
+      '      </td>',
+      '    </tr>',
+      '    <tr>',
+      '      <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;">',
+      '        Need help? Contact <a href="mailto:{{supportEmail}}" style="color:#2563eb;text-decoration:none;">{{supportEmail}}</a>.',
+      '      </td>',
+      '    </tr>',
+      '  </table>',
+      '</div>',
+    ].join(''),
+  };
+}
+
 function buildInvitePreviewVars() {
   return {
     brandName: qs('#brandName').value.trim() || 'OkLeaf',
@@ -1660,6 +1781,24 @@ async function init() {
     qs('#inviteText').value = defaults.text;
     qs('#inviteHtml').value = defaults.html;
     showToast('Invite template reset to defaults.');
+  });
+  qs('#verifyResetBtn').addEventListener('click', () => {
+    const ok = window.confirm('Reset verification template to defaults? This will replace your current draft values.');
+    if (!ok) return;
+    const defaults = getDefaultVerifyTemplate();
+    qs('#verifySubject').value = defaults.subject;
+    qs('#verifyText').value = defaults.text;
+    qs('#verifyHtml').value = defaults.html;
+    showToast('Verification template reset to defaults.');
+  });
+  qs('#resetResetBtn').addEventListener('click', () => {
+    const ok = window.confirm('Reset password template to defaults? This will replace your current draft values.');
+    if (!ok) return;
+    const defaults = getDefaultResetTemplate();
+    qs('#resetSubject').value = defaults.subject;
+    qs('#resetText').value = defaults.text;
+    qs('#resetHtml').value = defaults.html;
+    showToast('Password reset template reset to defaults.');
   });
   qs('#invitePreviewCloseBtn').addEventListener('click', () => {
     qs('#invitePreviewPanel').style.display = 'none';

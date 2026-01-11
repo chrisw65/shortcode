@@ -204,7 +204,7 @@ export async function sendSiteEmailTest(req: Request, res: Response) {
       vars
     );
 
-    const result = await sendMail({ to, subject, text, html });
+    const result = await sendMail({ to, subject, text, html }, { useDraft: true });
     if (!result.sent) {
       return res.status(400).json({ success: false, error: result.reason || 'Email not sent' });
     }
@@ -308,6 +308,9 @@ function sanitizePublicConfig(config: any) {
   }
   if (safe?.pages?.contact?.captchaSecret) {
     delete safe.pages.contact.captchaSecret;
+  }
+  if (safe?.smtp) {
+    delete safe.smtp;
   }
   return safe;
 }

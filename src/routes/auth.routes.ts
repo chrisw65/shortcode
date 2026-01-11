@@ -14,6 +14,10 @@ const authLimiter = process.env.RATE_LIMIT_AUTH_DISABLED === '1'
 
 router.post('/register', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
+router.post('/verify-email', authLimiter, authController.verifyEmail);
+router.post('/verify-email/resend', authLimiter, authController.resendVerification);
+router.post('/password-reset/request', authLimiter, authController.requestPasswordReset);
+router.post('/password-reset/confirm', authLimiter, authController.resetPassword);
 router.post('/2fa/confirm', authLimiter, authController.twoFactorConfirm);
 router.get('/oidc/start', authLimiter, authController.oidcStart);
 router.get('/oidc/callback', authLimiter, authController.oidcCallback);

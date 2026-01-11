@@ -24,6 +24,9 @@ const meEmail = document.getElementById('meEmail');
 const meRole = document.getElementById('meRole');
 const meOrg = document.getElementById('meOrg');
 const meSuper = document.getElementById('meSuper');
+const meEmailVerified = document.getElementById('meEmailVerified');
+const resendVerifyBtn = document.getElementById('resendVerifyBtn');
+const verifyMsg = document.getElementById('verifyMsg');
 const orgSelect = document.getElementById('orgSelect');
 const orgName = document.getElementById('orgName');
 const orgRole = document.getElementById('orgRole');
@@ -91,10 +94,17 @@ async function loadMe() {
     setText(meRole, data?.org?.role || 'member');
     setText(meOrg, data?.org?.orgId || '—');
     setText(meSuper, data?.user?.is_superadmin ? 'yes' : 'no');
+    if (meEmailVerified) {
+      const verified = data?.user?.email_verified !== false;
+      meEmailVerified.textContent = verified ? 'Verified' : 'Not verified';
+      if (resendVerifyBtn) resendVerifyBtn.disabled = verified;
+      if (verifyMsg) verifyMsg.textContent = verified ? '' : 'Check your inbox for a verification email.';
+    }
     twoFactorEnabled = Boolean(data?.user?.two_factor_enabled);
     updateTwoFactorUI();
   } catch (e) {
     setText(meEmail, '—');
+    if (meEmailVerified) meEmailVerified.textContent = '—';
   }
 }
 
@@ -353,7 +363,30 @@ async function disableTwoFactor() {
   }
 }
 
+async function resendVerification() {
+  const email = (meEmail?.textContent || '').trim();
+  if (!email || email === '—') {
+    if (verifyMsg) verifyMsg.textContent = 'Email not available.';
+    return;
+  }
+  if (verifyMsg) verifyMsg.textContent = 'Sending verification email…';
+  if (resendVerifyBtn) resendVerifyBtn.disabled = true;
+  try {
+    await api('/api/auth/verify-email/resend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (verifyMsg) verifyMsg.textContent = 'Verification email sent.';
+  } catch (e) {
+    if (verifyMsg) verifyMsg.textContent = e?.message || 'Failed to send verification email.';
+  } finally {
+    if (resendVerifyBtn) resendVerifyBtn.disabled = false;
+  }
+}
+
 btnChange?.addEventListener('click', changePassword);
+resendVerifyBtn?.addEventListener('click', resendVerification);
 orgSaveBtn?.addEventListener('click', saveOrgSettings);
 orgSelect?.addEventListener('change', onOrgSwitch);
 ssoSaveBtn?.addEventListener('click', saveSsoSettings);

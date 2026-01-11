@@ -7,6 +7,7 @@ const DEFAULT_TTL_SECONDS = 3600;
 export type CachedLink = {
   id: string;
   original_url: string;
+  domain?: string | null;
   expires_at: string | null;
   active: boolean;
   org_id?: string;

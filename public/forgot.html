@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OkLeaf - Login</title>
-  <meta name="description" content="Login to manage your OkLeaf links, domains, and analytics." />
-  <meta property="og:title" content="OkLeaf Login" />
-  <meta property="og:description" content="Access your OkLeaf workspace." />
+  <title>OkLeaf - Reset password</title>
+  <meta name="description" content="Request a password reset for your OkLeaf account." />
+  <meta property="og:title" content="OkLeaf Password Reset" />
+  <meta property="og:description" content="Reset your OkLeaf password." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="/favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/site.css" />
 </head>
-<body data-page="login">
+<body data-page="forgot">
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="/">
@@ -32,7 +32,7 @@
         <a href="/contact.html">Contact</a>
       </nav>
       <div class="nav-cta" data-nav-ctas>
-        <a class="btn ghost small" href="/register.html">Start free</a>
+        <a class="btn ghost small" href="/login.html">Login</a>
       </div>
     </div>
   </header>
@@ -40,42 +40,19 @@
   <main class="auth-wrap">
     <div class="auth-grid reveal">
       <div class="auth-side">
-        <div class="kicker">Welcome back</div>
-        <h3>Return to your link workspace.</h3>
-        <p class="notice" data-page-subtitle>Sign in to manage domains, links, and analytics.</p>
-        <ul class="auth-points" data-page-bullets></ul>
-        <ul>
-          <li>Enterprise-grade analytics for every campaign.</li>
-          <li>Governance controls for distributed teams.</li>
-          <li>Branded domains with verified ownership.</li>
-        </ul>
+        <div class="kicker">Account recovery</div>
+        <h3>Reset your password.</h3>
+        <p class="notice">We will send a reset link to your email.</p>
       </div>
       <div class="auth-card">
-        <h2 data-page-title>Sign in</h2>
+        <h2>Forgot password</h2>
         <label for="email">Email</label>
         <input id="email" type="email" placeholder="you@company.com" />
-        <label for="password">Password</label>
-        <input id="password" type="password" placeholder="Password" />
         <div class="actions">
-          <button class="btn primary" id="loginBtn">Login</button>
-          <a class="btn ghost" href="/register.html">Create account</a>
+          <button class="btn primary" id="resetRequestBtn">Send reset link</button>
+          <a class="btn ghost" href="/login.html">Back to login</a>
         </div>
-        <div class="row" style="margin-top:12px;gap:10px;flex-wrap:wrap">
-          <a class="btn ghost small" href="/forgot.html">Forgot password?</a>
-          <button class="btn ghost small" type="button" id="resendVerifyBtn">Resend verification</button>
-        </div>
-        <div class="notice" id="loginNotice"></div>
-      </div>
-      <div class="auth-side">
-        <div class="auth-card sso-card" style="margin-top:16px;padding:16px">
-          <h3 style="margin-top:0">Sign in with SSO</h3>
-          <label class="muted">Organization ID</label>
-          <input id="ssoOrgId" class="input" type="text" placeholder="Org ID" />
-          <div class="row" style="justify-content:flex-end;margin-top:12px">
-            <button id="loginSsoBtn" class="btn ghost" type="button">Continue with SSO</button>
-          </div>
-          <p class="muted small">Use the Org ID configured under admin Settings → SSO.</p>
-        </div>
+        <div class="notice" id="resetNotice"></div>
       </div>
     </div>
   </main>
@@ -102,6 +79,6 @@
   </footer>
 
   <script src="/site.js?v=20260116"></script>
-  <script src="/login.js"></script>
+  <script src="/forgot.js"></script>
 </body>
 </html>

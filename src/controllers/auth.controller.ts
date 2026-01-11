@@ -11,6 +11,8 @@ import { getEffectivePlan } from '../services/plan';
 import { recordConsent } from '../services/consent';
 import { getRetentionDefaultDays } from '../services/platformConfig';
 import { defaultScopes, discoverIssuer, normalizeIssuer } from '../services/oidc';
+import { sendMail, hasSmtpConfig } from '../services/mailer';
+import { DEFAULT_SITE_CONFIG, getSiteSetting, mergeConfig } from '../services/siteConfig';
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -78,6 +80,89 @@ type OidcState = {
 
 function base64url(buffer: Buffer): string {
   return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+const EMAIL_VERIFY_TTL_HOURS_RAW = Number(process.env.EMAIL_VERIFY_TTL_HOURS || '24');
+const PASSWORD_RESET_TTL_MINUTES_RAW = Number(process.env.PASSWORD_RESET_TTL_MINUTES || '60');
+const EMAIL_VERIFY_TTL_HOURS = Number.isFinite(EMAIL_VERIFY_TTL_HOURS_RAW) && EMAIL_VERIFY_TTL_HOURS_RAW > 0
+  ? EMAIL_VERIFY_TTL_HOURS_RAW
+  : 24;
+const PASSWORD_RESET_TTL_MINUTES = Number.isFinite(PASSWORD_RESET_TTL_MINUTES_RAW) && PASSWORD_RESET_TTL_MINUTES_RAW > 0
+  ? PASSWORD_RESET_TTL_MINUTES_RAW
+  : 60;
+const EMAIL_VERIFICATION_REQUIRED = process.env.EMAIL_VERIFICATION_REQUIRED === '1';
+
+function buildPublicUrl(path: string) {
+  const base = APP_URL.replace(/\/+$/, '');
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+function renderTemplate(template: string, vars: Record<string, string>) {
+  return String(template || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key) => (
+    key in vars ? vars[key] : match
+  ));
+}
+
+async function loadSiteConfig(useDraft = false) {
+  let stored = await getSiteSetting(useDraft ? 'marketing_draft' : 'marketing_published');
+  if (!stored && !useDraft) {
+    stored = await getSiteSetting('marketing_draft');
+  }
+  return mergeConfig(DEFAULT_SITE_CONFIG, stored || {});
+}
+
+function hashToken(raw: string) {
+  return createHash('sha256').update(raw).digest('hex');
+}
+
+async function createEmailVerificationToken(userId: string) {
+  const token = randomBytes(32).toString('hex');
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + EMAIL_VERIFY_TTL_HOURS * 60 * 60 * 1000);
+  await db.query(`DELETE FROM email_verification_tokens WHERE user_id = $1`, [userId]);
+  await db.query(
+    `INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)`,
+    [userId, tokenHash, expiresAt]
+  );
+  return token;
+}
+
+async function createPasswordResetToken(userId: string) {
+  const token = randomBytes(32).toString('hex');
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000);
+  await db.query(`DELETE FROM password_reset_tokens WHERE user_id = $1`, [userId]);
+  await db.query(
+    `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)`,
+    [userId, tokenHash, expiresAt]
+  );
+  return token;
+}
+
+async function sendVerificationEmail(to: string, token: string) {
+  const config = await loadSiteConfig(false);
+  const brandName = config?.brand?.name || 'OkLeaf';
+  const supportEmail = config?.footer?.email || 'support@okleaf.link';
+  const verifyUrl = buildPublicUrl(`/verify.html?token=${encodeURIComponent(token)}`);
+  const vars = { brandName, supportEmail, verifyUrl };
+  const subject = renderTemplate(config?.emails?.verify?.subject || 'Verify your email', vars);
+  const text = renderTemplate(config?.emails?.verify?.text || '', vars);
+  const html = renderTemplate(config?.emails?.verify?.html || '', vars);
+  return sendMail({ to, subject, text, html });
+}
+
+async function sendPasswordResetEmail(to: string, token: string) {
+  const config = await loadSiteConfig(false);
+  const brandName = config?.brand?.name || 'OkLeaf';
+  const supportEmail = config?.footer?.email || 'support@okleaf.link';
+  const resetUrl = buildPublicUrl(`/reset.html?token=${encodeURIComponent(token)}`);
+  const vars = { brandName, supportEmail, resetUrl };
+  const subject = renderTemplate(config?.emails?.reset?.subject || 'Reset your password', vars);
+  const text = renderTemplate(config?.emails?.reset?.text || '', vars);
+  const html = renderTemplate(config?.emails?.reset?.html || '', vars);
+  return sendMail({ to, subject, text, html });
 }
 
 function hashSha256(input: string): string {
@@ -184,6 +269,10 @@ async function loginImpl(req: Request, res: Response) {
     }
     if (!ok) return res.status(401).json({ success: false, error: 'Invalid credentials' });
 
+    if (EMAIL_VERIFICATION_REQUIRED && user.email_verified === false) {
+      return res.status(403).json({ success: false, error: 'Email not verified', requires_email_verification: true });
+    }
+
     if (user.totp_enabled && user.totp_secret) {
       const challenge = signChallengeToken({ userId: user.id, email: user.email });
       return res.json({ success: true, data: { requires_2fa: true, challenge_token: challenge } });
@@ -213,15 +302,18 @@ async function registerImpl(req: Request, res: Response) {
     }
 
     const hash = await bcrypt.hash(password, 12);
+    const smtpReady = await hasSmtpConfig();
+    const needsVerification = smtpReady && EMAIL_VERIFICATION_REQUIRED;
+    const emailVerified = !smtpReady;
 
     await db.query('BEGIN');
 
     const { rows } = await db.query(
       `INSERT INTO users (email, password, name, is_active, email_verified, is_superadmin)
-       VALUES ($1, $2, $3, true, true, false)
+       VALUES ($1, $2, $3, true, $4, false)
        ON CONFLICT (email) DO NOTHING
        RETURNING id, email, name, plan, created_at, password AS password_hash, is_active, email_verified, is_superadmin`,
-      [email, hash, name]
+      [email, hash, name, emailVerified]
     );
 
     const user = rows[0];
@@ -359,10 +451,27 @@ async function registerImpl(req: Request, res: Response) {
 
     await db.query('COMMIT');
 
-    const token = signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
+    let verificationSent = false;
+    if (smtpReady) {
+      try {
+        const verifyToken = await createEmailVerificationToken(user.id);
+        const result = await sendVerificationEmail(user.email, verifyToken);
+        verificationSent = result.sent === true;
+      } catch (err) {
+        console.error('auth.register verification email error:', err);
+      }
+    }
+
+    const token = needsVerification ? null : signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
     return res.status(201).json({
       success: true,
-      data: { user: safeUser(user), token, org_id: orgId },
+      data: {
+        user: safeUser(user),
+        token,
+        org_id: orgId,
+        verification_sent: verificationSent,
+        requires_email_verification: needsVerification,
+      },
     });
   } catch (err) {
     try { await db.query('ROLLBACK'); } catch {}
@@ -427,6 +536,153 @@ async function changePasswordImpl(req: Request, res: Response) {
     return res.json({ success: true, data: { updated: true } });
   } catch (err) {
     console.error('auth.changePassword error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+async function verifyEmailImpl(req: Request, res: Response) {
+  try {
+    const token = String(req.body?.token || req.query?.token || '').trim();
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'token is required' });
+    }
+    const tokenHash = hashToken(token);
+    const { rows } = await db.query(
+      `SELECT user_id, expires_at, consumed_at
+         FROM email_verification_tokens
+        WHERE token_hash = $1
+        LIMIT 1`,
+      [tokenHash]
+    );
+    if (!rows.length) {
+      return res.status(400).json({ success: false, error: 'Invalid or expired token' });
+    }
+    const row = rows[0];
+    if (row.consumed_at || (row.expires_at && new Date(row.expires_at) <= new Date())) {
+      return res.status(400).json({ success: false, error: 'Invalid or expired token' });
+    }
+
+    await db.query('BEGIN');
+    await db.query(`UPDATE users SET email_verified = true WHERE id = $1`, [row.user_id]);
+    await db.query(`UPDATE email_verification_tokens SET consumed_at = NOW() WHERE token_hash = $1`, [tokenHash]);
+    await db.query(
+      `DELETE FROM email_verification_tokens WHERE user_id = $1 AND token_hash <> $2`,
+      [row.user_id, tokenHash]
+    );
+    await db.query('COMMIT');
+
+    return res.json({ success: true });
+  } catch (err) {
+    try { await db.query('ROLLBACK'); } catch {}
+    console.error('auth.verifyEmail error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+async function resendVerificationImpl(req: Request, res: Response) {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'email is required' });
+    }
+    const smtpReady = await hasSmtpConfig();
+    if (!smtpReady) {
+      return res.status(400).json({ success: false, error: 'Email service not configured' });
+    }
+    const { rows } = await db.query(
+      `SELECT id, email_verified FROM users WHERE email = $1 LIMIT 1`,
+      [email]
+    );
+    if (!rows.length) {
+      return res.json({ success: true, data: { sent: true } });
+    }
+    if (rows[0].email_verified) {
+      return res.json({ success: true, data: { sent: true } });
+    }
+
+    const verifyToken = await createEmailVerificationToken(rows[0].id);
+    const result = await sendVerificationEmail(email, verifyToken);
+    if (!result.sent) {
+      return res.status(400).json({ success: false, error: result.reason || 'Email not sent' });
+    }
+    return res.json({ success: true, data: { sent: true } });
+  } catch (err) {
+    console.error('auth.resendVerification error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+async function requestPasswordResetImpl(req: Request, res: Response) {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'email is required' });
+    }
+    const smtpReady = await hasSmtpConfig();
+    if (!smtpReady) {
+      return res.status(400).json({ success: false, error: 'Email service not configured' });
+    }
+
+    const { rows } = await db.query(
+      `SELECT id FROM users WHERE email = $1 LIMIT 1`,
+      [email]
+    );
+    if (rows.length) {
+      const resetToken = await createPasswordResetToken(rows[0].id);
+      const result = await sendPasswordResetEmail(email, resetToken);
+      if (!result.sent) {
+        return res.status(400).json({ success: false, error: result.reason || 'Email not sent' });
+      }
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('auth.requestPasswordReset error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+async function resetPasswordImpl(req: Request, res: Response) {
+  try {
+    const token = String(req.body?.token || '').trim();
+    const newPassword = String(req.body?.password || '').trim();
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, error: 'token and password are required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ success: false, error: 'password must be at least 8 characters' });
+    }
+
+    const tokenHash = hashToken(token);
+    const { rows } = await db.query(
+      `SELECT user_id, expires_at, consumed_at
+         FROM password_reset_tokens
+        WHERE token_hash = $1
+        LIMIT 1`,
+      [tokenHash]
+    );
+    if (!rows.length) {
+      return res.status(400).json({ success: false, error: 'Invalid or expired token' });
+    }
+    const row = rows[0];
+    if (row.consumed_at || (row.expires_at && new Date(row.expires_at) <= new Date())) {
+      return res.status(400).json({ success: false, error: 'Invalid or expired token' });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12);
+    await db.query('BEGIN');
+    await db.query(`UPDATE users SET password = $1 WHERE id = $2`, [hash, row.user_id]);
+    await db.query(`UPDATE password_reset_tokens SET consumed_at = NOW() WHERE token_hash = $1`, [tokenHash]);
+    await db.query(
+      `DELETE FROM password_reset_tokens WHERE user_id = $1 AND token_hash <> $2`,
+      [row.user_id, tokenHash]
+    );
+    await db.query('COMMIT');
+
+    return res.json({ success: true });
+  } catch (err) {
+    try { await db.query('ROLLBACK'); } catch {}
+    console.error('auth.resetPassword error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -796,6 +1052,10 @@ export class AuthController {
   register = (req: Request, res: Response) => { void registerImpl(req, res); };
   me = (req: Request, res: Response) => { void meImpl(req, res); };
   changePassword = (req: Request, res: Response) => { void changePasswordImpl(req, res); };
+  verifyEmail = (req: Request, res: Response) => { void verifyEmailImpl(req, res); };
+  resendVerification = (req: Request, res: Response) => { void resendVerificationImpl(req, res); };
+  requestPasswordReset = (req: Request, res: Response) => { void requestPasswordResetImpl(req, res); };
+  resetPassword = (req: Request, res: Response) => { void resetPasswordImpl(req, res); };
   oidcStart = (req: Request, res: Response) => { void oidcStartImpl(req, res); };
   oidcCallback = (req: Request, res: Response) => { void oidcCallbackImpl(req, res); };
   twoFactorSetup = (req: Request, res: Response) => { void twoFactorSetupImpl(req, res); };
@@ -809,6 +1069,10 @@ export const login = (req: Request, res: Response) => { void loginImpl(req, res)
 export const register = (req: Request, res: Response) => { void registerImpl(req, res); };
 export const me = (req: Request, res: Response) => { void meImpl(req, res); };
 export const changePassword = (req: Request, res: Response) => { void changePasswordImpl(req, res); };
+export const verifyEmail = (req: Request, res: Response) => { void verifyEmailImpl(req, res); };
+export const resendVerification = (req: Request, res: Response) => { void resendVerificationImpl(req, res); };
+export const requestPasswordReset = (req: Request, res: Response) => { void requestPasswordResetImpl(req, res); };
+export const resetPassword = (req: Request, res: Response) => { void resetPasswordImpl(req, res); };
 export const twoFactorSetup = (req: Request, res: Response) => { void twoFactorSetupImpl(req, res); };
 export const twoFactorVerify = (req: Request, res: Response) => { void twoFactorVerifyImpl(req, res); };
 export const twoFactorDisable = (req: Request, res: Response) => { void twoFactorDisableImpl(req, res); };

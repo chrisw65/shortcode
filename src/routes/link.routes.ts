@@ -2,7 +2,7 @@
 import { Router, type RequestHandler } from 'express';
 import * as linkController from '../controllers/link.controller';
 import { authenticate } from '../middleware/auth';
-import { requireOrg } from '../middleware/org';
+import { requireOrg, requireOrgRole } from '../middleware/org';
 import { perOrgApiRpmRedis } from '../middleware/redisRateLimit';
 import { requireApiScope } from '../middleware/apiScope';
 
@@ -20,12 +20,12 @@ router.use(requireOrg);
 router.use(apiLimiter);
 
 // Create a new short link
-router.post('/', requireApiScope('links:write'), wrap(linkController.createLink));
+router.post('/', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.createLink));
 
 // Bulk operations
-router.post('/bulk-create', requireApiScope('links:write'), wrap(linkController.bulkCreateLinks));
-router.post('/bulk-delete', requireApiScope('links:write'), wrap(linkController.bulkDeleteLinks));
-router.post('/bulk-import', requireApiScope('links:write'), wrap(linkController.bulkImportLinks));
+router.post('/bulk-create', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.bulkCreateLinks));
+router.post('/bulk-delete', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.bulkDeleteLinks));
+router.post('/bulk-import', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.bulkImportLinks));
 
 // Check short code availability
 router.get('/availability/:shortCode', requireApiScope('links:read'), wrap(linkController.checkAvailability));
@@ -38,22 +38,22 @@ router.get('/', requireApiScope('links:read'), wrap(linkController.getUserLinks)
 
 // Manage link variants
 router.get('/:shortCode/variants', requireApiScope('links:read'), wrap(linkController.listVariants));
-router.put('/:shortCode/variants', requireApiScope('links:write'), wrap(linkController.replaceVariants));
+router.put('/:shortCode/variants', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.replaceVariants));
 
 // Manage link routing rules
 router.get('/:shortCode/routes', requireApiScope('links:read'), wrap(linkController.listRoutes));
-router.put('/:shortCode/routes', requireApiScope('links:write'), wrap(linkController.replaceRoutes));
+router.put('/:shortCode/routes', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.replaceRoutes));
 
 // Get a single link (by short code, owned by the user)
 router.get('/:shortCode', requireApiScope('links:read'), wrap(linkController.getLinkDetails));
 
 // Update a link (title/url/expiry) by short code
-router.put('/:shortCode', requireApiScope('links:write'), wrap(linkController.updateLink));
+router.put('/:shortCode', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.updateLink));
 
 // Pause/resume a link
-router.put('/:shortCode/status', requireApiScope('links:write'), wrap(linkController.updateLinkStatus));
+router.put('/:shortCode/status', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.updateLinkStatus));
 
 // Delete a link by short code
-router.delete('/:shortCode', requireApiScope('links:write'), wrap(linkController.deleteLink));
+router.delete('/:shortCode', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.deleteLink));
 
 export default router;

@@ -49,9 +49,14 @@ async function register() {
 
     if (data?.data?.token) {
       localStorage.setItem('admin_token', data.data.token);
+      window.location.href = '/admin/dashboard.html';
+      return;
     }
-
-    window.location.href = '/admin/dashboard.html';
+    if (data?.data?.requires_email_verification) {
+      setNotice('Account created. Check your email to verify before logging in.');
+      return;
+    }
+    window.location.href = '/login.html';
   } catch (err) {
     setNotice(err.message || 'Registration failed', true);
   } finally {

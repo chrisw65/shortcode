@@ -24,6 +24,33 @@ function safeRedirectUrl(raw: string): string | null {
 const PW_COOKIE_TTL_SECONDS = 60 * 60 * 24;
 const DEEP_LINK_TIMEOUT_MS = 1500;
 
+function normalizeHost(raw?: string | null): string {
+  const input = String(raw || '').trim().toLowerCase();
+  if (!input) return '';
+  let host = input;
+  if (input.startsWith('http://') || input.startsWith('https://')) {
+    try {
+      host = new URL(input).host;
+    } catch {
+      host = input;
+    }
+  }
+  return host.replace(/:\d+$/, '');
+}
+
+const CORE_HOSTS = new Set(
+  [process.env.CORE_DOMAIN, process.env.PUBLIC_HOST, process.env.BASE_URL]
+    .map((val) => normalizeHost(val))
+    .filter(Boolean)
+);
+const ALLOW_ANY_CORE_HOST = CORE_HOSTS.size === 0;
+
+function getRequestHost(req: Request): string {
+  const forwarded = String(req.headers['x-forwarded-host'] || '').split(',')[0]?.trim();
+  const host = forwarded || req.get('host') || req.hostname || '';
+  return normalizeHost(host);
+}
+
 function cookieSecret(): string {
   return process.env.PW_COOKIE_SECRET || process.env.JWT_SECRET || 'pw-secret';
 }
@@ -214,12 +241,17 @@ export class RedirectController {
       const { shortCode } = req.params;
 
       let link = await getCachedLink(shortCode);
+      if (link && typeof link.domain === 'undefined') {
+        link = null;
+      }
       if (!link) {
         const q = `
           SELECT l.id, l.original_url, l.expires_at, l.active, l.org_id, o.ip_anonymization, l.password_hash,
-                 l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled
+                 l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled,
+                 d.domain AS domain
             FROM links l
             JOIN orgs o ON o.id = l.org_id
+            LEFT JOIN domains d ON d.id = l.domain_id
            WHERE short_code = $1
            LIMIT 1
         `;
@@ -242,6 +274,7 @@ export class RedirectController {
         link = {
           id: rows[0].id,
           original_url: rows[0].original_url,
+          domain: rows[0].domain || null,
           expires_at: rows[0].expires_at,
           active: rows[0].active !== false,
           org_id: rows[0].org_id,
@@ -255,6 +288,18 @@ export class RedirectController {
           routes: routes || [],
         };
         void setCachedLink(shortCode, link);
+      }
+
+      const requestHost = getRequestHost(req);
+      if (requestHost) {
+        const linkDomain = normalizeHost(link.domain || '');
+        if (linkDomain) {
+          if (requestHost !== linkDomain) {
+            return res.status(404).send('Not found');
+          }
+        } else if (!ALLOW_ANY_CORE_HOST && !CORE_HOSTS.has(requestHost)) {
+          return res.status(404).send('Not found');
+        }
       }
 
       if (link.active === false) {

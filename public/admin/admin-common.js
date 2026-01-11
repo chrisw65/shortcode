@@ -163,9 +163,54 @@ function ensureAdminNavIncludesEcosystem() {
   }
 }
 
+async function ensureEmailVerificationBanner() {
+  if (!getToken()) return;
+  const main = document.querySelector('.admin-main');
+  if (!main || main.querySelector('.admin-banner')) return;
+  try {
+    const me = await apiFetch('/api/auth/me');
+    const user = me?.data?.user || me?.user;
+    if (!user || user.email_verified !== false) return;
+    const email = escapeHtml(user.email || '');
+    const banner = document.createElement('div');
+    banner.className = 'admin-banner';
+    banner.innerHTML = `
+      <div>
+        <div style="font-weight:600">Email not verified</div>
+        <div class="muted">Verify ${email} to keep your account active.</div>
+      </div>
+      <div class="row" style="gap:10px">
+        <button class="btn ghost" type="button" data-action="resend-verify">Resend verification</button>
+        <a class="btn" href="/verify.html">Open verification</a>
+      </div>
+    `;
+    main.insertBefore(banner, main.firstChild);
+    const resendBtn = banner.querySelector('[data-action="resend-verify"]');
+    resendBtn?.addEventListener('click', async () => {
+      resendBtn.disabled = true;
+      resendBtn.textContent = 'Sending…';
+      try {
+        await apiFetch('/api/auth/verify-email/resend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email }),
+        });
+        resendBtn.textContent = 'Sent';
+      } catch {
+        resendBtn.textContent = 'Retry';
+      } finally {
+        setTimeout(() => { resendBtn.disabled = false; }, 1200);
+      }
+    });
+  } catch {
+    // ignore banner failures
+  }
+}
+
 onReady(() => {
   applyAdminTheme();
   ensureAdminNavIncludesEcosystem();
+  ensureEmailVerificationBanner();
 });
 
 export function setText(el, value) {

@@ -562,8 +562,43 @@
         </section>
 
         <section class="card" style="margin-top:18px" data-tab="email">
+          <h3>SMTP settings</h3>
+          <div class="muted small">Saved in site settings and used for verification, invites, and resets.</div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">SMTP host</label>
+              <input class="input" id="smtpHost" placeholder="smtp.mailprovider.com">
+            </div>
+            <div>
+              <label class="muted">SMTP port</label>
+              <input class="input" id="smtpPort" placeholder="587">
+            </div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">SMTP user</label>
+              <input class="input" id="smtpUser" placeholder="smtp-user">
+            </div>
+            <div>
+              <label class="muted">SMTP password</label>
+              <input class="input" id="smtpPass" type="password" placeholder="••••••••">
+            </div>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">From name</label>
+              <input class="input" id="smtpFromName" placeholder="OkLeaf">
+            </div>
+            <div>
+              <label class="muted">From email</label>
+              <input class="input" id="smtpFromEmail" placeholder="no-reply@okleaf.link">
+            </div>
+          </div>
+          <label class="muted" style="margin-top:12px">Reply-to email</label>
+          <input class="input" id="smtpReplyTo" placeholder="support@okleaf.link">
+
           <div class="row-between">
-            <h3 class="m-0">Email templates</h3>
+            <h3 class="m-0" style="margin-top:18px">Email templates</h3>
             <button class="btn ghost" id="inviteResetBtn" type="button">Reset invite template</button>
           </div>
           <div class="muted small">Variables: {{brandName}}, {{supportEmail}}, {{inviter}}, {{inviteUrl}}</div>
@@ -594,6 +629,31 @@
               </div>
             </div>
           </div>
+          <hr style="margin:20px 0;border-color:rgba(255,255,255,0.08)">
+          <div class="row-between">
+            <h4 class="m-0">Verification email</h4>
+            <button class="btn ghost" id="verifyResetBtn" type="button">Reset verification</button>
+          </div>
+          <div class="muted small">Variables: {{brandName}}, {{supportEmail}}, {{verifyUrl}}</div>
+          <label class="muted" style="margin-top:12px">Verification subject</label>
+          <input class="input" id="verifySubject" placeholder="Verify your email for {{brandName}}">
+          <label class="muted" style="margin-top:10px">Verification text (plain)</label>
+          <textarea class="input" id="verifyText" rows="6"></textarea>
+          <label class="muted" style="margin-top:10px">Verification HTML</label>
+          <textarea class="input" id="verifyHtml" rows="8"></textarea>
+
+          <hr style="margin:20px 0;border-color:rgba(255,255,255,0.08)">
+          <div class="row-between">
+            <h4 class="m-0">Password reset email</h4>
+            <button class="btn ghost" id="resetResetBtn" type="button">Reset password template</button>
+          </div>
+          <div class="muted small">Variables: {{brandName}}, {{supportEmail}}, {{resetUrl}}</div>
+          <label class="muted" style="margin-top:12px">Reset subject</label>
+          <input class="input" id="resetSubject" placeholder="Reset your {{brandName}} password">
+          <label class="muted" style="margin-top:10px">Reset text (plain)</label>
+          <textarea class="input" id="resetText" rows="6"></textarea>
+          <label class="muted" style="margin-top:10px">Reset HTML</label>
+          <textarea class="input" id="resetHtml" rows="8"></textarea>
         </section>
 
         <section class="card" style="margin-top:18px" data-tab="history">

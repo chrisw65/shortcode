@@ -121,6 +121,19 @@ a{color:inherit;text-decoration:none}
   padding:26px 32px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
   border-bottom:1px solid rgba(213,162,75,.18);background:rgba(12,18,28,.6);backdrop-filter:blur(8px)
 }
+.admin-banner{
+  margin:18px 32px 0;
+  padding:14px 16px;
+  border-radius:14px;
+  border:1px solid rgba(255,123,123,.35);
+  background:rgba(255,123,123,.12);
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.admin-banner .muted{color:var(--muted)}
 .page-title{font-family:"Newsreader","Space Grotesk",serif;font-size:28px;margin:0}
 .page-sub{color:var(--muted);margin:6px 0 0}
 .admin-content{padding:24px 32px 32px}

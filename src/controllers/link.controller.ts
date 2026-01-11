@@ -350,6 +350,7 @@ export async function createLink(req: UserReq, res: Response) {
     void setCachedLink(code, {
       id: rows[0].id,
       original_url: rows[0].original_url,
+      domain: domainHost || null,
       expires_at: rows[0].expires_at,
       active: rows[0].active !== false,
       password_hash: passwordHash,

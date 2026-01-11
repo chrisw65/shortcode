@@ -51,6 +51,16 @@ const enableStatic = enableApi;
 const enableJobs = enableWorker || enableApi;
 
 const app = express();
+const LOG_FORMAT = String(process.env.LOG_FORMAT || 'json').toLowerCase();
+
+function log(level: 'info' | 'warn' | 'error', message: string, meta: Record<string, any> = {}) {
+  const payload = { level, message, time: new Date().toISOString(), ...meta };
+  if (LOG_FORMAT === 'pretty') {
+    console.log(`[${level}] ${message}`, meta);
+    return;
+  }
+  console.log(JSON.stringify(payload));
+}
 
 // If behind Cloudflare / a proxy
 app.set('trust proxy', true);
@@ -102,7 +112,22 @@ app.use((req, res, next) => {
   next();
 });
 const morganFormat = ':remote-addr :method :url :status :res[content-length] - :response-time ms :req[x-request-id]';
-app.use(morgan(morganFormat));
+if (LOG_FORMAT === 'json') {
+  app.use(morgan((tokens, req, res) => JSON.stringify({
+    level: 'info',
+    message: 'http_request',
+    time: new Date().toISOString(),
+    remote_addr: tokens['remote-addr'](req, res),
+    method: tokens.method(req, res),
+    url: tokens.url(req, res),
+    status: Number(tokens.status(req, res)),
+    content_length: tokens.res(req, res, 'content-length'),
+    response_time_ms: Number(tokens['response-time'](req, res)),
+    request_id: tokens.req(req, res, 'x-request-id'),
+  })));
+} else {
+  app.use(morgan(morganFormat));
+}
 
 async function initRedis() {
   try {
@@ -113,7 +138,7 @@ async function initRedis() {
       startClickWorker();
     }
   } catch (err) {
-    console.error('Redis init failed:', err);
+    log('error', 'redis_init_failed', { error: String(err) });
   }
 }
 if (enableApi || enableRedirect || enableWorker) {
@@ -135,7 +160,7 @@ app.get('/health', async (_req, res) => {
     await db.query('SELECT 1');
     dbOk = true;
   } catch (err) {
-    console.error('Healthcheck DB failed:', err);
+    log('error', 'healthcheck_db_failed', { error: String(err) });
   }
   const redisOk = redisClient.isReady;
   const ok = dbOk;
@@ -205,7 +230,7 @@ app.use((req: Request, res: Response) => {
 // Error handler
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-  console.error('Unhandled error:', { err, request_id: (req as any).id });
+  log('error', 'unhandled_error', { error: String(err), request_id: (req as any).id });
   if (res.headersSent) return;
   res.status(500).json({ success: false, error: 'Internal server error' });
 });
@@ -213,13 +238,49 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
 // Start server (when run directly)
 if (require.main === module && (enableApi || enableRedirect || enableStatic)) {
   const PORT = parseInt(process.env.PORT || '3000', 10);
-  app.listen(PORT, () => {
-    // eslint-disable-next-line no-console
-    console.log(`✓ Server running on port ${PORT}`);
-    // eslint-disable-next-line no-console
-    console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-    // eslint-disable-next-line no-console
-    console.log(`✓ Service mode: ${modeRaw}`);
+  const server = app.listen(PORT, () => {
+    log('info', 'server_started', {
+      port: PORT,
+      env: process.env.NODE_ENV || 'development',
+      mode: modeRaw,
+    });
+  });
+
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    log('info', 'shutdown_start', { signal });
+    try {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    } catch (err) {
+      log('error', 'shutdown_server_error', { error: String(err) });
+    }
+    try {
+      if (redisClient.isOpen) await redisClient.quit();
+    } catch (err) {
+      log('error', 'shutdown_redis_error', { error: String(err) });
+    }
+    try {
+      await db.end();
+    } catch (err) {
+      log('error', 'shutdown_db_error', { error: String(err) });
+    }
+    log('info', 'shutdown_complete');
+    process.exit(0);
+  };
+
+  process.on('unhandledRejection', (reason) => {
+    log('error', 'unhandled_rejection', { error: String(reason) });
+  });
+  process.on('uncaughtException', (err) => {
+    log('error', 'uncaught_exception', { error: String(err) });
+  });
+
+  ['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach((signal) => {
+    process.on(signal, () => {
+      void shutdown(signal);
+    });
   });
 }
 
