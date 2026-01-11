@@ -103,6 +103,14 @@ const LIMIT_KEYS = [
   { key: 'api_rate_rpm', label: 'API rpm limit' },
 ];
 
+const LIMIT_LABELS = {
+  links: 'links',
+  domains: 'custom domains',
+  team_seats: 'team seats',
+  retention_days: 'days retention',
+  api_rate_rpm: 'API rpm',
+};
+
 const DEFAULT_ENTITLEMENTS = {
   free: {
     features: {
@@ -168,6 +176,62 @@ const DEFAULT_ENTITLEMENTS = {
 
 function defaultEntitlementsForPlan(planId) {
   return DEFAULT_ENTITLEMENTS[planId] || DEFAULT_ENTITLEMENTS.free;
+}
+
+function formatLimitLine(key, value) {
+  if (value === null) {
+    if (key === 'retention_days') return 'Unlimited retention';
+    if (key === 'api_rate_rpm') return 'Unlimited API rate';
+    return `Unlimited ${LIMIT_LABELS[key] || key}`;
+  }
+  if (value === 0 && key === 'domains') return 'No custom domains';
+  if (key === 'team_seats') return value === 1 ? '1 team seat' : `Up to ${value} team seats`;
+  if (key === 'retention_days') return `Retention: ${value} days`;
+  if (key === 'api_rate_rpm') return `API rate: ${value} rpm`;
+  return `Up to ${value} ${LIMIT_LABELS[key] || key}`;
+}
+
+function buildFeatureList(planId) {
+  const entitlements = billingConfig.entitlements || {};
+  const baseline = defaultEntitlementsForPlan(planId);
+  const override = entitlements[planId] || {};
+  const features = { ...baseline.features, ...(override.features || {}) };
+  const limits = { ...baseline.limits, ...(override.limits || {}) };
+  const list = [];
+  FEATURE_KEYS.forEach((f) => {
+    if (features[f.key]) list.push(f.label);
+  });
+  LIMIT_KEYS.forEach((l) => {
+    const value = limits[l.key];
+    if (value === undefined) return;
+    if (value === 0 && l.key !== 'domains') return;
+    list.push(formatLimitLine(l.key, value));
+  });
+  return list;
+}
+
+async function syncPricingFeaturesToPublic() {
+  try {
+    const res = await apiFetch('/api/site-config');
+    const draft = res?.data?.draft || {};
+    const pricing = draft.pricing || {};
+    const tiers = Array.isArray(pricing.tiers) ? pricing.tiers : [];
+    const updated = tiers.map((tier) => {
+      const planId = planIdForTier(tier);
+      return { ...tier, features: buildFeatureList(planId) };
+    });
+    const nextDraft = { ...draft, pricing: { ...pricing, tiers: updated } };
+    await apiFetch('/api/site-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nextDraft),
+    });
+    await apiFetch('/api/site-config/publish', { method: 'POST' });
+    pricingTiers = updated;
+    renderPlanCards();
+  } catch (err) {
+    console.warn('Failed to sync pricing features', err);
+  }
 }
 
 function renderEntitlementsPlanSelector() {
@@ -445,6 +509,7 @@ if (saveEntitlements) {
       });
       billingConfig = res.data || billingConfig;
       renderEntitlements();
+      await syncPricingFeaturesToPublic();
       entitlementsMsg.textContent = 'Entitlements saved.';
     } catch (err) {
       entitlementsMsg.textContent = 'Failed to save entitlements.';
