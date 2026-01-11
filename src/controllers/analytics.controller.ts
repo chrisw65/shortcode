@@ -5,6 +5,9 @@ import db from '../config/database';
 import redisClient from '../config/redis';
 
 type ReqWithUser = Request & { user?: { userId?: string } };
+type TimeFilter =
+  | { error: string }
+  | { sql: string; params: any[]; start: Date | null; end: Date | null; mode: 'custom' | 'range' };
 
 function bucketUserAgent(ua: string | null): 'mobile' | 'desktop' | 'bot' | 'other' {
   if (!ua) return 'other';
@@ -84,7 +87,7 @@ function withDateRangeSql(prefix: string, start: Date | null, end: Date | null, 
   return { sql, params };
 }
 
-function resolveTimeFilters(prefix: string, rangeRaw: unknown, startRaw: unknown, endRaw: unknown, params: any[]) {
+function resolveTimeFilters(prefix: string, rangeRaw: unknown, startRaw: unknown, endRaw: unknown, params: any[]): TimeFilter {
   const start = parseDateInput(startRaw);
   const end = parseDateInput(endRaw);
   if (start && end && start > end) {
@@ -161,8 +164,8 @@ export async function summary(req: ReqWithUser, res: Response) {
 
     const seriesParams: any[] = [orgId];
     const seriesFilters = resolveTimeFilters('c', range, startDate, endDate, seriesParams);
-    if ((seriesFilters as any).error) {
-      return res.status(400).json({ success: false, error: (seriesFilters as any).error });
+    if ('error' in seriesFilters) {
+      return res.status(400).json({ success: false, error: seriesFilters.error });
     }
     const start = seriesFilters.start;
     const end = seriesFilters.end;
@@ -214,8 +217,8 @@ export async function summary(req: ReqWithUser, res: Response) {
 
     const totalsParams: any[] = [orgId];
     const totalsRange = resolveTimeFilters('c', range, startDate, endDate, totalsParams);
-    if ((totalsRange as any).error) {
-      return res.status(400).json({ success: false, error: (totalsRange as any).error });
+    if ('error' in totalsRange) {
+      return res.status(400).json({ success: false, error: totalsRange.error });
     }
     const totals = await db.query<{ total_clicks: string; last_click_at: Date | null; clicks_24h: string }>(`
       SELECT COUNT(*)::bigint AS total_clicks,
@@ -246,8 +249,8 @@ export async function summary(req: ReqWithUser, res: Response) {
 
     const refParams: any[] = [orgId];
     const refRange = resolveTimeFilters('c', range, startDate, endDate, refParams);
-    if ((refRange as any).error) {
-      return res.status(400).json({ success: false, error: (refRange as any).error });
+    if ('error' in refRange) {
+      return res.status(400).json({ success: false, error: refRange.error });
     }
     const referrers = await db.query<{ referrer: string | null; count: string }>(`
       SELECT COALESCE(NULLIF(TRIM(referer), ''), '(direct)') AS referrer,
@@ -262,8 +265,8 @@ export async function summary(req: ReqWithUser, res: Response) {
 
     const uaParams: any[] = [orgId];
     const uaRange = resolveTimeFilters('c', range, startDate, endDate, uaParams);
-    if ((uaRange as any).error) {
-      return res.status(400).json({ success: false, error: (uaRange as any).error });
+    if ('error' in uaRange) {
+      return res.status(400).json({ success: false, error: uaRange.error });
     }
     const uas = await db.query<{ ua: string | null; count: string }>(`
       SELECT user_agent AS ua, COUNT(*)::bigint AS count
@@ -277,8 +280,8 @@ export async function summary(req: ReqWithUser, res: Response) {
 
     const geoParams: any[] = [orgId];
     const geoRange = resolveTimeFilters('c', range, startDate, endDate, geoParams);
-    if ((geoRange as any).error) {
-      return res.status(400).json({ success: false, error: (geoRange as any).error });
+    if ('error' in geoRange) {
+      return res.status(400).json({ success: false, error: geoRange.error });
     }
     const countries = await db.query<{ country: string | null; code: string | null; count: string }>(`
       SELECT COALESCE(country_name, 'Unknown') AS country,
@@ -294,8 +297,8 @@ export async function summary(req: ReqWithUser, res: Response) {
 
     const cityParams: any[] = [orgId];
     const cityRange = resolveTimeFilters('c', range, startDate, endDate, cityParams);
-    if ((cityRange as any).error) {
-      return res.status(400).json({ success: false, error: (cityRange as any).error });
+    if ('error' in cityRange) {
+      return res.status(400).json({ success: false, error: cityRange.error });
     }
     const cities = await db.query<{ city: string | null; country: string | null; count: string }>(`
       SELECT COALESCE(city, 'Unknown') AS city,
@@ -318,8 +321,8 @@ export async function summary(req: ReqWithUser, res: Response) {
 
     const pointParams: any[] = [orgId];
     const pointRange = resolveTimeFilters('c', range, startDate, endDate, pointParams);
-    if ((pointRange as any).error) {
-      return res.status(400).json({ success: false, error: (pointRange as any).error });
+    if ('error' in pointRange) {
+      return res.status(400).json({ success: false, error: pointRange.error });
     }
     const points = await db.query<{ latitude: number; longitude: number; count: string }>(`
       SELECT latitude, longitude, COUNT(*)::bigint AS count
@@ -399,8 +402,8 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
 
     const seriesParams: any[] = [linkId];
     const seriesRange = resolveTimeFilters('c', range, startDate, endDate, seriesParams);
-    if ((seriesRange as any).error) {
-      return res.status(400).json({ success: false, error: (seriesRange as any).error });
+    if ('error' in seriesRange) {
+      return res.status(400).json({ success: false, error: seriesRange.error });
     }
     const start = seriesRange.start;
     const end = seriesRange.end;
@@ -452,8 +455,8 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
 
     const totalsParams: any[] = [linkId];
     const totalsRange = resolveTimeFilters('click_events', range, startDate, endDate, totalsParams);
-    if ((totalsRange as any).error) {
-      return res.status(400).json({ success: false, error: (totalsRange as any).error });
+    if ('error' in totalsRange) {
+      return res.status(400).json({ success: false, error: totalsRange.error });
     }
     const totals = await db.query<{ total_clicks: string; last_click_at: Date | null; clicks_24h: string }>(`
       SELECT COUNT(*)::bigint AS total_clicks,
@@ -484,8 +487,8 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
 
     const refParams: any[] = [linkId];
     const refRange = resolveTimeFilters('c', range, startDate, endDate, refParams);
-    if ((refRange as any).error) {
-      return res.status(400).json({ success: false, error: (refRange as any).error });
+    if ('error' in refRange) {
+      return res.status(400).json({ success: false, error: refRange.error });
     }
     const refCountry = withCountrySql('c', country, refRange.params);
     const referrers = await db.query<{ referrer: string | null; count: string }>(`
@@ -500,8 +503,8 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
 
     const uaParams: any[] = [linkId];
     const uaRange = resolveTimeFilters('c', range, startDate, endDate, uaParams);
-    if ((uaRange as any).error) {
-      return res.status(400).json({ success: false, error: (uaRange as any).error });
+    if ('error' in uaRange) {
+      return res.status(400).json({ success: false, error: uaRange.error });
     }
     const uaCountry = withCountrySql('c', country, uaRange.params);
     const uas = await db.query<{ ua: string | null; count: string }>(`
@@ -515,8 +518,8 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
 
     const geoParams: any[] = [linkId];
     const geoRange = resolveTimeFilters('c', range, startDate, endDate, geoParams);
-    if ((geoRange as any).error) {
-      return res.status(400).json({ success: false, error: (geoRange as any).error });
+    if ('error' in geoRange) {
+      return res.status(400).json({ success: false, error: geoRange.error });
     }
     const geoCountry = withCountrySql('c', country, geoRange.params);
     const countries = await db.query<{ country: string | null; code: string | null; count: string }>(`
@@ -532,8 +535,8 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
 
     const cityParams: any[] = [linkId];
     const cityRange = resolveTimeFilters('c', range, startDate, endDate, cityParams);
-    if ((cityRange as any).error) {
-      return res.status(400).json({ success: false, error: (cityRange as any).error });
+    if ('error' in cityRange) {
+      return res.status(400).json({ success: false, error: cityRange.error });
     }
     const cityCountry = withCountrySql('c', country, cityRange.params);
     const cities = await db.query<{ city: string | null; country: string | null; count: string }>(`
@@ -549,8 +552,8 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
 
     const pointParams: any[] = [linkId];
     const pointRange = resolveTimeFilters('c', range, startDate, endDate, pointParams);
-    if ((pointRange as any).error) {
-      return res.status(400).json({ success: false, error: (pointRange as any).error });
+    if ('error' in pointRange) {
+      return res.status(400).json({ success: false, error: pointRange.error });
     }
     const pointCountry = withCountrySql('c', country, pointRange.params);
     const points = await db.query<{ latitude: number; longitude: number; count: string }>(`
@@ -637,8 +640,8 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
 
     const evParams: any[] = [linkId];
     const evRange = resolveTimeFilters('click_events', range, startDate, endDate, evParams);
-    if ((evRange as any).error) {
-      return res.status(400).json({ success: false, error: (evRange as any).error });
+    if ('error' in evRange) {
+      return res.status(400).json({ success: false, error: evRange.error });
     }
     const evCountry = withCountrySql('click_events', country, evRange.params);
     evCountry.params.push(limit);
@@ -692,8 +695,8 @@ export async function exportOrgCsv(req: ReqWithUser, res: Response) {
 
     const params: any[] = [orgId];
     const rangeSql = resolveTimeFilters('c', range, startDate, endDate, params);
-    if ((rangeSql as any).error) {
-      return res.status(400).json({ success: false, error: (rangeSql as any).error });
+    if ('error' in rangeSql) {
+      return res.status(400).json({ success: false, error: rangeSql.error });
     }
     const countrySql = withCountrySql('c', country, rangeSql.params);
     countrySql.params.push(limit);
@@ -799,8 +802,8 @@ export async function exportLinkCsv(req: ReqWithUser, res: Response) {
 
     const params: any[] = [linkId];
     const rangeSql = resolveTimeFilters('c', range, startDate, endDate, params);
-    if ((rangeSql as any).error) {
-      return res.status(400).json({ success: false, error: (rangeSql as any).error });
+    if ('error' in rangeSql) {
+      return res.status(400).json({ success: false, error: rangeSql.error });
     }
     const countrySql = withCountrySql('c', country, rangeSql.params);
     countrySql.params.push(limit);
