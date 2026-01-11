@@ -71,11 +71,21 @@ function applyTheme(theme = {}) {
   });
 }
 
+const FALLBACK_NAV_LINKS = [
+  { label: 'Features', href: '/features.html' },
+  { label: 'Ecosystem', href: '/ecosystem.html' },
+  { label: 'Pricing', href: '/pricing.html' },
+  { label: 'Docs', href: '/docs.html' },
+  { label: 'Case studies', href: '/case-studies.html' },
+  { label: 'Affiliates', href: '/affiliate/index.html' },
+  { label: 'About', href: '/about.html' },
+  { label: 'Contact', href: '/contact.html' },
+];
+
 function renderNavLinks(links = []) {
   const nav = qs('[data-nav-links]');
   if (!nav) return;
-  const baseLinks = Array.isArray(links) ? links : [];
-  if (!baseLinks.length) return;
+  const baseLinks = Array.isArray(links) && links.length ? links : FALLBACK_NAV_LINKS;
   const normalized = [...baseLinks];
   if (!normalized.some((link) => link.href === '/ecosystem.html')) {
     normalized.push({ label: 'Ecosystem', href: '/ecosystem.html' });
