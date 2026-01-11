@@ -72,9 +72,7 @@ async function login(email, password) {
   if (data?.requires_2fa && data?.challenge_token) {
     return { requires2fa: true, challengeToken: data.challenge_token };
   }
-  const token = data?.token || json?.token;
-  if (!token) throw new Error('No token returned by server');
-  return { token };
+  return { ok: true };
 }
 
 async function confirmTwoFactor(challengeToken, code) {
@@ -90,9 +88,7 @@ async function confirmTwoFactor(challengeToken, code) {
     const msg = json?.error || `2FA failed (HTTP ${res.status})`;
     throw new Error(msg);
   }
-  const token = json?.data?.token || json?.token;
-  if (!token) throw new Error('No token returned by server');
-  return token;
+  return true;
 }
 
 form?.addEventListener('submit', async (e) => {

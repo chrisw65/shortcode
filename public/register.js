@@ -53,15 +53,11 @@ async function register() {
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(data?.error || 'Registration failed');
 
-    if (data?.data?.token) {
-      window.location.href = '/admin/dashboard.html';
-      return;
-    }
     if (data?.data?.requires_email_verification) {
       setNotice('Account created. Check your email to verify before logging in.');
       return;
     }
-    window.location.href = '/login.html';
+    window.location.href = '/admin/dashboard.html';
   } catch (err) {
     setNotice(err.message || 'Registration failed', true);
   } finally {

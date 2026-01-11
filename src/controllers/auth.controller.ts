@@ -340,7 +340,7 @@ async function loginImpl(req: Request, res: Response) {
     setAuthCookies(res, token);
     const refresh = await issueRefreshToken(user.id);
     setRefreshCookie(res, refresh.token, refresh.expiresAt);
-    return res.json({ success: true, data: { user: safeUser(user), token } });
+    return res.json({ success: true, data: { user: safeUser(user) } });
   } catch (err) {
     console.error('auth.login error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
@@ -533,7 +533,6 @@ async function registerImpl(req: Request, res: Response) {
       success: true,
       data: {
         user: safeUser(user),
-        token,
         org_id: orgId,
         verification_sent: verificationSent,
         requires_email_verification: needsVerification,
@@ -1110,7 +1109,7 @@ async function twoFactorConfirmImpl(req: Request, res: Response) {
     setAuthCookies(res, token);
     const refresh = await issueRefreshToken(userRow.id);
     setRefreshCookie(res, refresh.token, refresh.expiresAt);
-    return res.json({ success: true, data: { token } });
+    return res.json({ success: true });
   } catch (err) {
     console.error('auth.2fa.confirm error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });

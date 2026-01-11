@@ -26,21 +26,22 @@ REGISTER_JSON=$(curl -fsS -X POST "${BASE_URL}/api/auth/register" \
   -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}")
 
 if command -v jq >/dev/null 2>&1; then
-  TOKEN="$(printf '%s' "${REGISTER_JSON}" | jq -r '.data.token // .token // empty')"
+  REQUIRES_VERIFY="$(printf '%s' "${REGISTER_JSON}" | jq -r '.data.requires_email_verification // false')"
 else
-  TOKEN="$(printf '%s' "${REGISTER_JSON}" | sed -n 's/.*"token":"\\([^"]*\\)".*/\\1/p')"
+  REQUIRES_VERIFY="$(printf '%s' "${REGISTER_JSON}" | sed -n 's/.*"requires_email_verification":\\([^,}]*\\).*/\\1/p')"
 fi
-if [[ -z "${TOKEN}" ]]; then
-  echo "Register did not return token. Response:"
+if [[ "${REQUIRES_VERIFY}" == "true" ]]; then
+  echo "Register requires email verification. Response:"
   echo "${REGISTER_JSON}"
   exit 1
 fi
 
 echo "==> Create link"
 CREATE_JSON=$(curl -fsS -X POST "${BASE_URL}/api/links" \
-  -H "Authorization: Bearer ${TOKEN}" \
+  -b "${COOKIE_JAR}" \
   ${RATE_LIMIT_BYPASS_TOKEN:+-H "x-rate-bypass: ${RATE_LIMIT_BYPASS_TOKEN}"} \
   -H 'Content-Type: application/json' \
+  -H "X-CSRF-Token: ${CSRF_TOKEN}" \
   -d '{"url":"https://example.com","title":"Smoke Test"}')
 
 if command -v jq >/dev/null 2>&1; then
@@ -64,7 +65,7 @@ curl -fsS "${BASE_URL}/api/qr/${SHORT_CODE}.svg" >/dev/null
 
 echo "==> Analytics summary"
 curl -fsS "${BASE_URL}/api/analytics/summary" \
-  -H "Authorization: Bearer ${TOKEN}" \
+  -b "${COOKIE_JAR}" \
   ${RATE_LIMIT_BYPASS_TOKEN:+-H "x-rate-bypass: ${RATE_LIMIT_BYPASS_TOKEN}"} >/dev/null
 
 echo "==> OK"
