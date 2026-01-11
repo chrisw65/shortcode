@@ -130,8 +130,8 @@ function normalizeLimit(value: unknown, fallback: number | null) {
 function mergeEntitlements(base: PlanEntitlements, override?: Partial<PlanEntitlements>): PlanEntitlements {
   const features = { ...base.features } as PlanFeatures;
   const limits = { ...base.limits } as PlanLimits;
-  const overrideFeatures = override?.features || {};
-  const overrideLimits = override?.limits || {};
+  const overrideFeatures = (override?.features || {}) as Partial<PlanFeatures>;
+  const overrideLimits = (override?.limits || {}) as Partial<PlanLimits>;
 
   (Object.keys(features) as Array<keyof PlanFeatures>).forEach((key) => {
     features[key] = normalizeBoolean(overrideFeatures[key], features[key]);
