@@ -5,6 +5,22 @@ import { lookupGeo } from './geoip';
 
 const QUEUE_KEY = 'shortlink:clicks';
 let workerStarted = false;
+let readyPromise: Promise<void> | null = null;
+
+async function waitForRedisReady() {
+  if (redisClient.isReady) return;
+  if (!readyPromise) {
+    readyPromise = new Promise((resolve) => {
+      const onReady = () => {
+        redisClient.off('ready', onReady);
+        readyPromise = null;
+        resolve();
+      };
+      redisClient.on('ready', onReady);
+    });
+  }
+  await readyPromise;
+}
 
 type ClickPayload = {
   link_id: string;
@@ -43,17 +59,20 @@ export function startClickWorker() {
   if (workerStarted) return;
   workerStarted = true;
   const loop = async () => {
-    while (redisClient.isReady) {
+    while (workerStarted) {
       try {
+        await waitForRedisReady();
         const item = await redisClient.brPop(QUEUE_KEY, 5);
         if (!item?.element) continue;
         const payload = JSON.parse(item.element) as ClickPayload;
         await processClick(payload);
       } catch (err) {
         console.error('clickQueue worker error:', err);
+        if (!redisClient.isReady) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
       }
     }
-    workerStarted = false;
   };
   void loop();
 }

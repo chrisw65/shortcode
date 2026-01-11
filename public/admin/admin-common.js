@@ -2,13 +2,31 @@
 // Drop this into /public/admin/admin-common.js
 
 // ========================= Auth =========================
-const TOKEN_KEY = 'admin_token';
+const AUTH_PRESENT_COOKIE = 'auth_present';
 const ORG_KEY = 'active_org_id';
 const API_BASE = ''; // same-origin
 
-export const getToken = () => localStorage.getItem(TOKEN_KEY) || '';
-export const setToken = (t) => localStorage.setItem(TOKEN_KEY, t || '');
-export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+function getCookie(name) {
+  const parts = document.cookie.split(';').map((p) => p.trim());
+  for (const part of parts) {
+    if (!part) continue;
+    const [k, ...rest] = part.split('=');
+    if (k === name) return decodeURIComponent(rest.join('='));
+  }
+  return '';
+}
+
+export const getToken = () => '';
+export const clearToken = () => {};
+export async function setToken(t) {
+  if (!t) return;
+  await apiFetch('/api/auth/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: t }),
+  });
+}
+export const hasSession = () => Boolean(getCookie(AUTH_PRESENT_COOKIE));
 export const getActiveOrgId = () => localStorage.getItem(ORG_KEY) || '';
 export const setActiveOrgId = (orgId) => {
   if (orgId) localStorage.setItem(ORG_KEY, orgId);
@@ -24,7 +42,7 @@ function captureTokenFromUrl() {
     token = hashParams.get('token');
   }
   if (token) {
-    setToken(token);
+    void setToken(token);
     url.searchParams.delete('token');
     if (hashParams) {
       hashParams.delete('token');
@@ -37,15 +55,19 @@ function captureTokenFromUrl() {
 captureTokenFromUrl();
 
 export function requireAuth() {
-  if (!getToken()) {
+  if (!hasSession()) {
     // redirect to login, then throw to stop page logic
     window.location.href = '/admin/index.html';
     throw new Error('Not authenticated');
   }
+  apiFetch('/api/auth/me').catch(() => {
+    window.location.href = '/admin/index.html';
+  });
 }
 
 export function logoutAndRedirect() {
-  clearToken();
+  apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  document.cookie = `${AUTH_PRESENT_COOKIE}=; Max-Age=0; Path=/`;
   window.location.href = '/admin/index.html';
 }
 
@@ -164,7 +186,7 @@ function ensureAdminNavIncludesEcosystem() {
 }
 
 async function ensureEmailVerificationBanner() {
-  if (!getToken()) return;
+  if (!hasSession()) return;
   const main = document.querySelector('.admin-main');
   if (!main || main.querySelector('.admin-banner')) return;
   try {
@@ -208,7 +230,7 @@ async function ensureEmailVerificationBanner() {
 }
 
 async function ensureOrgSwitcher() {
-  if (!getToken()) return;
+  if (!hasSession()) return;
   const top = document.querySelector('.admin-top');
   if (!top || top.querySelector('[data-org-switcher]')) return;
   try {

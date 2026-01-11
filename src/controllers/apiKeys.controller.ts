@@ -25,13 +25,13 @@ const ALLOWED_SCOPES = new Set([
 ]);
 
 function normalizeScopes(input: unknown) {
-  if (!input) return ['*'];
+  if (!input) return ['links:read'];
   const raw = Array.isArray(input) ? input : String(input).split(',');
   const cleaned = raw.map((s) => String(s).trim()).filter(Boolean);
-  if (!cleaned.length) return ['*'];
+  if (!cleaned.length) return ['links:read'];
   if (cleaned.includes('*')) return ['*'];
   const scopes = cleaned.filter((s) => ALLOWED_SCOPES.has(s));
-  return scopes.length ? scopes : ['*'];
+  return scopes.length ? scopes : ['links:read'];
 }
 
 function generateKey() {

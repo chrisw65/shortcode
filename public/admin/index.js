@@ -1,5 +1,5 @@
 // v8 — login page logic
-import { setToken, getToken } from '/admin/admin-common.js?v=20260120';
+import { setToken, hasSession } from '/admin/admin-common.js?v=20260120';
 
 const form = document.getElementById('login-form');
 const emailEl = document.getElementById('email');
@@ -13,18 +13,19 @@ let twofaChallengeToken = '';
 let twofaRequired = false;
 
 // If already logged in, bounce to dashboard
-if (getToken()) {
+if (hasSession()) {
   location.replace('/admin/dashboard.html');
 }
 
 const url = new URL(window.location.href);
 const tokenParam = url.searchParams.get('token') || new URLSearchParams(url.hash.replace(/^#/, '')).get('token');
 if (tokenParam) {
-  setToken(tokenParam);
-  url.hash = '';
-  url.searchParams.delete('token');
-  window.history.replaceState({}, '', url.toString());
-  location.replace('/admin/dashboard.html');
+  setToken(tokenParam).then(() => {
+    url.hash = '';
+    url.searchParams.delete('token');
+    window.history.replaceState({}, '', url.toString());
+    location.replace('/admin/dashboard.html');
+  });
 }
 
 function uiBusy(busy) {
@@ -107,7 +108,7 @@ form?.addEventListener('submit', async (e) => {
   try {
     if (twofaRequired) {
       const token = await confirmTwoFactor(twofaChallengeToken, code);
-      setToken(token);
+      await setToken(token);
       location.replace('/admin/dashboard.html'); // success
       return;
     }
@@ -118,7 +119,7 @@ form?.addEventListener('submit', async (e) => {
       if (twofaCodeEl) twofaCodeEl.focus();
       return;
     }
-    setToken(result.token);
+    await setToken(result.token);
     location.replace('/admin/dashboard.html'); // success
   } catch (err) {
     console.error('login error:', err);

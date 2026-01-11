@@ -20,12 +20,25 @@ export type AuthenticatedRequest = Request & {
   };
 };
 
+function parseCookies(header: string | undefined) {
+  const out: Record<string, string> = {};
+  const raw = header || '';
+  raw.split(';').forEach((part) => {
+    const [k, ...rest] = part.trim().split('=');
+    if (!k) return;
+    out[k] = decodeURIComponent(rest.join('='));
+  });
+  return out;
+}
+
 export async function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   const bearer = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : '';
   const apiKeyHeader = String(req.headers['x-api-key'] || '').trim();
   const apiKey = apiKeyHeader || (bearer.startsWith('sk_') ? bearer : '');
   const secret = process.env.JWT_SECRET;
+  const cookies = parseCookies(req.headers.cookie);
+  const cookieToken = cookies.auth_token || '';
 
   if (apiKey) {
     try {
@@ -58,7 +71,9 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
   }
 
   if (!bearer) {
-    return res.status(401).json({ success: false, error: 'Missing or invalid Authorization header' });
+    if (!cookieToken) {
+      return res.status(401).json({ success: false, error: 'Missing or invalid Authorization header' });
+    }
   }
 
   if (!secret) {
@@ -66,7 +81,8 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
   }
 
   try {
-    const payload = jwt.verify(bearer, secret) as {
+    const token = bearer || cookieToken;
+    const payload = jwt.verify(token, secret) as {
       userId: string;
       email?: string;
       role?: string;

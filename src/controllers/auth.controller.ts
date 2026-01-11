@@ -64,6 +64,8 @@ function verifyChallengeToken(token: string): jwt.JwtPayload {
 
 const APP_URL = process.env.PUBLIC_HOST || process.env.BASE_URL || 'https://okleaf.link';
 const OIDC_STATE_COOKIE = 'oidc_state';
+const AUTH_COOKIE = 'auth_token';
+const AUTH_PRESENT_COOKIE = 'auth_present';
 const OIDC_STATE_TTL_SECONDS = 600;
 const TWO_FA_ISSUER = process.env.TOTP_ISSUER || 'OkLeaf';
 const TOTP_EPOCH_TOLERANCE = Number(process.env.TOTP_EPOCH_TOLERANCE || '30');
@@ -185,14 +187,41 @@ function isSecure(req: Request): boolean {
   return xfwd.includes('https');
 }
 
-function setCookie(res: Response, name: string, value: string, opts: { maxAge?: number; path?: string } = {}) {
+function setCookie(
+  res: Response,
+  name: string,
+  value: string,
+  opts: { maxAge?: number; path?: string; httpOnly?: boolean } = {}
+) {
   const parts = [`${name}=${encodeURIComponent(value)}`];
   if (opts.maxAge !== undefined) parts.push(`Max-Age=${opts.maxAge}`);
   parts.push(`Path=${opts.path || '/'}`);
-  parts.push('HttpOnly');
+  if (opts.httpOnly !== false) parts.push('HttpOnly');
   parts.push('SameSite=Lax');
   if (isSecure(res.req as Request)) parts.push('Secure');
   res.setHeader('Set-Cookie', parts.join('; '));
+}
+
+function parseExpiresSeconds(): number | null {
+  const expEnv = process.env.JWT_EXPIRES_IN;
+  if (expEnv && /^\d+$/.test(expEnv)) return Number(expEnv);
+  const match = String(expEnv || '7d').match(/^(\d+)([smhd])$/);
+  if (!match) return null;
+  const value = Number(match[1]);
+  const unit = match[2];
+  const multiplier = unit === 's' ? 1 : unit === 'm' ? 60 : unit === 'h' ? 3600 : 86400;
+  return value * multiplier;
+}
+
+function setAuthCookies(res: Response, token: string) {
+  const maxAge = parseExpiresSeconds() ?? undefined;
+  setCookie(res, AUTH_COOKIE, token, { maxAge, path: '/', httpOnly: true });
+  setCookie(res, AUTH_PRESENT_COOKIE, '1', { maxAge, path: '/', httpOnly: false });
+}
+
+function clearAuthCookies(res: Response) {
+  setCookie(res, AUTH_COOKIE, '', { maxAge: 0, path: '/', httpOnly: true });
+  setCookie(res, AUTH_PRESENT_COOKIE, '', { maxAge: 0, path: '/', httpOnly: false });
 }
 
 function signOidcState(payload: OidcState): string {
@@ -279,6 +308,7 @@ async function loginImpl(req: Request, res: Response) {
     }
 
     const token = signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
+    setAuthCookies(res, token);
     return res.json({ success: true, data: { user: safeUser(user), token } });
   } catch (err) {
     console.error('auth.login error:', err);
@@ -875,9 +905,9 @@ async function oidcCallbackImpl(req: Request, res: Response) {
 
     const token = signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
     setCookie(res, OIDC_STATE_COOKIE, '', { maxAge: 0, path: '/api/auth/oidc/callback' });
+    setAuthCookies(res, token);
 
     const target = new URL(redirectPath, APP_URL);
-    target.hash = `token=${encodeURIComponent(token)}`;
     return res.redirect(target.toString());
   } catch (err) {
     console.error('auth.oidc.callback error:', err);
@@ -1039,11 +1069,37 @@ async function twoFactorConfirmImpl(req: Request, res: Response) {
 
     await db.query(`UPDATE users SET totp_last_used = NOW() WHERE id = $1`, [userRow.id]);
     const token = signToken({ userId: userRow.id, email: userRow.email, is_superadmin: userRow.is_superadmin });
+    setAuthCookies(res, token);
     return res.json({ success: true, data: { token } });
   } catch (err) {
     console.error('auth.2fa.confirm error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
+}
+
+async function createSessionImpl(req: Request, res: Response) {
+  try {
+    const token = String(req.body?.token || '').trim();
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'token is required' });
+    }
+    const secret: Secret = process.env.JWT_SECRET as Secret;
+    if (!secret) return res.status(500).json({ success: false, error: 'Server misconfigured: JWT_SECRET missing' });
+    const payload = jwt.verify(token, secret) as jwt.JwtPayload;
+    if (payload?.type === '2fa') {
+      return res.status(400).json({ success: false, error: 'Invalid session token' });
+    }
+    setAuthCookies(res, token);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('auth.session error:', err);
+    return res.status(401).json({ success: false, error: 'Invalid token' });
+  }
+}
+
+async function logoutImpl(_req: Request, res: Response) {
+  clearAuthCookies(res);
+  return res.json({ success: true });
 }
 
 // Class export for existing routes
@@ -1058,6 +1114,8 @@ export class AuthController {
   resetPassword = (req: Request, res: Response) => { void resetPasswordImpl(req, res); };
   oidcStart = (req: Request, res: Response) => { void oidcStartImpl(req, res); };
   oidcCallback = (req: Request, res: Response) => { void oidcCallbackImpl(req, res); };
+  createSession = (req: Request, res: Response) => { void createSessionImpl(req, res); };
+  logout = (_req: Request, res: Response) => { void logoutImpl(_req, res); };
   twoFactorSetup = (req: Request, res: Response) => { void twoFactorSetupImpl(req, res); };
   twoFactorVerify = (req: Request, res: Response) => { void twoFactorVerifyImpl(req, res); };
   twoFactorDisable = (req: Request, res: Response) => { void twoFactorDisableImpl(req, res); };
@@ -1073,6 +1131,8 @@ export const verifyEmail = (req: Request, res: Response) => { void verifyEmailIm
 export const resendVerification = (req: Request, res: Response) => { void resendVerificationImpl(req, res); };
 export const requestPasswordReset = (req: Request, res: Response) => { void requestPasswordResetImpl(req, res); };
 export const resetPassword = (req: Request, res: Response) => { void resetPasswordImpl(req, res); };
+export const createSession = (req: Request, res: Response) => { void createSessionImpl(req, res); };
+export const logout = (req: Request, res: Response) => { void logoutImpl(req, res); };
 export const twoFactorSetup = (req: Request, res: Response) => { void twoFactorSetupImpl(req, res); };
 export const twoFactorVerify = (req: Request, res: Response) => { void twoFactorVerifyImpl(req, res); };
 export const twoFactorDisable = (req: Request, res: Response) => { void twoFactorDisableImpl(req, res); };
