@@ -51,7 +51,7 @@ export const DEFAULT_ECOSYSTEM_CONFIG = {
     extension: {
       label: 'Browser extension',
       description: 'Shorten any page from the toolbar and push to your default domain.',
-      installLink: 'https://okleaf.link/docs/extensions',
+      installLink: 'https://github.com/chrisw65/shortcode/tree/master/extension',
     },
     bookmarklet: {
       label: 'Bookmarklet',

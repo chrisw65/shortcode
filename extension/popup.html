@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OkLeaf Shortlink</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <h1>OkLeaf Shortlink</h1>
+  <div class="card">
+    <label for="currentUrl">Current URL</label>
+    <textarea id="currentUrl" readonly></textarea>
+
+    <label for="customCode">Custom code (optional)</label>
+    <input id="customCode" type="text" placeholder="my-campaign" />
+
+    <div class="row">
+      <button id="shortenBtn">Shorten</button>
+      <button id="copyBtn" class="secondary" disabled>Copy</button>
+    </div>
+
+    <div id="status" class="status"></div>
+    <div id="output" class="link-output" hidden></div>
+    <a id="settingsLink" class="small-link" href="#">Settings</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

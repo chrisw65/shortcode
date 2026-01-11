@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OkLeaf Extension Settings</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <h1>OkLeaf Extension Settings</h1>
+  <div class="card">
+    <label for="apiBaseUrl">API base URL</label>
+    <input id="apiBaseUrl" type="url" placeholder="https://okleaf.link" />
+
+    <label for="apiKey">API key</label>
+    <input id="apiKey" type="text" placeholder="sk_live_..." />
+
+    <div class="row">
+      <button id="saveBtn">Save</button>
+      <button id="clearBtn" class="secondary">Clear</button>
+    </div>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
