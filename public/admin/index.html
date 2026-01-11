@@ -38,14 +38,20 @@
           <p class="muted small">You'll be redirected to the dashboard after login.</p>
         </form>
 
-        <div class="card" style="margin-top:18px">
-          <h3 style="margin-top:0">Sign in with SSO</h3>
+        <div class="card sso-card" style="margin-top:18px">
+          <div class="row-between" style="margin-bottom:8px">
+            <div>
+              <h3 class="m-0" style="font-size:20px">Sign in with SSO</h3>
+              <p class="muted small" style="margin:4px 0 0">Enterprise access for teams and affiliates.</p>
+            </div>
+            <span class="badge">SSO</span>
+          </div>
           <label class="muted">Organization ID</label>
           <input id="ssoOrgId" class="input" type="text" placeholder="Org ID" />
           <div class="row" style="justify-content:flex-end;margin-top:12px">
             <button id="btn-sso" class="btn ghost" type="button">Continue with SSO</button>
           </div>
-          <p class="muted small">Use the org ID configured under Settings → SSO.</p>
+          <p class="muted small" style="margin-top:6px">Use the org ID configured under Settings → SSO.</p>
         </div>
       </div>
     </div>

@@ -153,6 +153,10 @@ body.tabs-ready .admin-content [data-tab].is-active{display:block}
   border-radius:18px;padding:18px;border:1px solid var(--border);
   box-shadow:var(--shadow)
 }
+.card.sso-card{
+  border-color:rgba(144,155,255,.35);
+  background:linear-gradient(180deg,rgba(12,18,28,.95),rgba(19,30,48,.95));
+}
 
 .admin-hero{
   padding:24px;border-radius:20px;border:1px solid rgba(255,255,255,.12);
