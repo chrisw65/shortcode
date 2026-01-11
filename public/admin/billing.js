@@ -56,6 +56,24 @@ let pricingTiers = [];
 let billingConfig = { prices: {}, stripe: {} };
 let platformConfig = {};
 let meData = null;
+const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
+const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+
+function activateTab(tabName = 'plan') {
+  tabButtons.forEach((btn) => {
+    const active = btn.dataset.tab === tabName;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', String(active));
+  });
+  tabPanels.forEach((panel) => {
+    const show = panel.dataset.panel === tabName;
+    panel.style.display = show ? 'block' : 'none';
+  });
+}
+tabButtons.forEach((btn) => {
+  btn.addEventListener('click', () => activateTab(btn.dataset.tab || 'plan'));
+});
+activateTab('plan');
 
 async function loadMe() {
   try {

@@ -73,8 +73,12 @@ function applyTheme(theme = {}) {
 
 function renderNavLinks(links = []) {
   const nav = qs('[data-nav-links]');
-  if (!nav || !links.length) return;
-  nav.innerHTML = links.map((link) => (
+  if (!nav) return;
+  const normalized = Array.isArray(links) ? [...links] : [];
+  if (!normalized.some((link) => link.href === '/ecosystem.html')) {
+    normalized.push({ label: 'Ecosystem', href: '/ecosystem.html' });
+  }
+  nav.innerHTML = normalized.map((link) => (
     `<a href="${link.href || '#'}">${link.label || ''}</a>`
   )).join('');
 }
