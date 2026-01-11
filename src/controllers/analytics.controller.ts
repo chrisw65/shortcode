@@ -155,9 +155,9 @@ export async function summary(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
-    const range = req.query.range;
-    const startDate = req.query.start_date;
-    const endDate = req.query.end_date;
+    const range = req.query.range ? String(req.query.range) : undefined;
+    const startDate = req.query.start_date ? String(req.query.start_date) : undefined;
+    const endDate = req.query.end_date ? String(req.query.end_date) : undefined;
     const cacheId = cacheKey(['summary', orgId, range, startDate, endDate]);
     const cached = await getCached<any>(cacheId);
     if (cached) return res.json({ success: true, data: cached });
@@ -381,10 +381,10 @@ export async function linkSummary(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
-    const range = req.query.range;
-    const startDate = req.query.start_date;
-    const endDate = req.query.end_date;
-    const country = req.query.country;
+    const range = req.query.range ? String(req.query.range) : undefined;
+    const startDate = req.query.start_date ? String(req.query.start_date) : undefined;
+    const endDate = req.query.end_date ? String(req.query.end_date) : undefined;
+    const country = req.query.country ? String(req.query.country) : undefined;
     const cacheId = cacheKey(['linkSummary', orgId, req.params.shortCode, range, startDate, endDate, country]);
     const cached = await getCached<any>(cacheId);
     if (cached) return res.json({ success: true, data: cached });
