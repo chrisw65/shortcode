@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Shortlink Admin - Ecosystem</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/admin/admin.css?v=20260113" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
+      </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a href="/admin/domains.html">Domains</a>
+        <a href="/admin/analytics.html">Analytics</a>
+        <a href="/admin/audit.html">Audit</a>
+        <a href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a href="/admin/site-settings.html">Site</a>
+        <a href="/admin/billing.html">Billing</a>
+        <a href="/admin/affiliates.html">Affiliates</a>
+        <a href="/admin/settings.html">Settings</a>
+        <a class="active" href="/admin/ecosystem.html">Ecosystem</a>
+      </nav>
+      <div class="side-footer">
+        <button id="logoutBtn" class="btn ghost" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Ecosystem</h1>
+          <p class="page-sub">Webhooks, integrations, and growth tools that complete Phase 4.</p>
+        </div>
+      </header>
+
+      <main class="admin-content">
+        <section class="admin-hero card">
+          <div class="row-between">
+            <div>
+              <div class="kicker">Phase 4 control center</div>
+              <h2 class="page-title" style="margin:6px 0">Integrations & observability</h2>
+              <p class="muted">Tune webhooks, promote integrations, and keep domain health clearly visible.</p>
+            </div>
+            <div class="cta-actions">
+              <button id="saveConfig" class="btn primary small" type="button">Save configuration</button>
+              <button id="resetConfig" class="btn ghost small" type="button">Reload</button>
+            </div>
+          </div>
+          <div class="metric-strip">
+            <div class="metric-card">
+              <strong id="webhooksEnabled">—</strong>
+              <span>webhooks enabled</span>
+            </div>
+            <div class="metric-card">
+              <strong id="integrationsLive">—</strong>
+              <span>integrations</span>
+            </div>
+            <div class="metric-card">
+              <strong id="domainInsights">—</strong>
+              <span>domain insights</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Webhooks</h2>
+          <p class="muted">Distribute events to CRMs, pipelines, or warehouses.</p>
+          <div id="webhooksList"></div>
+        </section>
+
+        <section class="card">
+          <h2>Integrations</h2>
+          <p class="muted">Enable ready-made connectors or mark upcoming ones.</p>
+          <div class="integration-grid" id="integrationList"></div>
+        </section>
+
+        <section class="card">
+          <h2>Domain health</h2>
+          <p class="muted">Track TXT, SSL, and automation across your branded domains.</p>
+          <div class="grid" id="domainHealthGrid"></div>
+          <label style="margin-top:16px" class="muted">
+            Next automated scan
+            <input class="input" id="domainNextCheck" placeholder="e.g. In 90 minutes">
+          </label>
+        </section>
+
+        <section class="card">
+          <h2>Tools</h2>
+          <p class="muted">Publish the latest extension + bookmarklet instructions.</p>
+          <div class="grid tool-grid" id="toolsSection"></div>
+          <div class="muted" style="margin-top:12px">Bookmarklet snippet updates immediately reflect in user tooltips.</div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/admin-common.js?v=20260120"></script>
+  <script type="module" src="/admin/ecosystem.js"></script>
+</body>
+</html>

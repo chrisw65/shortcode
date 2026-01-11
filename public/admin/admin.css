@@ -181,6 +181,27 @@ body.tabs-ready .admin-content [data-tab].is-active{display:block}
 .admin-hero .input{
   background: rgba(12,18,28,.8);border:1px solid rgba(255,255,255,.12);
 }
+.webhook-row{
+  padding:16px 0;border-bottom:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;gap:24px;
+}
+.webhook-row:last-child{border-bottom:none}
+.integration-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:14px;
+}
+.integration-card{
+  border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(12,18,28,.85);box-shadow:0 16px 30px rgba(0,0,0,.35);
+}
+.tool-grid{
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+}
+.tool-card{
+  border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,.1);
+  background:rgba(21,27,36,.9);
+}
+.tool-card .code-block{
+  font-size:12px;line-height:1.4;margin:0;background:#070b15;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px;
+}
 .card h2,.card h3{letter-spacing:.2px;margin-top:0}
 
 .btn{

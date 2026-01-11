@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OkLeaf Ecosystem</title>
+  <meta name="description" content="Webhooks, integrations, and developer tools for OkLeaf." />
+  <meta property="og:title" content="OkLeaf Ecosystem" />
+  <meta property="og:description" content="Explore the integrations and tools powering OkLeaf." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/site.css" />
+</head>
+<body data-page="ecosystem">
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="/">
+        <span class="brand-badge" data-brand-badge>O</span>
+        <span id="brandName" data-bind="brandName">OkLeaf</span>
+      </a>
+      <nav class="nav-links" data-nav-links>
+        <a href="/features.html">Features</a>
+        <a href="/ecosystem.html">Ecosystem</a>
+        <a href="/pricing.html">Pricing</a>
+        <a href="/docs.html">Docs</a>
+        <a href="/case-studies.html">Case studies</a>
+        <a href="/affiliate/index.html">Affiliates</a>
+        <a href="/about.html">About</a>
+        <a href="/contact.html">Contact</a>
+      </nav>
+      <div class="nav-cta" data-nav-ctas>
+        <a class="btn ghost small" href="/login.html">Login</a>
+        <a class="btn primary small" href="/register.html">Start free</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container page-hero-grid reveal">
+        <div>
+          <div class="kicker">Ecosystem</div>
+          <h1 class="section-title" data-ecosystem-hero-headline>Integrations & tools for OkLeaf</h1>
+          <p class="section-sub" data-ecosystem-hero-sub>A modern link stack deserves a modern ecosystem—webhooks, integrations, and tools that work together.</p>
+          <div class="hero-actions">
+            <a class="btn primary" data-ecosystem-hero-primary href="/docs.html">See docs</a>
+            <a class="btn ghost" data-ecosystem-hero-secondary href="/contact.html">Talk to sales</a>
+          </div>
+        </div>
+        <div class="hero-panel">
+          <div class="hero-card-tiles" data-ecosystem-insights></div>
+          <div class="callout" data-ecosystem-callout>
+            <strong>Domain health monitoring</strong>
+            <p class="muted">OkLeaf watches TXT, SSL, and automation so your redirects stay live.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container reveal">
+        <h2 class="section-title">Webhooks & integrations</h2>
+        <p class="section-sub" data-ecosystem-subtitle>Automate every link event, connect it to your stack, and keep analytics flowing.</p>
+        <div class="feature-grid" data-ecosystem-features></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container reveal">
+        <h2 class="section-title">Developer tools & automation</h2>
+        <div class="tool-grid" data-ecosystem-tools></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container row">
+      <div>
+        <strong id="footerCompany" data-bind="footerCompany">OkLeaf</strong>
+        <div id="footerAddress" data-bind="footerAddress">Amsterdam - Remote-first</div>
+      </div>
+      <div>
+        <div data-footer-heading-support>Support</div>
+        <div id="footerEmail" data-bind="footerEmail">support@okleaf.link</div>
+      </div>
+      <div>
+        <div data-footer-heading-company>Company</div>
+        <div class="footer-links" data-footer-links></div>
+      </div>
+      <div>
+        <div data-footer-heading-social>Social</div>
+        <div class="footer-social" data-social-links></div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/site.js?v=20260116"></script>
+</body>
+</html>

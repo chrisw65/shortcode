@@ -192,6 +192,37 @@ function renderFeatures(features = []) {
   )).join('');
 }
 
+function renderEcosystemFeatures(features = []) {
+  const wrap = qs('[data-ecosystem-features]');
+  if (!wrap) return;
+  wrap.innerHTML = features.map((f) => (
+    `<div class="feature-card"><h4>${f.title || ''}</h4><p>${f.text || ''}</p></div>`
+  )).join('');
+}
+
+function renderEcosystemInsights(insights = []) {
+  const wrap = qs('[data-ecosystem-insights]');
+  if (!wrap) return;
+  wrap.innerHTML = insights.map((item) => (`
+    <div class="hero-tile">
+      <div class="muted">${item.label || ''}</div>
+      <strong>${item.value || ''}</strong>
+      <div class="small muted">${item.detail || ''}</div>
+    </div>
+  `)).join('');
+}
+
+function renderEcosystemTools(tools = []) {
+  const wrap = qs('[data-ecosystem-tools]');
+  if (!wrap) return;
+  wrap.innerHTML = tools.map((tool) => (`
+    <div class="tool-card">
+      <h3>${tool.title || ''}</h3>
+      <p>${tool.text || ''}</p>
+    </div>
+  `)).join('');
+}
+
 function renderPageCards(cards = [], variant = 'feature', selector = '[data-page-cards]') {
   const wrap = qs(selector);
   if (!wrap) return;
@@ -465,6 +496,29 @@ async function init() {
         if (faqTitle && page.pricing?.faqTitle) faqTitle.textContent = page.pricing.faqTitle;
         const faqSub = qs('[data-page-faq-subtitle]');
         if (faqSub && page.pricing?.faqSubtitle) faqSub.textContent = page.pricing.faqSubtitle;
+      }
+      if (pageKey === 'ecosystem') {
+        const heroHeadline = qs('[data-ecosystem-hero-headline]');
+        const heroSub = qs('[data-ecosystem-hero-sub]');
+        const heroPrimary = qs('[data-ecosystem-hero-primary]');
+        const heroSecondary = qs('[data-ecosystem-hero-secondary]');
+        if (heroHeadline && (page.hero?.headline || page.title)) heroHeadline.textContent = page.hero?.headline || page.title;
+        if (heroSub && (page.hero?.subheadline || page.subtitle)) heroSub.textContent = page.hero?.subheadline || page.subtitle;
+        if (heroPrimary && page.hero?.primaryCta?.label) {
+          heroPrimary.textContent = page.hero.primaryCta.label;
+          if (page.hero.primaryCta.href) heroPrimary.href = page.hero.primaryCta.href;
+        }
+        if (heroSecondary && page.hero?.secondaryCta?.label) {
+          heroSecondary.textContent = page.hero.secondaryCta.label;
+          if (page.hero.secondaryCta.href) heroSecondary.href = page.hero.secondaryCta.href;
+        }
+        const callout = qs('[data-ecosystem-callout]');
+        if (callout) {
+          callout.innerHTML = page.callout ?? `<strong>${page.title}</strong><p class="muted">${page.subtitle}</p>`;
+        }
+        renderEcosystemFeatures(page.features || []);
+        renderEcosystemInsights(page.insights || []);
+        renderEcosystemTools(page.toolsList || []);
       }
       if (pageKey === 'docs') {
         const docsWrap = qs('[data-docs-html]');

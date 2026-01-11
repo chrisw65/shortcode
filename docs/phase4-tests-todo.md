@@ -9,3 +9,4 @@
 - API-only mode: run `SERVICE_MODE=api` and confirm redirects are handled by separate service.
 - Security headers: verify CSP/helmet response headers in redirect-only mode.
 - Admin UI: 2FA setup + login flow across fresh users.
+- Ecosystem surface: `/admin/ecosystem.html` can load/save webhook/integration config and the marketing `/ecosystem.html` renders the hero + tool cards.

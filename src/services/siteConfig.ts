@@ -28,6 +28,7 @@ export const DEFAULT_SITE_CONFIG = {
   nav: {
     links: [
       { label: 'Features', href: '/features.html' },
+      { label: 'Ecosystem', href: '/ecosystem.html' },
       { label: 'Pricing', href: '/pricing.html' },
       { label: 'Docs', href: '/docs.html' },
       { label: 'Case studies', href: '/case-studies.html' },
@@ -470,6 +471,38 @@ export const DEFAULT_SITE_CONFIG = {
         description: 'Use cases for teams using OkLeaf to manage branded links and analytics.',
         ogTitle: 'OkLeaf Use Cases',
         ogDescription: 'See common ways teams use OkLeaf to launch and track campaigns.',
+        ogImage: '/favicon.ico',
+      },
+    },
+    ecosystem: {
+      title: 'Integrations & ecosystem',
+      subtitle: 'Webhooks, domain health, and developer tools that complete the OkLeaf stack.',
+      hero: {
+        headline: 'Extend OkLeaf with webhooks, integrations, and tools',
+        subheadline: 'Publish traffic safely, monitor domain health, and empower teams with extensions.',
+        primaryCta: { label: 'See docs', href: '/docs.html' },
+        secondaryCta: { label: 'Contact sales', href: '/contact.html' },
+      },
+      features: [
+        { title: 'Reliable webhooks', text: 'Link, click, and domain events push to destinations with retries and signatures.' },
+        { title: 'Integrations gallery', text: 'Zapier, Slack, GA4, and partners can subscribe to every campaign event.' },
+        { title: 'Tools & extensions', text: 'Browser extension, bookmarklet, and QR tools keep teams productive on any device.' },
+      ],
+      insights: [
+        { label: 'Domains monitored', value: '12', detail: 'Automated TXT/SSL checks every 90 minutes.' },
+        { label: 'Active webhooks', value: '4', detail: 'Retries with exponential backoff and signature verification.' },
+        { label: 'Partners in preview', value: '8', detail: 'Zapier, Slack, HubSpot, Notion, and more.' },
+      ],
+      toolsList: [
+        { title: 'Browser extension', text: 'Install the toolbar plugin to shorten pages without leaving the tab.' },
+        { title: 'Bookmarklet', text: 'Drag to your favorites bar and click while browsing to queue a link.' },
+        { title: 'Domain health board', text: 'Custom dashboards surface TXT, SSL, and automation status per domain.' },
+      ],
+      meta: {
+        title: 'OkLeaf Ecosystem',
+        description: 'Webhooks, integrations, and tools for OkLeaf enterprise link programs.',
+        ogTitle: 'OkLeaf Ecosystem',
+        ogDescription: 'Explore the integrations, webhooks, and developer tools fueling OkLeaf.',
         ogImage: '/favicon.ico',
       },
     },
