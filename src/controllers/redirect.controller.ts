@@ -339,7 +339,11 @@ export class RedirectController {
       const fallbackDirect = async () => {
         const geo = (!link.ip_anonymization && routingGeo && rawIp === ip) ? routingGeo : await lookupGeo(ip);
         void db.query(`UPDATE links SET click_count = COALESCE(click_count,0) + 1 WHERE id = $1`, [link?.id])
-          .catch((err) => console.warn('redirect.click_count update failed:', err));
+          .catch((err) => console.warn('redirect.click_count update failed:', {
+            error: String(err),
+            link_id: link?.id,
+            short_code: shortCode,
+          }));
         void db.query(
           `INSERT INTO click_events (link_id, ip, referer, user_agent, country_code, country_name, region, city, latitude, longitude)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
@@ -355,7 +359,11 @@ export class RedirectController {
             geo?.latitude ?? null,
             geo?.longitude ?? null,
           ]
-        ).catch((err) => console.warn('redirect.click_event insert failed:', err));
+        ).catch((err) => console.warn('redirect.click_event insert failed:', {
+          error: String(err),
+          link_id: link?.id,
+          short_code: shortCode,
+        }));
       };
 
       if (redisClient.isReady) {
@@ -364,7 +372,14 @@ export class RedirectController {
           ip,
           referer,
           user_agent: ua,
-        }).catch(() => fallbackDirect());
+        }).catch((err) => {
+          console.warn('redirect.enqueueClick failed:', {
+            error: String(err),
+            link_id: link.id,
+            short_code: shortCode,
+          });
+          return fallbackDirect();
+        });
       } else {
         void fallbackDirect();
       }

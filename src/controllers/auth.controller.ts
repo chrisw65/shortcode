@@ -549,7 +549,7 @@ async function registerImpl(req: Request, res: Response) {
       },
     });
   } catch (err) {
-    try { await db.query('ROLLBACK'); } catch {}
+    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
     console.error('auth.register error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
@@ -648,7 +648,7 @@ async function verifyEmailImpl(req: Request, res: Response) {
 
     return res.json({ success: true });
   } catch (err) {
-    try { await db.query('ROLLBACK'); } catch {}
+    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
     console.error('auth.verifyEmail error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
@@ -756,7 +756,7 @@ async function resetPasswordImpl(req: Request, res: Response) {
 
     return res.json({ success: true });
   } catch (err) {
-    try { await db.query('ROLLBACK'); } catch {}
+    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
     console.error('auth.resetPassword error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
@@ -1219,7 +1219,7 @@ async function refreshImpl(req: Request, res: Response) {
     setRefreshCookie(res, newToken, newExpires);
     return res.json({ success: true });
   } catch (err) {
-    try { await db.query('ROLLBACK'); } catch {}
+    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
     console.error('auth.refresh error:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }

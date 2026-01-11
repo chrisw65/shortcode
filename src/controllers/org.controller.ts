@@ -85,7 +85,7 @@ export async function addMember(req: OrgRequest, res: Response) {
       data: { member_id: rows[0].id, user_id: rows[0].user_id, role: rows[0].role, temp_password: tempPass },
     });
   } catch (e) {
-    try { await db.query('ROLLBACK'); } catch {}
+    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
     console.error('addMember error:', e);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }

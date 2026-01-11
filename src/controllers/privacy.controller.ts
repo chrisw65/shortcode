@@ -145,7 +145,7 @@ export async function deleteUser(req: AuthenticatedRequest, res: Response) {
 
     return res.json({ success: true, data: { deleted: true } });
   } catch (e) {
-    try { await db.query('ROLLBACK'); } catch {}
+    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
     console.error('privacy.delete error:', e);
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }

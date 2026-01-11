@@ -222,7 +222,9 @@ async function initRedis() {
   }
 }
 if (enableApi || enableRedirect || enableWorker) {
-  initRedis().catch(() => {});
+  initRedis().catch((err) => {
+    log('warn', 'redis_init_deferred', { error: String(err) });
+  });
 }
 if (enableJobs) {
   scheduleRetentionCleanup();
