@@ -44,6 +44,8 @@ async function insertHistory(action: string, value: any, userId?: string | null)
 export async function getPublicSiteConfig(req: Request, res: Response) {
   try {
     res.set('Cache-Control', 'no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     const published = await getSiteSetting('marketing_published');
     const draft = await getSiteSetting('marketing_draft');
     const base = published || draft || {};

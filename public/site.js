@@ -1,5 +1,3 @@
-document.documentElement.classList.add('config-loading');
-
 const byId = (id) => document.getElementById(id);
 const qs = (sel) => document.querySelector(sel);
 
@@ -10,9 +8,9 @@ function getPreviewMode() {
 
 async function fetchConfig() {
   const preview = getPreviewMode();
-  let path = '/api/public/site-config';
+  let path = `/api/public/site-config?ts=${Date.now()}`;
   if (preview) {
-    path = '/api/site-config';
+    path = `/api/site-config?ts=${Date.now()}`;
   }
 
   const res = await fetch(path, { credentials: 'same-origin', cache: 'no-store' });
@@ -649,7 +647,7 @@ async function init() {
   } catch (err) {
     console.error('site init error', err);
   } finally {
-    document.documentElement.classList.remove('config-loading');
+    document.documentElement.classList.add('config-ready');
   }
 }
 
