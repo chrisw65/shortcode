@@ -8,12 +8,21 @@ PASSWORD="${PASSWORD:-pass1234}"
 echo "==> Smoke test against ${BASE_URL}"
 
 echo "==> Healthcheck"
-curl -fsS "${BASE_URL}/health" >/dev/null
+COOKIE_JAR="$(mktemp)"
+trap 'rm -f "${COOKIE_JAR}"' EXIT
+curl -fsS -c "${COOKIE_JAR}" "${BASE_URL}/health" >/dev/null
+CSRF_TOKEN="$(awk '/csrf_token/ {print $NF}' "${COOKIE_JAR}" | tail -n1)"
+if [[ -z "${CSRF_TOKEN}" ]]; then
+  echo "Missing CSRF token cookie."
+  exit 1
+fi
 
 echo "==> Register user"
 REGISTER_JSON=$(curl -fsS -X POST "${BASE_URL}/api/auth/register" \
+  -b "${COOKIE_JAR}" \
   ${RATE_LIMIT_BYPASS_TOKEN:+-H "x-rate-bypass: ${RATE_LIMIT_BYPASS_TOKEN}"} \
   -H 'Content-Type: application/json' \
+  -H "X-CSRF-Token: ${CSRF_TOKEN}" \
   -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}")
 
 if command -v jq >/dev/null 2>&1; then
