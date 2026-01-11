@@ -9,17 +9,22 @@ async function sendContact() {
   const captchaProvider = document.getElementById('contactCaptchaWrap')?.dataset?.provider || 'simple';
   const captchaToken = document.querySelector('input[name="cf-turnstile-response"]')?.value || '';
   const notice = document.getElementById('contactNotice');
+  const toast = typeof window?.showSiteToast === 'function' ? window.showSiteToast : null;
+  const notify = (message, kind = 'ok') => {
+    if (notice) notice.textContent = message;
+    if (toast) toast(message, kind);
+  };
 
   if (!name || !email || !message) {
-    if (notice) notice.textContent = 'Name, email, and message are required.';
+    notify('Name, email, and message are required.', 'error');
     return;
   }
   if (captchaProvider === 'simple' && !captchaAnswer) {
-    if (notice) notice.textContent = 'Captcha answer is required.';
+    notify('Captcha answer is required.', 'error');
     return;
   }
   if (captchaProvider === 'turnstile' && !captchaToken) {
-    if (notice) notice.textContent = 'Captcha verification is required.';
+    notify('Captcha verification is required.', 'error');
     return;
   }
 
@@ -31,9 +36,9 @@ async function sendContact() {
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(data?.error || 'Failed to send');
-    if (notice) notice.textContent = data?.message || 'Thanks! We will get back to you within 1 business day.';
+    notify(data?.message || 'Thanks! We will get back to you within 1 business day.');
   } catch (err) {
-    if (notice) notice.textContent = err?.message || 'Failed to send your message.';
+    notify(err?.message || 'Failed to send your message.', 'error');
   }
 }
 

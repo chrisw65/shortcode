@@ -129,6 +129,22 @@ function renderFooterLinks(links = []) {
   )).join('');
 }
 
+function showSiteToast(message, kind = 'ok') {
+  if (!message) return;
+  const toast = document.createElement('div');
+  toast.className = `site-toast ${kind === 'error' ? 'site-toast-error' : 'site-toast-ok'}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('site-toast-leaving');
+    setTimeout(() => toast.remove(), 300);
+  }, 2600);
+}
+
+if (!window.showSiteToast) {
+  window.showSiteToast = showSiteToast;
+}
+
 const SOCIAL_ICON_SVGS = {
   x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3l7.7 9.2L4.7 21H7.3l5-6 5.1 6H20l-7.9-9.5L19.1 3h-2.6l-4.7 5.6L6.2 3H4z" fill="currentColor"/></svg>',
   twitter: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.9 7.4c0 .2 0 .4-.1.6-.5 5.9-4.6 10.1-10.2 10.1-2 0-3.9-.6-5.5-1.6h1c1.6 0 3.1-.5 4.3-1.4-1.5 0-2.8-1-3.2-2.4.5.1 1 .1 1.5-.1-1.6-.3-2.8-1.8-2.8-3.4v-.1c.5.3 1 .5 1.6.5-1-.7-1.5-2-1-3.2 1.7 2 4.3 3.4 7.2 3.5-.4-1.7.9-3.4 2.7-3.4.8 0 1.6.3 2.1.9.7-.1 1.3-.4 1.9-.7-.2.7-.7 1.2-1.3 1.6.6-.1 1.1-.2 1.6-.4-.4.6-.9 1.1-1.4 1.5z" fill="currentColor"/></svg>',

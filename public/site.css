@@ -358,6 +358,25 @@ a{color:inherit;text-decoration:none}
 .auth-points li{margin:6px 0}
 .notice{margin-top:10px;color:var(--muted);font-size:14px}
 
+.site-toast{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  padding:12px 18px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,0.2);
+  background:rgba(13,20,29,.95);
+  color:#f8f5f1;
+  box-shadow:0 16px 45px rgba(0,0,0,.35);
+  z-index:2000;
+  transition:.3s ease;
+  font-size:13px;
+  letter-spacing:.02em;
+}
+.site-toast-ok{border-color:rgba(120,224,143,.5)}
+.site-toast-error{border-color:rgba(244,163,163,.8)}
+.site-toast-leaving{opacity:0;transform:translateY(8px)}
+
 .toggle{
   display:inline-flex;gap:6px;padding:6px;border-radius:999px;border:1px solid var(--line);
   background:rgba(21,27,36,.75)
