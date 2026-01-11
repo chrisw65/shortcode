@@ -201,7 +201,17 @@ function setCookie(
   if (opts.httpOnly !== false) parts.push('HttpOnly');
   parts.push('SameSite=Lax');
   if (isSecure(res.req as Request)) parts.push('Secure');
-  res.setHeader('Set-Cookie', parts.join('; '));
+  const cookie = parts.join('; ');
+  const existing = res.getHeader('Set-Cookie');
+  if (!existing) {
+    res.setHeader('Set-Cookie', cookie);
+    return;
+  }
+  if (Array.isArray(existing)) {
+    res.setHeader('Set-Cookie', [...existing, cookie]);
+    return;
+  }
+  res.setHeader('Set-Cookie', [existing as string, cookie]);
 }
 
 function parseExpiresSeconds(): number | null {
