@@ -19,6 +19,8 @@ const cityBody = document.getElementById('cityBody');
 const evBody = document.getElementById('evBody');
 const sparkCanvas = document.getElementById('spark');
 const rangeSelect = document.getElementById('rangeSelect');
+const startDateInput = document.getElementById('startDate');
+const endDateInput = document.getElementById('endDate');
 const orgTotal = document.getElementById('orgTotal');
 const orgRange = document.getElementById('orgRange');
 const orgRangeLabel = document.getElementById('orgRangeLabel');
@@ -33,6 +35,8 @@ const exportLinkBtn = document.getElementById('exportLinkCsv');
 
 let allLinks = [], selectedShort = null;
 let currentRange = rangeSelect ? rangeSelect.value : '7d';
+let currentStartDate = '';
+let currentEndDate = '';
 let currentCountry = '';
 
 function rangeLabel(range){
@@ -41,6 +45,16 @@ function rangeLabel(range){
   if (range === '30d') return 'Clicks (30d)';
   if (range === '90d') return 'Clicks (90d)';
   return 'Clicks (all)';
+}
+
+function isCustomRangeActive() {
+  return Boolean(currentStartDate || currentEndDate);
+}
+
+function applyDateParams(params) {
+  if (currentStartDate) params.set('start_date', currentStartDate);
+  if (currentEndDate) params.set('end_date', currentEndDate);
+  return params;
 }
 
 function renderLinks(list) {
@@ -82,13 +96,15 @@ async function selectLink(short, meta) {
   currentLinkEl.textContent = `${meta?.short_url || short} — ${meta?.title || ''}`;
 
   let summary = {};
-  const params = new URLSearchParams({ range: currentRange });
+  const params = applyDateParams(new URLSearchParams({ range: currentRange }));
   if (currentCountry) params.set('country', currentCountry);
   try { summary = (await api(`/api/analytics/links/${encodeURIComponent(short)}/summary?${params.toString()}`)).data || {}; } catch {}
   statTotal.textContent = summary?.total_clicks ?? '–';
   statRange.textContent = summary?.clicks_range ?? '–';
   statLast.textContent = fmtDate(summary?.last_click_at);
-  if (statRangeLabel) statRangeLabel.textContent = rangeLabel(currentRange);
+  if (statRangeLabel) {
+    statRangeLabel.textContent = isCustomRangeActive() ? 'Clicks (custom)' : rangeLabel(currentRange);
+  }
 
   const refs = summary?.top_referrers || [];
   refBody.innerHTML = refs.length ? refs.map(r=>`<tr><td>${htmlesc(r.referrer||'(direct)')}</td><td>${r.count??0}</td></tr>`).join('') : '<tr><td colspan="2" class="empty">No data.</td></tr>';
@@ -111,7 +127,7 @@ async function selectLink(short, meta) {
   plotGeoPoints(summary?.geo_points || []);
 
   let events = [];
-  const evParams = new URLSearchParams({ limit: '500', range: currentRange });
+  const evParams = applyDateParams(new URLSearchParams({ limit: '500', range: currentRange }));
   if (currentCountry) evParams.set('country', currentCountry);
   try { events = (await api(`/api/analytics/links/${encodeURIComponent(short)}/events?${evParams.toString()}`)).data || []; } catch {}
   renderEvents(events);
@@ -268,6 +284,22 @@ rangeSelect?.addEventListener('change', () => {
     if (link) selectLink(selectedShort, link);
   }
 });
+startDateInput?.addEventListener('change', () => {
+  currentStartDate = startDateInput.value;
+  loadOrgSummary();
+  if (selectedShort) {
+    const link = allLinks.find(l => l.short_code === selectedShort);
+    if (link) selectLink(selectedShort, link);
+  }
+});
+endDateInput?.addEventListener('change', () => {
+  currentEndDate = endDateInput.value;
+  loadOrgSummary();
+  if (selectedShort) {
+    const link = allLinks.find(l => l.short_code === selectedShort);
+    if (link) selectLink(selectedShort, link);
+  }
+});
 countryFilter?.addEventListener('change', () => {
   currentCountry = countryFilter.value || '';
   if (selectedShort) {
@@ -276,16 +308,18 @@ countryFilter?.addEventListener('change', () => {
   }
 });
 exportOrgBtn?.addEventListener('click', () => {
-  const params = new URLSearchParams({ range: currentRange });
-  const filename = `org-analytics-${currentRange}.csv`;
+  const params = applyDateParams(new URLSearchParams({ range: currentRange }));
+  const suffix = isCustomRangeActive() ? '-custom' : `-${currentRange}`;
+  const filename = `org-analytics${suffix}.csv`;
   downloadCsv(`/api/analytics/export?${params.toString()}`, filename);
 });
 exportLinkBtn?.addEventListener('click', () => {
   if (!selectedShort) return showToast('Select a link first', 'error');
-  const params = new URLSearchParams({ range: currentRange });
+  const params = applyDateParams(new URLSearchParams({ range: currentRange }));
   if (currentCountry) params.set('country', currentCountry);
   const suffix = currentCountry ? `-${currentCountry.toLowerCase()}` : '';
-  const filename = `link-${selectedShort}-${currentRange}${suffix}.csv`;
+  const rangeSuffix = isCustomRangeActive() ? '-custom' : `-${currentRange}`;
+  const filename = `link-${selectedShort}${rangeSuffix}${suffix}.csv`;
   downloadCsv(`/api/analytics/links/${encodeURIComponent(selectedShort)}/export?${params.toString()}`, filename);
 });
 
@@ -302,11 +336,12 @@ copyUrlBtn?.addEventListener('click', () => {
 
 async function loadOrgSummary(){
   let summary = {};
-  try { summary = (await api(`/api/analytics/summary?range=${encodeURIComponent(currentRange)}`)).data || {}; } catch {}
+  const params = applyDateParams(new URLSearchParams({ range: currentRange }));
+  try { summary = (await api(`/api/analytics/summary?${params.toString()}`)).data || {}; } catch {}
   if (orgTotal) orgTotal.textContent = summary?.total_clicks ?? '–';
   if (orgRange) orgRange.textContent = summary?.clicks_range ?? '–';
   if (orgLast) orgLast.textContent = fmtDate(summary?.last_click_at);
-  if (orgRangeLabel) orgRangeLabel.textContent = rangeLabel(currentRange);
+  if (orgRangeLabel) orgRangeLabel.textContent = isCustomRangeActive() ? 'Clicks (custom)' : rangeLabel(currentRange);
 
   const countries = summary?.top_countries || [];
   if (orgCountryBody) {

@@ -55,11 +55,47 @@ function rangeToInterval(rangeRaw: unknown): string | null {
   return '7 days';
 }
 
+function parseDateInput(value: unknown): Date | null {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const dt = new Date(raw);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt;
+}
+
 function withRangeSql(prefix: string, rangeRaw: unknown, params: any[]) {
   const interval = rangeToInterval(rangeRaw);
   if (!interval) return { sql: '', params };
   params.push(interval);
   return { sql: ` AND ${prefix}.occurred_at >= NOW() - $${params.length}::interval `, params };
+}
+
+function withDateRangeSql(prefix: string, start: Date | null, end: Date | null, params: any[]) {
+  let sql = '';
+  if (start) {
+    params.push(start.toISOString());
+    sql += ` AND ${prefix}.occurred_at >= $${params.length}::timestamptz `;
+  }
+  if (end) {
+    params.push(end.toISOString());
+    sql += ` AND ${prefix}.occurred_at <= $${params.length}::timestamptz `;
+  }
+  return { sql, params };
+}
+
+function resolveTimeFilters(prefix: string, rangeRaw: unknown, startRaw: unknown, endRaw: unknown, params: any[]) {
+  const start = parseDateInput(startRaw);
+  const end = parseDateInput(endRaw);
+  if (start && end && start > end) {
+    return { error: 'start_date must be before end_date' };
+  }
+  if (start || end) {
+    const res = withDateRangeSql(prefix, start, end, params);
+    return { ...res, start, end, mode: 'custom' as const };
+  }
+  const res = withRangeSql(prefix, rangeRaw, params);
+  return { ...res, start: null, end: null, mode: 'range' as const };
 }
 
 function withCountrySql(prefix: string, countryRaw: unknown, params: any[]) {
@@ -117,11 +153,45 @@ export async function summary(req: ReqWithUser, res: Response) {
     const orgId = (req as any).org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
     const range = req.query.range;
-    const cacheId = cacheKey(['summary', orgId, range]);
+    const startDate = req.query.start_date;
+    const endDate = req.query.end_date;
+    const cacheId = cacheKey(['summary', orgId, range, startDate, endDate]);
     const cached = await getCached<any>(cacheId);
     if (cached) return res.json({ success: true, data: cached });
 
-    const series = await db.query<{ h: string; count: string | number }>(`
+    const seriesParams: any[] = [orgId];
+    const seriesFilters = resolveTimeFilters('c', range, startDate, endDate, seriesParams);
+    if ((seriesFilters as any).error) {
+      return res.status(400).json({ success: false, error: (seriesFilters as any).error });
+    }
+    const start = seriesFilters.start;
+    const end = seriesFilters.end;
+    const rangeMs = start && end ? end.getTime() - start.getTime() : 0;
+    const useHourly = !start || !end || rangeMs <= 7 * 24 * 60 * 60 * 1000;
+    const seriesStep = useHourly ? '1 hour' : '1 day';
+    const seriesTrunc = useHourly ? 'hour' : 'day';
+    const seriesStart = start ? start.toISOString() : null;
+    const seriesEnd = end ? end.toISOString() : null;
+    const seriesSql = start && end ? `
+      WITH series AS (
+        SELECT generate_series(
+          date_trunc('${seriesTrunc}', $2::timestamptz),
+          date_trunc('${seriesTrunc}', $3::timestamptz),
+          INTERVAL '${seriesStep}'
+        ) AS h
+      )
+      SELECT to_char(s.h, ${useHourly ? `'YYYY-MM-DD"T"HH24:00:00"Z"'` : `'YYYY-MM-DD'`}) AS h,
+             COALESCE(COUNT(l.id), 0) AS count
+      FROM series s
+      LEFT JOIN click_events c
+        ON date_trunc('${seriesTrunc}', c.occurred_at) = s.h
+       AND c.occurred_at >= $2::timestamptz
+       AND c.occurred_at <= $3::timestamptz
+      LEFT JOIN links l
+        ON l.id = c.link_id AND l.org_id = $1
+      GROUP BY s.h
+      ORDER BY s.h
+    ` : `
       WITH series AS (
         SELECT generate_series(
           date_trunc('hour', NOW()) - INTERVAL '23 hours',
@@ -138,33 +208,47 @@ export async function summary(req: ReqWithUser, res: Response) {
         ON l.id = c.link_id AND l.org_id = $1
       GROUP BY s.h
       ORDER BY s.h
-    `, [orgId]);
+    `;
+    const seriesQueryParams = start && end ? [orgId, seriesStart, seriesEnd] : [orgId];
+    const series = await db.query<{ h: string; count: string | number }>(seriesSql, seriesQueryParams);
 
+    const totalsParams: any[] = [orgId];
+    const totalsRange = resolveTimeFilters('c', range, startDate, endDate, totalsParams);
+    if ((totalsRange as any).error) {
+      return res.status(400).json({ success: false, error: (totalsRange as any).error });
+    }
     const totals = await db.query<{ total_clicks: string; last_click_at: Date | null; clicks_24h: string }>(`
       SELECT COUNT(*)::bigint AS total_clicks,
              MAX(occurred_at) AS last_click_at,
              SUM(CASE WHEN occurred_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)::bigint AS clicks_24h
       FROM click_events c
       JOIN links l ON l.id = c.link_id
-      WHERE l.org_id = $1
-    `, [orgId]);
+      WHERE l.org_id = $1 ${totalsRange.sql}
+    `, totalsRange.params);
 
     let clicksRange = Number(totals.rows[0]?.clicks_24h || 0);
-    const rangeInterval = rangeToInterval(range);
-    if (rangeInterval) {
-      const rangeRes = await db.query<{ count: string }>(`
-        SELECT COUNT(*)::bigint AS count
-        FROM click_events c
-        JOIN links l ON l.id = c.link_id
-        WHERE l.org_id = $1 AND c.occurred_at >= NOW() - $2::interval
-      `, [orgId, rangeInterval]);
-      clicksRange = Number(rangeRes.rows[0]?.count || 0);
-    } else {
+    if (totalsRange.mode === 'custom') {
       clicksRange = Number(totals.rows[0]?.total_clicks || 0);
+    } else {
+      const rangeInterval = rangeToInterval(range);
+      if (rangeInterval) {
+        const rangeRes = await db.query<{ count: string }>(`
+          SELECT COUNT(*)::bigint AS count
+          FROM click_events c
+          JOIN links l ON l.id = c.link_id
+          WHERE l.org_id = $1 AND c.occurred_at >= NOW() - $2::interval
+        `, [orgId, rangeInterval]);
+        clicksRange = Number(rangeRes.rows[0]?.count || 0);
+      } else {
+        clicksRange = Number(totals.rows[0]?.total_clicks || 0);
+      }
     }
 
     const refParams: any[] = [orgId];
-    const refRange = withRangeSql('c', range, refParams);
+    const refRange = resolveTimeFilters('c', range, startDate, endDate, refParams);
+    if ((refRange as any).error) {
+      return res.status(400).json({ success: false, error: (refRange as any).error });
+    }
     const referrers = await db.query<{ referrer: string | null; count: string }>(`
       SELECT COALESCE(NULLIF(TRIM(referer), ''), '(direct)') AS referrer,
              COUNT(*)::bigint AS count
@@ -177,7 +261,10 @@ export async function summary(req: ReqWithUser, res: Response) {
     `, refRange.params);
 
     const uaParams: any[] = [orgId];
-    const uaRange = withRangeSql('c', range, uaParams);
+    const uaRange = resolveTimeFilters('c', range, startDate, endDate, uaParams);
+    if ((uaRange as any).error) {
+      return res.status(400).json({ success: false, error: (uaRange as any).error });
+    }
     const uas = await db.query<{ ua: string | null; count: string }>(`
       SELECT user_agent AS ua, COUNT(*)::bigint AS count
       FROM click_events c
@@ -189,7 +276,10 @@ export async function summary(req: ReqWithUser, res: Response) {
     `, uaRange.params);
 
     const geoParams: any[] = [orgId];
-    const geoRange = withRangeSql('c', range, geoParams);
+    const geoRange = resolveTimeFilters('c', range, startDate, endDate, geoParams);
+    if ((geoRange as any).error) {
+      return res.status(400).json({ success: false, error: (geoRange as any).error });
+    }
     const countries = await db.query<{ country: string | null; code: string | null; count: string }>(`
       SELECT COALESCE(country_name, 'Unknown') AS country,
              country_code AS code,
@@ -203,7 +293,10 @@ export async function summary(req: ReqWithUser, res: Response) {
     `, geoRange.params);
 
     const cityParams: any[] = [orgId];
-    const cityRange = withRangeSql('c', range, cityParams);
+    const cityRange = resolveTimeFilters('c', range, startDate, endDate, cityParams);
+    if ((cityRange as any).error) {
+      return res.status(400).json({ success: false, error: (cityRange as any).error });
+    }
     const cities = await db.query<{ city: string | null; country: string | null; count: string }>(`
       SELECT COALESCE(city, 'Unknown') AS city,
              COALESCE(country_name, 'Unknown') AS country,
@@ -224,7 +317,10 @@ export async function summary(req: ReqWithUser, res: Response) {
     const uaDetail = buildUaDetails(uas.rows);
 
     const pointParams: any[] = [orgId];
-    const pointRange = withRangeSql('c', range, pointParams);
+    const pointRange = resolveTimeFilters('c', range, startDate, endDate, pointParams);
+    if ((pointRange as any).error) {
+      return res.status(400).json({ success: false, error: (pointRange as any).error });
+    }
     const points = await db.query<{ latitude: number; longitude: number; count: string }>(`
       SELECT latitude, longitude, COUNT(*)::bigint AS count
       FROM click_events c
@@ -283,8 +379,10 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     const orgId = (req as any).org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
     const range = req.query.range;
+    const startDate = req.query.start_date;
+    const endDate = req.query.end_date;
     const country = req.query.country;
-    const cacheId = cacheKey(['linkSummary', orgId, req.params.shortCode, range, country]);
+    const cacheId = cacheKey(['linkSummary', orgId, req.params.shortCode, range, startDate, endDate, country]);
     const cached = await getCached<any>(cacheId);
     if (cached) return res.json({ success: true, data: cached });
 
@@ -300,8 +398,39 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     const title = linkRow.rows[0].title ?? '';
 
     const seriesParams: any[] = [linkId];
-    const seriesCountry = withCountrySql('c', country, seriesParams);
-    const series = await db.query<{ h: string; count: string | number }>(`
+    const seriesRange = resolveTimeFilters('c', range, startDate, endDate, seriesParams);
+    if ((seriesRange as any).error) {
+      return res.status(400).json({ success: false, error: (seriesRange as any).error });
+    }
+    const start = seriesRange.start;
+    const end = seriesRange.end;
+    const rangeMs = start && end ? end.getTime() - start.getTime() : 0;
+    const useHourly = !start || !end || rangeMs <= 7 * 24 * 60 * 60 * 1000;
+    const seriesStep = useHourly ? '1 hour' : '1 day';
+    const seriesTrunc = useHourly ? 'hour' : 'day';
+    const seriesStart = start ? start.toISOString() : null;
+    const seriesEnd = end ? end.toISOString() : null;
+    const seriesCountry = withCountrySql('c', country, start && end ? [linkId, seriesStart, seriesEnd] : [linkId]);
+    const seriesSql = start && end ? `
+      WITH series AS (
+        SELECT generate_series(
+          date_trunc('${seriesTrunc}', $2::timestamptz),
+          date_trunc('${seriesTrunc}', $3::timestamptz),
+          INTERVAL '${seriesStep}'
+        ) AS h
+      )
+      SELECT to_char(s.h, ${useHourly ? `'YYYY-MM-DD"T"HH24:00:00"Z"'` : `'YYYY-MM-DD'`}) AS h,
+             COALESCE(COUNT(c.*), 0) AS count
+      FROM series s
+      LEFT JOIN click_events c
+        ON date_trunc('${seriesTrunc}', c.occurred_at) = s.h
+       AND c.link_id = $1
+       AND c.occurred_at >= $2::timestamptz
+       AND c.occurred_at <= $3::timestamptz
+       ${seriesCountry.sql}
+      GROUP BY s.h
+      ORDER BY s.h
+    ` : `
       WITH series AS (
         SELECT generate_series(
           date_trunc('hour', NOW()) - INTERVAL '23 hours',
@@ -317,33 +446,47 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
        AND c.link_id = $1 ${seriesCountry.sql}
       GROUP BY s.h
       ORDER BY s.h
-    `, seriesCountry.params);
+    `;
+    const seriesQueryParams = seriesCountry.params;
+    const series = await db.query<{ h: string; count: string | number }>(seriesSql, seriesQueryParams);
 
+    const totalsParams: any[] = [linkId];
+    const totalsRange = resolveTimeFilters('click_events', range, startDate, endDate, totalsParams);
+    if ((totalsRange as any).error) {
+      return res.status(400).json({ success: false, error: (totalsRange as any).error });
+    }
     const totals = await db.query<{ total_clicks: string; last_click_at: Date | null; clicks_24h: string }>(`
       SELECT COUNT(*)::bigint AS total_clicks,
              MAX(occurred_at) AS last_click_at,
              SUM(CASE WHEN occurred_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)::bigint AS clicks_24h
       FROM click_events
-      WHERE link_id = $1
-    `, [linkId]);
+      WHERE link_id = $1 ${totalsRange.sql}
+    `, totalsRange.params);
 
     let clicksRange = Number(totals.rows[0]?.clicks_24h || 0);
-    const rangeInterval = rangeToInterval(range);
-    if (rangeInterval) {
-      const rangeParams: any[] = [linkId, rangeInterval];
-      const rangeCountry = withCountrySql('click_events', country, rangeParams);
-      const rangeRes = await db.query<{ count: string }>(`
-        SELECT COUNT(*)::bigint AS count
-        FROM click_events
-        WHERE link_id = $1 AND occurred_at >= NOW() - $2::interval ${rangeCountry.sql}
-      `, rangeCountry.params);
-      clicksRange = Number(rangeRes.rows[0]?.count || 0);
-    } else {
+    if (totalsRange.mode === 'custom') {
       clicksRange = Number(totals.rows[0]?.total_clicks || 0);
+    } else {
+      const rangeInterval = rangeToInterval(range);
+      if (rangeInterval) {
+        const rangeParams: any[] = [linkId, rangeInterval];
+        const rangeCountry = withCountrySql('click_events', country, rangeParams);
+        const rangeRes = await db.query<{ count: string }>(`
+          SELECT COUNT(*)::bigint AS count
+          FROM click_events
+          WHERE link_id = $1 AND occurred_at >= NOW() - $2::interval ${rangeCountry.sql}
+        `, rangeCountry.params);
+        clicksRange = Number(rangeRes.rows[0]?.count || 0);
+      } else {
+        clicksRange = Number(totals.rows[0]?.total_clicks || 0);
+      }
     }
 
     const refParams: any[] = [linkId];
-    const refRange = withRangeSql('c', range, refParams);
+    const refRange = resolveTimeFilters('c', range, startDate, endDate, refParams);
+    if ((refRange as any).error) {
+      return res.status(400).json({ success: false, error: (refRange as any).error });
+    }
     const refCountry = withCountrySql('c', country, refRange.params);
     const referrers = await db.query<{ referrer: string | null; count: string }>(`
       SELECT COALESCE(NULLIF(TRIM(referer), ''), '(direct)') AS referrer,
@@ -356,7 +499,10 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     `, refCountry.params);
 
     const uaParams: any[] = [linkId];
-    const uaRange = withRangeSql('c', range, uaParams);
+    const uaRange = resolveTimeFilters('c', range, startDate, endDate, uaParams);
+    if ((uaRange as any).error) {
+      return res.status(400).json({ success: false, error: (uaRange as any).error });
+    }
     const uaCountry = withCountrySql('c', country, uaRange.params);
     const uas = await db.query<{ ua: string | null; count: string }>(`
       SELECT user_agent AS ua, COUNT(*)::bigint AS count
@@ -368,7 +514,10 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     `, uaCountry.params);
 
     const geoParams: any[] = [linkId];
-    const geoRange = withRangeSql('c', range, geoParams);
+    const geoRange = resolveTimeFilters('c', range, startDate, endDate, geoParams);
+    if ((geoRange as any).error) {
+      return res.status(400).json({ success: false, error: (geoRange as any).error });
+    }
     const geoCountry = withCountrySql('c', country, geoRange.params);
     const countries = await db.query<{ country: string | null; code: string | null; count: string }>(`
       SELECT COALESCE(country_name, 'Unknown') AS country,
@@ -382,7 +531,10 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     `, geoCountry.params);
 
     const cityParams: any[] = [linkId];
-    const cityRange = withRangeSql('c', range, cityParams);
+    const cityRange = resolveTimeFilters('c', range, startDate, endDate, cityParams);
+    if ((cityRange as any).error) {
+      return res.status(400).json({ success: false, error: (cityRange as any).error });
+    }
     const cityCountry = withCountrySql('c', country, cityRange.params);
     const cities = await db.query<{ city: string | null; country: string | null; count: string }>(`
       SELECT COALESCE(city, 'Unknown') AS city,
@@ -396,7 +548,10 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     `, cityCountry.params);
 
     const pointParams: any[] = [linkId];
-    const pointRange = withRangeSql('c', range, pointParams);
+    const pointRange = resolveTimeFilters('c', range, startDate, endDate, pointParams);
+    if ((pointRange as any).error) {
+      return res.status(400).json({ success: false, error: (pointRange as any).error });
+    }
     const pointCountry = withCountrySql('c', country, pointRange.params);
     const points = await db.query<{ latitude: number; longitude: number; count: string }>(`
       SELECT latitude, longitude, COUNT(*)::bigint AS count
@@ -467,6 +622,8 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
     const { shortCode } = req.params;
     const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 500);
     const range = req.query.range;
+    const startDate = req.query.start_date;
+    const endDate = req.query.end_date;
     const country = req.query.country;
 
     const linkRow = await db.query<{ id: string }>(
@@ -478,9 +635,14 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
     }
     const linkId = linkRow.rows[0].id;
 
-    const evParams: any[] = [linkId, limit];
-    const evRange = withRangeSql('click_events', range, evParams);
+    const evParams: any[] = [linkId];
+    const evRange = resolveTimeFilters('click_events', range, startDate, endDate, evParams);
+    if ((evRange as any).error) {
+      return res.status(400).json({ success: false, error: (evRange as any).error });
+    }
     const evCountry = withCountrySql('click_events', country, evRange.params);
+    evCountry.params.push(limit);
+    const limitIdx = evCountry.params.length;
     const events = await db.query<{
       occurred_at: Date;
       ip: string | null;
@@ -494,7 +656,7 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
       FROM click_events
       WHERE link_id = $1 ${evRange.sql} ${evCountry.sql}
       ORDER BY occurred_at DESC
-      LIMIT $2
+      LIMIT $${limitIdx}
     `, evCountry.params);
 
     return res.json({
@@ -523,11 +685,16 @@ export async function exportOrgCsv(req: ReqWithUser, res: Response) {
     const orgId = (req as any).org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
     const range = req.query.range;
+    const startDate = req.query.start_date;
+    const endDate = req.query.end_date;
     const country = req.query.country;
     const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '5000'), 10) || 5000, 1), 20000);
 
     const params: any[] = [orgId];
-    const rangeSql = withRangeSql('c', range, params);
+    const rangeSql = resolveTimeFilters('c', range, startDate, endDate, params);
+    if ((rangeSql as any).error) {
+      return res.status(400).json({ success: false, error: (rangeSql as any).error });
+    }
     const countrySql = withCountrySql('c', country, rangeSql.params);
     countrySql.params.push(limit);
     const limitIdx = countrySql.params.length;
@@ -616,6 +783,8 @@ export async function exportLinkCsv(req: ReqWithUser, res: Response) {
 
     const { shortCode } = req.params;
     const range = req.query.range;
+    const startDate = req.query.start_date;
+    const endDate = req.query.end_date;
     const country = req.query.country;
     const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '5000'), 10) || 5000, 1), 20000);
 
@@ -629,7 +798,10 @@ export async function exportLinkCsv(req: ReqWithUser, res: Response) {
     const linkId = linkRow.rows[0].id;
 
     const params: any[] = [linkId];
-    const rangeSql = withRangeSql('c', range, params);
+    const rangeSql = resolveTimeFilters('c', range, startDate, endDate, params);
+    if ((rangeSql as any).error) {
+      return res.status(400).json({ success: false, error: (rangeSql as any).error });
+    }
     const countrySql = withCountrySql('c', country, rangeSql.params);
     countrySql.params.push(limit);
     const limitIdx = countrySql.params.length;

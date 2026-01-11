@@ -207,10 +207,44 @@ async function ensureEmailVerificationBanner() {
   }
 }
 
+async function ensureOrgSwitcher() {
+  if (!getToken()) return;
+  const top = document.querySelector('.admin-top');
+  if (!top || top.querySelector('[data-org-switcher]')) return;
+  try {
+    const res = await apiFetch('/api/orgs');
+    const orgs = res?.data || res || [];
+    if (!Array.isArray(orgs) || !orgs.length) return;
+    const current = getActiveOrgId() || orgs[0].id;
+    setActiveOrgId(current);
+    const wrap = document.createElement('div');
+    wrap.dataset.orgSwitcher = '1';
+    wrap.className = 'row';
+    wrap.style.gap = '10px';
+    wrap.innerHTML = `
+      <label class="muted" style="font-size:12px">Org</label>
+      <select class="input" style="min-width:180px"></select>
+    `;
+    const select = wrap.querySelector('select');
+    select.innerHTML = orgs.map((org) => (
+      `<option value="${escapeHtml(org.id)}">${escapeHtml(org.name || org.id)}</option>`
+    )).join('');
+    select.value = current;
+    select.addEventListener('change', () => {
+      setActiveOrgId(select.value);
+      window.location.reload();
+    });
+    top.appendChild(wrap);
+  } catch (err) {
+    console.warn('org switcher load failed', err);
+  }
+}
+
 onReady(() => {
   applyAdminTheme();
   ensureAdminNavIncludesEcosystem();
   ensureEmailVerificationBanner();
+  ensureOrgSwitcher();
 });
 
 export function setText(el, value) {
