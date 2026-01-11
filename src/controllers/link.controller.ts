@@ -9,6 +9,7 @@ import { tryGrantReferralReward } from '../services/referrals';
 import { getEffectivePlan, isPaidPlan } from '../services/plan';
 import { invalidateCachedLinks, setCachedLink } from '../services/linkCache';
 import { getOrgLimits } from '../services/orgLimits';
+import { log } from '../utils/logger';
 
 type UserReq = Request & { user: { userId: string }; org: { orgId: string } };
 
@@ -346,7 +347,7 @@ export async function createLink(req: UserReq, res: Response) {
       metadata: { short_code: rows[0].short_code },
     });
 
-    try { await tryGrantReferralReward(userId, orgId); } catch (err) { console.error('referral reward error:', err); }
+    try { await tryGrantReferralReward(userId, orgId); } catch (err) { log('error', 'referral reward error', { error: String(err) }); }
     void setCachedLink(code, {
       id: rows[0].id,
       original_url: rows[0].original_url,
@@ -368,11 +369,11 @@ export async function createLink(req: UserReq, res: Response) {
       data: shapeLink({ ...rows[0], domain: domainHost, tags: tagRows, groups: groupRows }, coreBase),
     });
   } catch (e: any) {
-    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
+    try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'createLink.rollback_failed', { error: String(rbErr) }); }
     if (e?.code === '23505') {
       return res.status(409).json({ success: false, error: 'short_code already exists' });
     }
-    console.error('createLink error:', e);
+    log('error', 'createLink error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -401,7 +402,7 @@ export async function checkAvailability(req: UserReq, res: Response) {
 
     return res.json({ success: true, data: { available: true, code } });
   } catch (e) {
-    console.error('checkAvailability error:', e);
+    log('error', 'checkAvailability error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -449,7 +450,7 @@ export async function getUserLinks(req: UserReq, res: Response) {
     );
     return res.json({ success: true, data: rows.map(r => shapeLink(r, coreBase)) });
   } catch (e) {
-    console.error('getUserLinks error:', e);
+    log('error', 'getUserLinks error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -486,7 +487,7 @@ export async function getLinkDetails(req: UserReq, res: Response) {
     const coreBase = coreBaseUrl();
     return res.json({ success: true, data: shapeLink(rows[0], coreBase) });
   } catch (e) {
-    console.error('getLinkDetails error:', e);
+    log('error', 'getLinkDetails error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -712,11 +713,11 @@ export async function updateLink(req: UserReq, res: Response) {
     const coreBase = coreBaseUrl();
     return res.json({ success: true, data: shapeLink(rows[0], coreBase) });
   } catch (e: any) {
-    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
+    try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'updateLink.rollback_failed', { error: String(rbErr) }); }
     if (e?.code === '23505') {
       return res.status(409).json({ success: false, error: 'short_code already exists' });
     }
-    console.error('updateLink error:', e);
+    log('error', 'updateLink error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -770,7 +771,7 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
     const coreBase = coreBaseUrl();
     return res.json({ success: true, data: shapeLink(rows[0], coreBase) });
   } catch (e) {
-    console.error('updateLinkStatus error:', e);
+    log('error', 'updateLinkStatus error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -798,7 +799,7 @@ export async function deleteLink(req: UserReq, res: Response) {
     void invalidateCachedLinks([shortCode]);
     return res.json({ success: true, data: { deleted: result.rowCount ? result.rowCount > 0 : false, short_code: shortCode } });
   } catch (e) {
-    console.error('deleteLink error:', e);
+    log('error', 'deleteLink error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -949,14 +950,14 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
           data: shapeLink({ ...rows[0], domain: domainHost, tags: tagRows, groups: groupRows }, coreBase),
         });
       } catch (err) {
-        try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
+        try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'bulkCreate.rollback_failed', { error: String(rbErr) }); }
         results.push({ row: index + 1, url: rawUrl, success: false, error: 'Insert failed' });
       }
     }
 
     return res.json({ success: true, data: results });
   } catch (err) {
-    console.error('bulkCreate error:', err);
+    log('error', 'bulkCreate error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -1139,14 +1140,14 @@ export async function bulkImportLinks(req: UserReq, res: Response) {
           data: shapeLink({ ...rows[0], domain: domainHost, tags: tagRows, groups: groupRows }, coreBase),
         });
       } catch (err) {
-        try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
+        try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'bulkImport.rollback_failed', { error: String(rbErr) }); }
         results.push({ row: index + 1, url: rawUrl, success: false, error: 'Insert failed' });
       }
     }
 
     return res.json({ success: true, data: results });
   } catch (err) {
-    console.error('bulkImport error:', err);
+    log('error', 'bulkImport error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -1172,7 +1173,7 @@ export async function bulkDeleteLinks(req: UserReq, res: Response) {
     void invalidateCachedLinks(deleted);
     return res.json({ success: true, data: { deleted, count: deleted.length } });
   } catch (err) {
-    console.error('bulkDelete error:', err);
+    log('error', 'bulkDelete error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -1199,7 +1200,7 @@ export async function listVariants(req: UserReq, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('variants.list error:', err);
+    log('error', 'variants.list error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -1270,8 +1271,8 @@ export async function replaceVariants(req: UserReq, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
-    console.error('variants.replace error:', err);
+    try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'variants.replace.rollback_failed', { error: String(rbErr) }); }
+    log('error', 'variants.replace error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -1298,7 +1299,7 @@ export async function listRoutes(req: UserReq, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('routes.list error:', err);
+    log('error', 'routes.list error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -1386,8 +1387,8 @@ export async function replaceRoutes(req: UserReq, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
-    console.error('routes.replace error:', err);
+    try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'routes.replace.rollback_failed', { error: String(rbErr) }); }
+    log('error', 'routes.replace error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

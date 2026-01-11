@@ -8,6 +8,7 @@ import { tryGrantReferralReward } from '../services/referrals';
 import { getEffectivePlan, isPaidPlan } from '../services/plan';
 import { getOrgLimits } from '../services/orgLimits';
 import { autoProvisionDns } from '../services/dnsAutomation';
+import { log } from '../utils/logger';
 
 // Local auth-aware request type (your middleware attaches req.user/org)
 type JwtUser = { userId: string; email?: string };
@@ -77,7 +78,7 @@ export async function listDomains(req: AuthedRequest, res: Response) {
     );
     return res.json({ success: true, data: rows.map(shape) });
   } catch (e) {
-    console.error('listDomains error:', e);
+    log('error', 'listDomains error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -169,7 +170,7 @@ export async function createDomain(req: AuthedRequest, res: Response) {
     });
 
     const automation = await autoProvisionDns(row.domain, row.verification_token);
-    try { await tryGrantReferralReward(userId, orgId); } catch (err) { console.error('referral reward error:', err); }
+    try { await tryGrantReferralReward(userId, orgId); } catch (err) { log('error', 'referral reward error', { error: String(err) }); }
     return res.status(201).json({
       success: true,
       data: shape(row),
@@ -186,7 +187,7 @@ export async function createDomain(req: AuthedRequest, res: Response) {
     if (e?.code === '23505') {
       return res.status(409).json({ success: false, error: 'Domain already exists' });
     }
-    console.error('createDomain error:', e);
+    log('error', 'createDomain error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -257,7 +258,7 @@ export async function verifyDomain(req: AuthedRequest, res: Response) {
       }
     } catch (e: any) {
       if (!['ENOTFOUND', 'ENODATA', 'ETIMEOUT', 'EAI_AGAIN', 'SERVFAIL'].includes(e?.code)) {
-        console.warn(`TXT lookup error for ${host1}:`, e);
+        log('warn', `TXT lookup error for ${host1}`, { error: String(e) });
       }
     }
 
@@ -271,9 +272,9 @@ export async function verifyDomain(req: AuthedRequest, res: Response) {
           method = 'dns-root';
         }
       } catch (e: any) {
-        if (!['ENOTFOUND', 'ENODATA', 'ETIMEOUT', 'EAI_AGAIN', 'SERVFAIL'].includes(e?.code)) {
-          console.warn(`TXT lookup error for ${row.domain}:`, e);
-        }
+      if (!['ENOTFOUND', 'ENODATA', 'ETIMEOUT', 'EAI_AGAIN', 'SERVFAIL'].includes(e?.code)) {
+        log('warn', `TXT lookup error for ${row.domain}`, { error: String(e) });
+      }
       }
     }
 
@@ -308,7 +309,7 @@ export async function verifyDomain(req: AuthedRequest, res: Response) {
     });
     return res.json({ success: true, data: shape(upd.rows[0]), method, txts_sample: txts.slice(0, 5) });
   } catch (e) {
-    console.error('verifyDomain error:', e);
+    log('error', 'verifyDomain error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -357,7 +358,7 @@ export async function setDefaultDomain(req: AuthedRequest, res: Response) {
     });
     return res.json({ success: true, data: shape(upd.rows[0]) });
   } catch (e) {
-    console.error('setDefaultDomain error:', e);
+    log('error', 'setDefaultDomain error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -386,7 +387,7 @@ export async function deleteDomain(req: AuthedRequest, res: Response) {
     });
     return res.json({ success: true, data: { deleted } });
   } catch (e) {
-    console.error('deleteDomain error:', e);
+    log('error', 'deleteDomain error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

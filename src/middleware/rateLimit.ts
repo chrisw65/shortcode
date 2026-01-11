@@ -1,6 +1,7 @@
 // src/middleware/rateLimit.ts
 import rateLimit from 'express-rate-limit';
 import type { Request } from 'express';
+import type { AuthenticatedRequest } from './auth';
 
 /**
  * Cross-version, IPv6-safe key generator.
@@ -51,7 +52,7 @@ export const perUser120rpm = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => {
-    const userId = (req as any)?.user?.userId as string | undefined;
+    const userId = (req as AuthenticatedRequest).user?.userId;
     return userId ? `user:${userId}` : ipv6SafeKey(req);
   },
 });

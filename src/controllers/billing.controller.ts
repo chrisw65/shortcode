@@ -2,6 +2,8 @@
 import type { Request, Response } from 'express';
 import Stripe from 'stripe';
 import db from '../config/database';
+import type { OrgRequest } from '../middleware/org';
+import { log } from '../utils/logger';
 
 type BillingConfig = {
   stripe?: {
@@ -152,7 +154,7 @@ export async function getBillingConfig(req: Request, res: Response) {
     const config = await getBillingConfigRaw();
     return res.json({ success: true, data: sanitizeBillingConfig(config) });
   } catch (err) {
-    console.error('billing.getBillingConfig error:', err);
+    log('error', 'billing.getBillingConfig.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -175,15 +177,15 @@ export async function updateBillingConfig(req: Request, res: Response) {
 
     return res.json({ success: true, data: sanitizeBillingConfig(merged) });
   } catch (err) {
-    console.error('billing.updateBillingConfig error:', err);
+    log('error', 'billing.updateBillingConfig.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-export async function createCheckoutSession(req: Request, res: Response) {
+export async function createCheckoutSession(req: OrgRequest, res: Response) {
   try {
-    const user = (req as any).user;
-    const org = (req as any).org;
+    const user = req.user;
+    const org = req.org;
     if (!user?.userId || !org?.orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const planId = String(req.body?.plan_id || '').trim();
@@ -243,15 +245,15 @@ export async function createCheckoutSession(req: Request, res: Response) {
 
     return res.json({ success: true, data: { url: session.url } });
   } catch (err) {
-    console.error('billing.createCheckoutSession error:', err);
+    log('error', 'billing.createCheckoutSession.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-export async function createPortalSession(req: Request, res: Response) {
+export async function createPortalSession(req: OrgRequest, res: Response) {
   try {
-    const user = (req as any).user;
-    const org = (req as any).org;
+    const user = req.user;
+    const org = req.org;
     if (!user?.userId || !org?.orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const config = await getBillingConfigRaw();
@@ -274,7 +276,7 @@ export async function createPortalSession(req: Request, res: Response) {
 
     return res.json({ success: true, data: { url: portal.url } });
   } catch (err) {
-    console.error('billing.createPortalSession error:', err);
+    log('error', 'billing.createPortalSession.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -375,7 +377,7 @@ export async function stripeWebhook(req: Request, res: Response) {
 
     return res.json({ received: true });
   } catch (err) {
-    console.error('billing.stripeWebhook error:', err);
+    log('error', 'billing.stripeWebhook.error', { error: String(err) });
     return res.status(400).send('Webhook error');
   }
 }

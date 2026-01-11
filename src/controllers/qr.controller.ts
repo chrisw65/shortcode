@@ -2,6 +2,7 @@
 import type { Request, Response } from 'express';
 import QRCode from 'qrcode';
 import db from '../config/database';
+import { log } from '../utils/logger';
 
 function parseSize(q: unknown): number {
   const n = Number.parseInt(String(q ?? ''), 10);
@@ -52,7 +53,7 @@ export async function getQrSvg(req: Request, res: Response) {
     res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
     return res.status(200).send(svg);
   } catch (e) {
-    console.error('qr.svg error:', e);
+    log('error', 'qr.svg error', { error: String(e) });
     return res.status(500).send('Internal server error');
   }
 }
@@ -80,7 +81,7 @@ export async function getQrPng(req: Request, res: Response) {
     res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
     return res.status(200).end(buf);
   } catch (e) {
-    console.error('qr.png error:', e);
+    log('error', 'qr.png error', { error: String(e) });
     return res.status(500).send('Internal server error');
   }
 }

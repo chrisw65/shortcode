@@ -5,13 +5,14 @@ import {
   mergePlatformConfig,
   normalizeRetentionDays,
 } from '../services/platformConfig';
+import { log } from '../utils/logger';
 
 export async function getPlatformConfig(_req: Request, res: Response) {
   try {
     const config = await getPlatformConfigRaw();
     return res.json({ success: true, data: config });
   } catch (err) {
-    console.error('platform.getConfig error:', err);
+    log('error', 'platform.getConfig error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -40,7 +41,7 @@ export async function updatePlatformConfig(req: Request, res: Response) {
 
     return res.json({ success: true, data: merged });
   } catch (err) {
-    console.error('platform.updateConfig error:', err);
+    log('error', 'platform.updateConfig error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

@@ -4,6 +4,8 @@ import db from '../config/database';
 import redisClient from '../config/redis';
 import { DEFAULT_SITE_CONFIG, getSiteSetting, mergeConfig } from '../services/siteConfig';
 import { sendMail } from '../services/mailer';
+import type { AuthenticatedRequest } from '../middleware/auth';
+import { log } from '../utils/logger';
 
 const SITE_PUBLIC_CACHE_KEY = 'site:public-config';
 
@@ -51,12 +53,12 @@ export async function getPublicSiteConfig(req: Request, res: Response) {
     await setCachedPublicConfig(safe);
     return res.json({ success: true, data: safe });
   } catch (err) {
-    console.error('site.getPublicSiteConfig error:', err);
+    log('error', 'site.getPublicSiteConfig.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-export async function getAdminSiteConfig(req: Request, res: Response) {
+export async function getAdminSiteConfig(_req: AuthenticatedRequest, res: Response) {
   try {
     const draftRaw = await getSiteSetting('marketing_draft');
     const publishedRaw = await getSiteSetting('marketing_published');
@@ -64,14 +66,14 @@ export async function getAdminSiteConfig(req: Request, res: Response) {
     const published = publishedRaw ? mergeConfig(DEFAULT_SITE_CONFIG, publishedRaw) : null;
     return res.json({ success: true, data: { draft, published } });
   } catch (err) {
-    console.error('site.getAdminSiteConfig error:', err);
+    log('error', 'site.getAdminSiteConfig.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-export async function updateSiteConfig(req: Request, res: Response) {
+export async function updateSiteConfig(req: AuthenticatedRequest, res: Response) {
   try {
-    const userId = (req as any).user?.userId ?? null;
+    const userId = req.user?.userId ?? null;
     const payload = req.body ?? null;
     if (!payload || typeof payload !== 'object') {
       return res.status(400).json({ success: false, error: 'Invalid payload' });
@@ -89,14 +91,14 @@ export async function updateSiteConfig(req: Request, res: Response) {
     await invalidatePublicConfigCache();
     return res.json({ success: true, data: payload });
   } catch (err) {
-    console.error('site.updateSiteConfig error:', err);
+    log('error', 'site.updateSiteConfig.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-export async function publishSiteConfig(req: Request, res: Response) {
+export async function publishSiteConfig(req: AuthenticatedRequest, res: Response) {
   try {
-    const userId = (req as any).user?.userId ?? null;
+    const userId = req.user?.userId ?? null;
     const draft = await getSiteSetting('marketing_draft') || DEFAULT_SITE_CONFIG;
     await db.query(
       `INSERT INTO site_settings (key, value, updated_at)
@@ -110,7 +112,7 @@ export async function publishSiteConfig(req: Request, res: Response) {
     await invalidatePublicConfigCache();
     return res.json({ success: true, data: draft });
   } catch (err) {
-    console.error('site.publishSiteConfig error:', err);
+    log('error', 'site.publishSiteConfig.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -129,14 +131,14 @@ export async function getSiteHistory(req: Request, res: Response) {
 
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('site.getSiteHistory error:', err);
+    log('error', 'site.getSiteHistory.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-export async function rollbackSiteConfig(req: Request, res: Response) {
+export async function rollbackSiteConfig(req: AuthenticatedRequest, res: Response) {
   try {
-    const userId = (req as any).user?.userId ?? null;
+    const userId = req.user?.userId ?? null;
     const historyId = String(req.body?.history_id || '');
     if (!historyId) {
       return res.status(400).json({ success: false, error: 'history_id is required' });
@@ -163,7 +165,7 @@ export async function rollbackSiteConfig(req: Request, res: Response) {
     await invalidatePublicConfigCache();
     return res.json({ success: true, data: value });
   } catch (err) {
-    console.error('site.rollbackSiteConfig error:', err);
+    log('error', 'site.rollbackSiteConfig.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -176,7 +178,7 @@ function renderTemplate(template: string, vars: Record<string, string>) {
   ));
 }
 
-export async function sendSiteEmailTest(req: Request, res: Response) {
+export async function sendSiteEmailTest(req: AuthenticatedRequest, res: Response) {
   try {
     const to = String(req.body?.to || '').trim();
     if (!to) {
@@ -187,7 +189,7 @@ export async function sendSiteEmailTest(req: Request, res: Response) {
     const draft = mergeConfig(DEFAULT_SITE_CONFIG, draftRaw || {});
     const brandName = draft?.brand?.name || 'OkLeaf';
     const supportEmail = draft?.footer?.email || 'support@okleaf.link';
-    const inviter = (req as any).user?.email || 'Admin';
+    const inviter = req.user?.email || 'Admin';
     const inviteUrl = `${APP_URL}/register.html?invite=example`;
 
     const vars = { brandName, supportEmail, inviter, inviteUrl };
@@ -211,7 +213,7 @@ export async function sendSiteEmailTest(req: Request, res: Response) {
 
     return res.json({ success: true });
   } catch (err) {
-    console.error('site.sendSiteEmailTest error:', err);
+    log('error', 'site.sendSiteEmailTest.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -296,7 +298,7 @@ export async function sendContactMessage(req: Request, res: Response) {
 
     return res.json({ success: true, message: successMessage });
   } catch (err) {
-    console.error('site.sendContactMessage error:', err);
+    log('error', 'site.sendContactMessage.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import type { OrgRequest } from '../middleware/org';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
+import { log } from '../utils/logger';
 
 function normalizeName(value: any): string {
   return String(value || '').trim();
@@ -19,7 +20,7 @@ export async function listGroups(req: OrgRequest, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('groups.list error:', err);
+    log('error', 'groups.list error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -54,7 +55,7 @@ export async function createGroup(req: OrgRequest, res: Response) {
     if (err?.code === '23505') {
       return res.status(409).json({ success: false, error: 'Group already exists' });
     }
-    console.error('groups.create error:', err);
+    log('error', 'groups.create error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -94,7 +95,7 @@ export async function updateGroup(req: OrgRequest, res: Response) {
     if (err?.code === '23505') {
       return res.status(409).json({ success: false, error: 'Group already exists' });
     }
-    console.error('groups.update error:', err);
+    log('error', 'groups.update error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -123,7 +124,7 @@ export async function deleteGroup(req: OrgRequest, res: Response) {
 
     return res.json({ success: true, data: { deleted: true } });
   } catch (err) {
-    console.error('groups.delete error:', err);
+    log('error', 'groups.delete error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

@@ -5,6 +5,7 @@ import type { OrgRequest } from '../middleware/org';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
 import { clearOrgLimitCache } from '../services/orgLimits';
+import { log } from '../utils/logger';
 
 function tempPassword() {
   return randomBytes(9).toString('hex');
@@ -24,7 +25,7 @@ export async function listMembers(req: OrgRequest, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (e) {
-    console.error('listMembers error:', e);
+    log('error', 'listMembers error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -85,8 +86,8 @@ export async function addMember(req: OrgRequest, res: Response) {
       data: { member_id: rows[0].id, user_id: rows[0].user_id, role: rows[0].role, temp_password: tempPass },
     });
   } catch (e) {
-    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
-    console.error('addMember error:', e);
+    try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'addMember.rollback_failed', { error: String(rbErr) }); }
+    log('error', 'addMember error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -116,7 +117,7 @@ export async function removeMember(req: OrgRequest, res: Response) {
 
     return res.json({ success: true, data: { removed: true } });
   } catch (e) {
-    console.error('removeMember error:', e);
+    log('error', 'removeMember error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -135,7 +136,7 @@ export async function getOrg(req: OrgRequest, res: Response) {
     if (!rows.length) return res.status(404).json({ success: false, error: 'Org not found' });
     return res.json({ success: true, data: rows[0] });
   } catch (e) {
-    console.error('getOrg error:', e);
+    log('error', 'getOrg error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -246,7 +247,7 @@ export async function updateOrg(req: OrgRequest, res: Response) {
     clearOrgLimitCache(orgId);
     return res.json({ success: true, data: rows[0] });
   } catch (e) {
-    console.error('updateOrg error:', e);
+    log('error', 'updateOrg error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -265,7 +266,7 @@ export async function listUserOrgs(req: OrgRequest, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (e) {
-    console.error('listUserOrgs error:', e);
+    log('error', 'listUserOrgs error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

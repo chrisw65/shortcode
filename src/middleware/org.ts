@@ -1,6 +1,7 @@
 import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from './auth';
 import db from '../config/database';
+import { log } from '../utils/logger';
 
 export type OrgRole = 'owner' | 'admin' | 'member';
 
@@ -45,7 +46,7 @@ export async function requireOrg(req: OrgRequest, res: Response, next: NextFunct
     req.org = { orgId: rows[0].org_id, role: rows[0].role };
     return next();
   } catch (e) {
-    console.error('requireOrg error:', e);
+    log('error', 'requireOrg error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

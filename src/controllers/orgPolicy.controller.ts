@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import type { OrgRequest } from '../middleware/org';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
+import { log } from '../utils/logger';
 
 export async function getOrgPolicy(req: OrgRequest, res: Response) {
   try {
@@ -18,7 +19,7 @@ export async function getOrgPolicy(req: OrgRequest, res: Response) {
     }
     return res.json({ success: true, data: rows[0] });
   } catch (e) {
-    console.error('orgPolicy.get error:', e);
+    log('error', 'orgPolicy.get error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -67,7 +68,7 @@ export async function updateOrgPolicy(req: OrgRequest, res: Response) {
 
     return res.json({ success: true, data: rows[0] });
   } catch (e) {
-    console.error('orgPolicy.update error:', e);
+    log('error', 'orgPolicy.update error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

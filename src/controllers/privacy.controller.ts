@@ -5,6 +5,7 @@ import db from '../config/database';
 import type { AuthenticatedRequest } from '../middleware/auth';
 import { recordConsent } from '../services/consent';
 import { logAudit } from '../services/audit';
+import { log } from '../utils/logger';
 
 export async function exportUserData(req: AuthenticatedRequest, res: Response) {
   try {
@@ -75,7 +76,7 @@ export async function exportUserData(req: AuthenticatedRequest, res: Response) {
     res.setHeader('Content-Disposition', 'attachment; filename=\"user-export.json\"');
     return res.send(JSON.stringify(payload, null, 2));
   } catch (e) {
-    console.error('privacy.export error:', e);
+    log('error', 'privacy.export error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -145,8 +146,8 @@ export async function deleteUser(req: AuthenticatedRequest, res: Response) {
 
     return res.json({ success: true, data: { deleted: true } });
   } catch (e) {
-    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
-    console.error('privacy.delete error:', e);
+    try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'privacy.delete.rollback_failed', { error: String(rbErr) }); }
+    log('error', 'privacy.delete error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -159,7 +160,7 @@ export async function acceptTerms(req: AuthenticatedRequest, res: Response) {
     await recordConsent({ user_id: userId, consent_type: 'terms', version, metadata: { source: 'settings' } });
     return res.json({ success: true, data: { accepted: true, version } });
   } catch (e) {
-    console.error('privacy.terms error:', e);
+    log('error', 'privacy.terms error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

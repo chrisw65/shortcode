@@ -3,6 +3,8 @@ import type { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import db from '../config/database';
+import type { AffiliateRequest } from '../middleware/auth';
+import { log } from '../utils/logger';
 
 function signAffiliateToken(payload: Record<string, any>) {
   const secret = process.env.JWT_SECRET;
@@ -41,14 +43,14 @@ export async function affiliateLogin(req: Request, res: Response) {
     const token = signAffiliateToken({ affiliateId: affiliate.id, type: 'affiliate' });
     return res.json({ success: true, data: { token, affiliate: { id: affiliate.id, name: affiliate.name, email: affiliate.email } } });
   } catch (err) {
-    console.error('affiliateLogin error:', err);
+    log('error', 'affiliate.login.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-export async function affiliateMe(req: Request, res: Response) {
+export async function affiliateMe(req: AffiliateRequest, res: Response) {
   try {
-    const affiliateId = (req as any).affiliate?.affiliateId;
+    const affiliateId = req.affiliate?.affiliateId;
     if (!affiliateId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { rows } = await db.query(
@@ -60,14 +62,14 @@ export async function affiliateMe(req: Request, res: Response) {
     if (!rows.length) return res.status(404).json({ success: false, error: 'Affiliate not found' });
     return res.json({ success: true, data: rows[0] });
   } catch (err) {
-    console.error('affiliateMe error:', err);
+    log('error', 'affiliate.me.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-export async function affiliateSummary(req: Request, res: Response) {
+export async function affiliateSummary(req: AffiliateRequest, res: Response) {
   try {
-    const affiliateId = (req as any).affiliate?.affiliateId;
+    const affiliateId = req.affiliate?.affiliateId;
     if (!affiliateId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { rows } = await db.query(
@@ -95,14 +97,14 @@ export async function affiliateSummary(req: Request, res: Response) {
       },
     });
   } catch (err) {
-    console.error('affiliateSummary error:', err);
+    log('error', 'affiliate.summary.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-export async function affiliateConversions(req: Request, res: Response) {
+export async function affiliateConversions(req: AffiliateRequest, res: Response) {
   try {
-    const affiliateId = (req as any).affiliate?.affiliateId;
+    const affiliateId = req.affiliate?.affiliateId;
     if (!affiliateId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { rows } = await db.query(
@@ -115,14 +117,14 @@ export async function affiliateConversions(req: Request, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('affiliateConversions error:', err);
+    log('error', 'affiliate.conversions.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-export async function affiliatePayouts(req: Request, res: Response) {
+export async function affiliatePayouts(req: AffiliateRequest, res: Response) {
   try {
-    const affiliateId = (req as any).affiliate?.affiliateId;
+    const affiliateId = req.affiliate?.affiliateId;
     if (!affiliateId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { rows } = await db.query(
@@ -135,7 +137,7 @@ export async function affiliatePayouts(req: Request, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('affiliatePayouts error:', err);
+    log('error', 'affiliate.payouts.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcrypt';
 import db from '../config/database';
+import { log } from '../utils/logger';
 
 function makeCode() {
   return randomBytes(4).toString('hex').toUpperCase();
@@ -17,7 +18,7 @@ export async function listAffiliates(_req: Request, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('affiliates.listAffiliates error:', err);
+    log('error', 'affiliates.listAffiliates error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -49,7 +50,7 @@ export async function createAffiliate(req: Request, res: Response) {
 
     return res.status(201).json({ success: true, data: { ...rows[0], temp_password: tempPassword } });
   } catch (err) {
-    console.error('affiliates.createAffiliate error:', err);
+    log('error', 'affiliates.createAffiliate error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -65,7 +66,7 @@ export async function updateAffiliate(req: Request, res: Response) {
     await db.query(`UPDATE affiliates SET status = $1 WHERE id = $2`, [status, id]);
     return res.json({ success: true, data: { updated: true } });
   } catch (err) {
-    console.error('affiliates.updateAffiliate error:', err);
+    log('error', 'affiliates.updateAffiliate error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -81,7 +82,7 @@ export async function listAffiliatePayouts(_req: Request, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('affiliates.listAffiliatePayouts error:', err);
+    log('error', 'affiliates.listAffiliatePayouts error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -104,7 +105,7 @@ export async function createAffiliatePayout(req: Request, res: Response) {
     );
     return res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
-    console.error('affiliates.createAffiliatePayout error:', err);
+    log('error', 'affiliates.createAffiliatePayout error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -127,7 +128,7 @@ export async function updateAffiliatePayout(req: Request, res: Response) {
     );
     return res.json({ success: true, data: { updated: true } });
   } catch (err) {
-    console.error('affiliates.updateAffiliatePayout error:', err);
+    log('error', 'affiliates.updateAffiliatePayout error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

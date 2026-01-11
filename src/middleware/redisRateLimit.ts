@@ -3,6 +3,8 @@ import type { Request, Response, NextFunction } from 'express';
 import { RateLimiterRedis, RateLimiterMemory } from 'rate-limiter-flexible';
 import redisClient from '../config/redis';
 import { getOrgLimits } from '../services/orgLimits';
+import type { AuthenticatedRequest } from './auth';
+import type { OrgRequest } from './org';
 
 function ipv6SafeKey(req: Request): string {
   const cfip = (req.headers['cf-connecting-ip'] as string | undefined)?.trim();
@@ -11,7 +13,7 @@ function ipv6SafeKey(req: Request): string {
 }
 
 function authKey(req: Request): string {
-  const email = String((req as any)?.body?.email || '').trim().toLowerCase();
+  const email = String(req.body?.email || '').trim().toLowerCase();
   const ip = ipv6SafeKey(req);
   return email ? `auth:${email}:${ip}` : ip;
 }
@@ -84,7 +86,7 @@ export const perUser120rpmRedis = makeMiddleware(
   60,
   'rl:user:120',
   (req) => {
-    const userId = (req as any)?.user?.userId as string | undefined;
+    const userId = (req as AuthenticatedRequest).user?.userId;
     return userId ? `user:${userId}` : ipv6SafeKey(req);
   },
   'json'
@@ -105,7 +107,7 @@ export async function perOrgApiRpmRedis(req: Request, res: Response, next: NextF
   if (bypassToken && req.headers['x-rate-bypass'] === bypassToken) {
     return next();
   }
-  const orgId = (req as any)?.org?.orgId as string | undefined;
+  const orgId = (req as OrgRequest).org?.orgId;
   if (!orgId) return next();
 
   try {

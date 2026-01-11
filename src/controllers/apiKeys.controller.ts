@@ -3,6 +3,7 @@ import { randomBytes, createHash } from 'crypto';
 import type { OrgRequest } from '../middleware/org';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
+import { log } from '../utils/logger';
 
 const ALLOWED_SCOPES = new Set([
   '*',
@@ -54,7 +55,7 @@ export async function listApiKeys(req: OrgRequest, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (e) {
-    console.error('listApiKeys error:', e);
+    log('error', 'listApiKeys error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -89,7 +90,7 @@ export async function createApiKey(req: OrgRequest, res: Response) {
       data: { ...rows[0], api_key: key },
     });
   } catch (e) {
-    console.error('createApiKey error:', e);
+    log('error', 'createApiKey error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -121,7 +122,7 @@ export async function revokeApiKey(req: OrgRequest, res: Response) {
 
     return res.json({ success: true, data: rows[0] });
   } catch (e) {
-    console.error('revokeApiKey error:', e);
+    log('error', 'revokeApiKey error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

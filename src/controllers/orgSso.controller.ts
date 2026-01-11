@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import type { OrgRequest } from '../middleware/org';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
+import { log } from '../utils/logger';
 
 const ALLOWED_PROVIDERS = new Set(['oidc']);
 const ALLOWED_ROLES = new Set(['owner', 'admin', 'member']);
@@ -62,7 +63,7 @@ export async function getOrgSso(req: OrgRequest, res: Response) {
       },
     });
   } catch (e) {
-    console.error('getOrgSso error:', e);
+    log('error', 'getOrgSso error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -191,7 +192,7 @@ export async function updateOrgSso(req: OrgRequest, res: Response) {
       },
     });
   } catch (e) {
-    console.error('updateOrgSso error:', e);
+    log('error', 'updateOrgSso error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

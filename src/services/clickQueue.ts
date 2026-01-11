@@ -2,6 +2,7 @@
 import db from '../config/database';
 import redisClient from '../config/redis';
 import { lookupGeo } from './geoip';
+import { log } from '../utils/logger';
 
 const QUEUE_KEY = 'shortlink:clicks';
 let workerStarted = false;
@@ -67,7 +68,7 @@ export function startClickWorker() {
         const payload = JSON.parse(item.element) as ClickPayload;
         await processClick(payload);
       } catch (err) {
-        console.error('clickQueue worker error:', err);
+        log('error', 'clickQueue.worker.error', { error: String(err) });
         if (!redisClient.isReady) {
           await new Promise((resolve) => setTimeout(resolve, 500));
         }

@@ -13,6 +13,9 @@ import { getRetentionDefaultDays } from '../services/platformConfig';
 import { defaultScopes, discoverIssuer, normalizeIssuer } from '../services/oidc';
 import { sendMail, hasSmtpConfig } from '../services/mailer';
 import { DEFAULT_SITE_CONFIG, getSiteSetting, mergeConfig } from '../services/siteConfig';
+import type { AuthenticatedRequest } from '../middleware/auth';
+import type { OrgRequest } from '../middleware/org';
+import { log } from '../utils/logger';
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -352,7 +355,7 @@ async function loginImpl(req: Request, res: Response) {
     setRefreshCookie(res, refresh.token, refresh.expiresAt);
     return res.json({ success: true, data: { user: safeUser(user) } });
   } catch (err) {
-    console.error('auth.login error:', err);
+    log('error', 'auth.login.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -529,7 +532,7 @@ async function registerImpl(req: Request, res: Response) {
         const result = await sendVerificationEmail(user.email, verifyToken);
         verificationSent = result.sent === true;
       } catch (err) {
-        console.error('auth.register verification email error:', err);
+        log('error', 'auth.register.verify_email.error', { error: String(err) });
       }
     }
 
@@ -549,15 +552,15 @@ async function registerImpl(req: Request, res: Response) {
       },
     });
   } catch (err) {
-    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
-    console.error('auth.register error:', err);
+    try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'auth.register.rollback_failed', { error: String(rbErr) }); }
+    log('error', 'auth.register.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-async function meImpl(req: Request, res: Response) {
+async function meImpl(req: OrgRequest, res: Response) {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     if (!user?.userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { rows } = await db.query(
@@ -573,18 +576,18 @@ async function meImpl(req: Request, res: Response) {
     );
     if (!rows.length) return res.status(404).json({ success: false, error: 'User not found' });
 
-    const org = (req as any).org ?? null;
+    const org = req.org ?? null;
     const effectivePlan = await getEffectivePlan(user.userId, org?.orgId);
     return res.json({ success: true, data: { user: safeUser(rows[0]), org, effective_plan: effectivePlan } });
   } catch (err) {
-    console.error('auth.me error:', err);
+    log('error', 'auth.me.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-async function changePasswordImpl(req: Request, res: Response) {
+async function changePasswordImpl(req: AuthenticatedRequest, res: Response) {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     if (!user?.userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const current_password = String(req.body?.current_password ?? '');
@@ -610,7 +613,7 @@ async function changePasswordImpl(req: Request, res: Response) {
 
     return res.json({ success: true, data: { updated: true } });
   } catch (err) {
-    console.error('auth.changePassword error:', err);
+    log('error', 'auth.changePassword.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -648,8 +651,8 @@ async function verifyEmailImpl(req: Request, res: Response) {
 
     return res.json({ success: true });
   } catch (err) {
-    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
-    console.error('auth.verifyEmail error:', err);
+    try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'auth.verifyEmail.rollback_failed', { error: String(rbErr) }); }
+    log('error', 'auth.verifyEmail.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -682,7 +685,7 @@ async function resendVerificationImpl(req: Request, res: Response) {
     }
     return res.json({ success: true, data: { sent: true } });
   } catch (err) {
-    console.error('auth.resendVerification error:', err);
+    log('error', 'auth.resendVerification.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -712,7 +715,7 @@ async function requestPasswordResetImpl(req: Request, res: Response) {
 
     return res.json({ success: true });
   } catch (err) {
-    console.error('auth.requestPasswordReset error:', err);
+    log('error', 'auth.requestPasswordReset.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -756,8 +759,8 @@ async function resetPasswordImpl(req: Request, res: Response) {
 
     return res.json({ success: true });
   } catch (err) {
-    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
-    console.error('auth.resetPassword error:', err);
+    try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'auth.resetPassword.rollback_failed', { error: String(rbErr) }); }
+    log('error', 'auth.resetPassword.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -817,7 +820,7 @@ async function oidcStartImpl(req: Request, res: Response) {
 
     return res.redirect(authUrl.toString());
   } catch (err) {
-    console.error('auth.oidc.start error:', err);
+    log('error', 'auth.oidc.start.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -957,14 +960,14 @@ async function oidcCallbackImpl(req: Request, res: Response) {
     const target = new URL(redirectPath, APP_URL);
     return res.redirect(target.toString());
   } catch (err) {
-    console.error('auth.oidc.callback error:', err);
+    log('error', 'auth.oidc.callback.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-async function twoFactorSetupImpl(req: Request, res: Response) {
+async function twoFactorSetupImpl(req: AuthenticatedRequest, res: Response) {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     if (!user?.userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { rows } = await db.query(
@@ -992,14 +995,14 @@ async function twoFactorSetupImpl(req: Request, res: Response) {
 
     return res.json({ success: true, data: { secret, otpauth_url: otpauth, qr_data_url: qrDataUrl } });
   } catch (err) {
-    console.error('auth.2fa.setup error:', err);
+    log('error', 'auth.2fa.setup.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-async function twoFactorVerifyImpl(req: Request, res: Response) {
+async function twoFactorVerifyImpl(req: AuthenticatedRequest, res: Response) {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     if (!user?.userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const code = String(req.body?.code || '').trim();
@@ -1026,14 +1029,14 @@ async function twoFactorVerifyImpl(req: Request, res: Response) {
     );
     return res.json({ success: true, data: { enabled: true } });
   } catch (err) {
-    console.error('auth.2fa.verify error:', err);
+    log('error', 'auth.2fa.verify.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-async function twoFactorDisableImpl(req: Request, res: Response) {
+async function twoFactorDisableImpl(req: AuthenticatedRequest, res: Response) {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     if (!user?.userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const current_password = String(req.body?.current_password ?? '');
@@ -1074,7 +1077,7 @@ async function twoFactorDisableImpl(req: Request, res: Response) {
     );
     return res.json({ success: true, data: { enabled: false } });
   } catch (err) {
-    console.error('auth.2fa.disable error:', err);
+    log('error', 'auth.2fa.disable.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -1121,7 +1124,7 @@ async function twoFactorConfirmImpl(req: Request, res: Response) {
     setRefreshCookie(res, refresh.token, refresh.expiresAt);
     return res.json({ success: true });
   } catch (err) {
-    console.error('auth.2fa.confirm error:', err);
+    log('error', 'auth.2fa.confirm.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -1158,7 +1161,7 @@ async function createSessionImpl(req: Request, res: Response) {
     setRefreshCookie(res, refresh.token, refresh.expiresAt);
     return res.json({ success: true });
   } catch (err) {
-    console.error('auth.session error:', err);
+    log('error', 'auth.session.error', { error: String(err) });
     return res.status(401).json({ success: false, error: 'Invalid token' });
   }
 }
@@ -1219,8 +1222,8 @@ async function refreshImpl(req: Request, res: Response) {
     setRefreshCookie(res, newToken, newExpires);
     return res.json({ success: true });
   } catch (err) {
-    try { await db.query('ROLLBACK'); } catch (rbErr) { console.warn('rollback failed:', rbErr); }
-    console.error('auth.refresh error:', err);
+    try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'auth.refresh.rollback_failed', { error: String(rbErr) }); }
+    log('error', 'auth.refresh.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

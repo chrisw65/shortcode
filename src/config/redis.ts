@@ -1,5 +1,6 @@
 // src/config/redis.ts
 import { createClient } from 'redis';
+import { log } from '../utils/logger';
 
 const redisClient = createClient({
   socket: {
@@ -9,9 +10,9 @@ const redisClient = createClient({
   password: process.env.REDIS_PASSWORD || undefined
 });
 
-redisClient.on('error', (err) => console.error('Redis error:', err));
-redisClient.on('connect', () => console.log('✓ Redis connected'));
-redisClient.on('ready', () => console.log('✓ Redis ready'));
+redisClient.on('error', (err) => log('error', 'redis.error', { error: String(err) }));
+redisClient.on('connect', () => log('info', 'redis.connected'));
+redisClient.on('ready', () => log('info', 'redis.ready'));
 
 // Important: Don't call connect() here, do it in index.ts
 export default redisClient;

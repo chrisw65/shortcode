@@ -36,6 +36,9 @@ import { stripeWebhook } from './controllers/billing.controller';
 import redisClient from './config/redis';
 import { startClickWorker } from './services/clickQueue';
 import { scheduleRetentionCleanup } from './services/retention';
+import { log } from './utils/logger';
+
+type RequestWithId = Request & { id?: string };
 
 // Ensure DB connects on boot
 import db from './config/database';
@@ -53,15 +56,6 @@ const enableJobs = enableWorker || enableApi;
 const app = express();
 const LOG_FORMAT = String(process.env.LOG_FORMAT || 'json').toLowerCase();
 const CSRF_COOKIE = 'csrf_token';
-
-function log(level: 'info' | 'warn' | 'error', message: string, meta: Record<string, any> = {}) {
-  const payload = { level, message, time: new Date().toISOString(), ...meta };
-  if (LOG_FORMAT === 'pretty') {
-    console.log(`[${level}] ${message}`, meta);
-    return;
-  }
-  console.log(JSON.stringify(payload));
-}
 
 function isSecure(req: Request): boolean {
   if (req.secure) return true;
@@ -187,8 +181,9 @@ if (enableApi) {
 app.use(ensureCsrfCookie);
 app.use(csrfProtect);
 app.use((req, res, next) => {
-  (req as any).id = randomUUID();
-  res.setHeader('X-Request-Id', (req as any).id);
+  const reqWithId = req as RequestWithId;
+  reqWithId.id = randomUUID();
+  res.setHeader('X-Request-Id', reqWithId.id);
   next();
 });
 const morganFormat = ':remote-addr :method :url :status :res[content-length] - :response-time ms :req[x-request-id]';
@@ -312,7 +307,8 @@ app.use((req: Request, res: Response) => {
 // Error handler
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-  log('error', 'unhandled_error', { error: String(err), request_id: (req as any).id });
+  const reqWithId = req as RequestWithId;
+  log('error', 'unhandled_error', { error: String(err), request_id: reqWithId.id });
   if (res.headersSent) return;
   res.status(500).json({ success: false, error: 'Internal server error' });
 });

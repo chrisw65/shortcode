@@ -9,6 +9,7 @@ import { lookupGeo } from '../services/geoip';
 import { enqueueClick } from '../services/clickQueue';
 import { getCachedLink, setCachedLink } from '../services/linkCache';
 import { anonymizeIp } from '../utils/ip';
+import { log } from '../utils/logger';
 
 function nowUtc(): Date { return new Date(); }
 function safeRedirectUrl(raw: string): string | null {
@@ -339,7 +340,7 @@ export class RedirectController {
       const fallbackDirect = async () => {
         const geo = (!link.ip_anonymization && routingGeo && rawIp === ip) ? routingGeo : await lookupGeo(ip);
         void db.query(`UPDATE links SET click_count = COALESCE(click_count,0) + 1 WHERE id = $1`, [link?.id])
-          .catch((err) => console.warn('redirect.click_count update failed:', {
+          .catch((err) => log('warn', 'redirect.click_count update failed', {
             error: String(err),
             link_id: link?.id,
             short_code: shortCode,
@@ -359,7 +360,7 @@ export class RedirectController {
             geo?.latitude ?? null,
             geo?.longitude ?? null,
           ]
-        ).catch((err) => console.warn('redirect.click_event insert failed:', {
+        ).catch((err) => log('warn', 'redirect.click_event insert failed', {
           error: String(err),
           link_id: link?.id,
           short_code: shortCode,
@@ -373,7 +374,7 @@ export class RedirectController {
           referer,
           user_agent: ua,
         }).catch((err) => {
-          console.warn('redirect.enqueueClick failed:', {
+          log('warn', 'redirect.enqueueClick failed', {
             error: String(err),
             link_id: link.id,
             short_code: shortCode,
@@ -403,7 +404,7 @@ export class RedirectController {
       }
       return res.redirect(302, safeUrl);
     } catch (e) {
-      console.error('redirect error:', e);
+      log('error', 'redirect error', { error: String(e) });
       return res.status(500).send('Internal server error');
     }
   };

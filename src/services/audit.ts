@@ -1,4 +1,5 @@
 import db from '../config/database';
+import { log } from '../utils/logger';
 
 export async function logAudit(params: {
   org_id: string;
@@ -16,6 +17,6 @@ export async function logAudit(params: {
       [org_id, user_id, action, entity_type, entity_id ?? null, metadata ?? {}]
     );
   } catch (e) {
-    console.warn('audit log insert failed:', e);
+    log('warn', 'audit.log.insert.failed', { error: String(e) });
   }
 }

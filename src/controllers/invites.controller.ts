@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import db from '../config/database';
 import type { OrgRequest } from '../middleware/org';
 import { sendInviteEmail } from '../services/inviteEmails';
+import { log } from '../utils/logger';
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -38,7 +39,7 @@ export async function createInvite(req: OrgRequest, res: Response) {
     const payload = { ...rows[0], email_sent: emailRes.sent === true };
     return res.status(201).json({ success: true, data: payload });
   } catch (err) {
-    console.error('invites.createInvite error:', err);
+    log('error', 'invites.createInvite error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -58,7 +59,7 @@ export async function listInvites(req: OrgRequest, res: Response) {
 
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('invites.listInvites error:', err);
+    log('error', 'invites.listInvites error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -78,7 +79,7 @@ export async function revokeInvite(req: OrgRequest, res: Response) {
 
     return res.json({ success: true, data: { revoked: true } });
   } catch (err) {
-    console.error('invites.revokeInvite error:', err);
+    log('error', 'invites.revokeInvite error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -102,7 +103,7 @@ export async function resendInvite(req: OrgRequest, res: Response) {
 
     return res.json({ success: true, data: { sent: emailRes.sent === true } });
   } catch (err) {
-    console.error('invites.resendInvite error:', err);
+    log('error', 'invites.resendInvite error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

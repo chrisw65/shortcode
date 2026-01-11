@@ -1,10 +1,10 @@
 // src/controllers/analytics.controller.ts
-import { Request, Response } from 'express';
+import type { Response } from 'express';
 import UAParser from 'ua-parser-js';
 import db from '../config/database';
 import redisClient from '../config/redis';
-
-type ReqWithUser = Request & { user?: { userId?: string } };
+import type { OrgRequest } from '../middleware/org';
+import { log } from '../utils/logger';
 type TimeFilter =
   | { error: string }
   | { sql: string; params: any[]; start: Date | null; end: Date | null; mode: 'custom' | 'range' };
@@ -151,9 +151,9 @@ async function setCached<T>(key: string, data: T, ttlSeconds: number) {
 /**
  * GET /api/analytics/summary
  */
-export async function summary(req: ReqWithUser, res: Response) {
+export async function summary(req: OrgRequest, res: Response) {
   try {
-    const orgId = (req as any).org?.orgId;
+    const orgId = req.org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
     const range = req.query.range;
     const startDate = req.query.start_date;
@@ -369,7 +369,7 @@ export async function summary(req: ReqWithUser, res: Response) {
     await setCached(cacheId, payload.data, 30);
     return res.json(payload);
   } catch (e) {
-    console.error('analytics.summary error:', e);
+    log('error', 'analytics.summary.error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -377,9 +377,9 @@ export async function summary(req: ReqWithUser, res: Response) {
 /**
  * GET /api/analytics/links/:shortCode/summary
  */
-export async function linkSummary(req: ReqWithUser, res: Response) {
+export async function linkSummary(req: OrgRequest, res: Response) {
   try {
-    const orgId = (req as any).org?.orgId;
+    const orgId = req.org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
     const range = req.query.range;
     const startDate = req.query.start_date;
@@ -609,7 +609,7 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
     await setCached(cacheId, payload.data, 30);
     return res.json(payload);
   } catch (e) {
-    console.error('analytics.linkSummary error:', e);
+    log('error', 'analytics.linkSummary.error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -617,9 +617,9 @@ export async function linkSummary(req: ReqWithUser, res: Response) {
 /**
  * GET /api/analytics/links/:shortCode/events?limit=50
  */
-export async function linkEvents(req: ReqWithUser, res: Response) {
+export async function linkEvents(req: OrgRequest, res: Response) {
   try {
-    const orgId = (req as any).org?.orgId;
+    const orgId = req.org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { shortCode } = req.params;
@@ -675,7 +675,7 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
       })),
     });
   } catch (e) {
-    console.error('analytics.linkEvents error:', e);
+    log('error', 'analytics.linkEvents.error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -683,9 +683,9 @@ export async function linkEvents(req: ReqWithUser, res: Response) {
 /**
  * GET /api/analytics/export?range=7d&country=US
  */
-export async function exportOrgCsv(req: ReqWithUser, res: Response) {
+export async function exportOrgCsv(req: OrgRequest, res: Response) {
   try {
-    const orgId = (req as any).org?.orgId;
+    const orgId = req.org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
     const range = req.query.range;
     const startDate = req.query.start_date;
@@ -771,7 +771,7 @@ export async function exportOrgCsv(req: ReqWithUser, res: Response) {
       'user_agent',
     ], data);
   } catch (e) {
-    console.error('analytics.exportOrgCsv error:', e);
+    log('error', 'analytics.exportOrgCsv.error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -779,9 +779,9 @@ export async function exportOrgCsv(req: ReqWithUser, res: Response) {
 /**
  * GET /api/analytics/links/:shortCode/export?range=7d&country=US
  */
-export async function exportLinkCsv(req: ReqWithUser, res: Response) {
+export async function exportLinkCsv(req: OrgRequest, res: Response) {
   try {
-    const orgId = (req as any).org?.orgId;
+    const orgId = req.org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { shortCode } = req.params;
@@ -878,7 +878,7 @@ export async function exportLinkCsv(req: ReqWithUser, res: Response) {
       'user_agent',
     ], data);
   } catch (e) {
-    console.error('analytics.exportLinkCsv error:', e);
+    log('error', 'analytics.exportLinkCsv.error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -886,9 +886,9 @@ export async function exportLinkCsv(req: ReqWithUser, res: Response) {
 /**
  * GET /api/analytics/domains/:id/summary
  */
-export async function domainSummary(req: ReqWithUser, res: Response) {
+export async function domainSummary(req: OrgRequest, res: Response) {
   try {
-    const orgId = (req as any).org?.orgId;
+    const orgId = req.org?.orgId;
     if (!orgId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { id } = req.params;
@@ -937,7 +937,7 @@ export async function domainSummary(req: ReqWithUser, res: Response) {
       },
     });
   } catch (e) {
-    console.error('analytics.domainSummary error:', e);
+    log('error', 'analytics.domainSummary.error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

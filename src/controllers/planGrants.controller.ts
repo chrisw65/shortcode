@@ -1,15 +1,17 @@
 // src/controllers/planGrants.controller.ts
 import type { Request, Response } from 'express';
+import type { AuthenticatedRequest } from '../middleware/auth';
 import db from '../config/database';
+import { log } from '../utils/logger';
 
-export async function createPlanGrant(req: Request, res: Response) {
+export async function createPlanGrant(req: AuthenticatedRequest, res: Response) {
   try {
     const targetType = String(req.body?.target_type || 'user');
     const targetId = String(req.body?.target_id || '');
     const plan = String(req.body?.plan || '');
     const durationMonths = Number(req.body?.duration_months || 1);
     const reason = String(req.body?.reason || 'manual_grant');
-    const createdBy = (req as any).user?.userId || null;
+    const createdBy = req.user?.userId || null;
 
     if (!targetId || !plan || !['user', 'org'].includes(targetType)) {
       return res.status(400).json({ success: false, error: 'Invalid grant request' });
@@ -24,7 +26,7 @@ export async function createPlanGrant(req: Request, res: Response) {
 
     return res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
-    console.error('planGrants.createPlanGrant error:', err);
+    log('error', 'planGrants.createPlanGrant.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -38,7 +40,7 @@ export async function listPlanGrants(_req: Request, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('planGrants.listPlanGrants error:', err);
+    log('error', 'planGrants.listPlanGrants.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

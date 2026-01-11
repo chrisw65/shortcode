@@ -1,6 +1,8 @@
 // src/controllers/coupons.controller.ts
 import type { Request, Response } from 'express';
+import type { AuthenticatedRequest } from '../middleware/auth';
 import db from '../config/database';
+import { log } from '../utils/logger';
 
 function normalizeCode(code: string) {
   return code.replace(/\s+/g, '').toUpperCase();
@@ -16,7 +18,7 @@ export async function listCoupons(_req: Request, res: Response) {
     );
     return res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('coupons.listCoupons error:', err);
+    log('error', 'coupons.listCoupons.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -42,14 +44,14 @@ export async function createCoupon(req: Request, res: Response) {
     );
     return res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
-    console.error('coupons.createCoupon error:', err);
+    log('error', 'coupons.createCoupon.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
-export async function redeemCoupon(req: Request, res: Response) {
+export async function redeemCoupon(req: AuthenticatedRequest, res: Response) {
   try {
-    const userId = (req as any).user?.userId;
+    const userId = req.user?.userId;
     const code = normalizeCode(String(req.body?.code || ''));
     if (!userId || !code) return res.status(400).json({ success: false, error: 'code is required' });
 
@@ -89,7 +91,7 @@ export async function redeemCoupon(req: Request, res: Response) {
 
     return res.json({ success: true, data: { redeemed: true, plan: coupon.plan, duration_months: coupon.duration_months } });
   } catch (err) {
-    console.error('coupons.redeemCoupon error:', err);
+    log('error', 'coupons.redeemCoupon.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

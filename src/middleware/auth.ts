@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { createHash } from 'crypto';
 import db from '../config/database';
+import { log } from '../utils/logger';
 
 export type AuthenticatedRequest = Request & {
   user?: {
@@ -65,7 +66,7 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       req.user = { userId: rows[0].user_id };
       return next();
     } catch (err) {
-      console.error('apiKey auth error:', err);
+      log('error', 'apiKey.auth.error', { error: String(err) });
       return res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }

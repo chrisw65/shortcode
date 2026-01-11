@@ -1,5 +1,6 @@
 // src/config/database.ts
 import { Pool } from 'pg';
+import { log } from '../utils/logger';
 
 const pool = new Pool({
   host: process.env.POSTGRES_HOST || 'localhost',
@@ -13,13 +14,12 @@ const pool = new Pool({
 });
 
 pool.on('connect', () => {
-  console.log('✓ Database connected');
+  log('info', 'database.connected');
 });
 
 pool.on('error', (err) => {
-  console.error('Database error:', err);
+  log('error', 'database.error', { error: String(err) });
 });
 
 export default pool;
-
 

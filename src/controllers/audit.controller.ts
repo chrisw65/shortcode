@@ -1,6 +1,7 @@
 import type { Response } from 'express';
 import db from '../config/database';
 import type { OrgRequest } from '../middleware/org';
+import { log } from '../utils/logger';
 
 export async function listAuditLogs(req: OrgRequest, res: Response) {
   try {
@@ -28,7 +29,7 @@ export async function listAuditLogs(req: OrgRequest, res: Response) {
 
     return res.json({ success: true, data: rows, meta: { total: countRes.rows[0]?.total || 0, limit, offset } });
   } catch (e) {
-    console.error('audit.list error:', e);
+    log('error', 'audit.list error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
@@ -71,7 +72,7 @@ export async function exportAuditLogs(req: OrgRequest, res: Response) {
     res.setHeader('Content-Disposition', 'attachment; filename="audit-logs.csv"');
     return res.send(lines.join('\n'));
   } catch (e) {
-    console.error('audit.export error:', e);
+    log('error', 'audit.export error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
