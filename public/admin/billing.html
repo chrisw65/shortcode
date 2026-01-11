@@ -44,6 +44,7 @@
       <main class="admin-content">
         <div class="tabs">
           <button class="tab-btn active" type="button" data-tab="plan">Plan & upgrades</button>
+          <button class="tab-btn" type="button" data-tab="entitlements">Entitlements</button>
           <button class="tab-btn" type="button" data-tab="stripe">Stripe config</button>
           <button class="tab-btn" type="button" data-tab="platform">Platform defaults</button>
           <button class="tab-btn" type="button" data-tab="promos">Promotions</button>
@@ -65,7 +66,10 @@
           <div class="muted" id="currentPlan" style="margin-top:6px">Current plan: -</div>
           <div class="grid grid-3" id="planList" style="margin-top:12px"></div>
           <div class="muted" id="billingMsg" style="margin-top:8px"></div>
-          <div id="entitlementsSection" class="card" style="margin-top:18px">
+        </section>
+
+        <section class="card tab-panel" data-panel="entitlements">
+          <div id="entitlementsSection">
             <div class="row-between">
               <div>
                 <h3 class="m-0">Plan entitlements</h3>

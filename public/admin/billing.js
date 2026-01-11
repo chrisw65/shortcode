@@ -62,6 +62,7 @@ let platformConfig = {};
 let meData = null;
 const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
 const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+const entitlementsTabBtn = document.querySelector('.tab-btn[data-tab="entitlements"]');
 
 function activateTab(tabName = 'plan') {
   tabButtons.forEach((btn) => {
@@ -180,8 +181,10 @@ async function loadMe() {
       planMappingSection.style.display = 'block';
       platformDefaultsSection.style.display = 'block';
       if (entitlementsSection) entitlementsSection.style.display = 'block';
-    } else if (entitlementsSection) {
-      entitlementsSection.style.display = 'none';
+      if (entitlementsTabBtn) entitlementsTabBtn.style.display = '';
+    } else {
+      if (entitlementsSection) entitlementsSection.style.display = 'none';
+      if (entitlementsTabBtn) entitlementsTabBtn.style.display = 'none';
     }
   } catch (err) {
     console.error('Failed to load user profile', err);
