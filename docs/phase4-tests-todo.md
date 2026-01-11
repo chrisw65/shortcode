@@ -1,12 +1,12 @@
 # Phase 4 Test TODO
 
 ## Recently validated
-- ✅ Tabbed Ecosystem admin panels load, persist last tab, and round-trip webhook/integration changes.
-- ✅ Analytics dashboard now sections into Summary|Geo|Events, includes CSV exports, copy-to-clipboard, country filter, sparkline, and map dots.
-- ✅ Public contact page uses the shared toasts for success/failure so the notice is always in sync with visible feedback.
-- ✅ Premium hero/footer data and social icons remain fully editable through the site CMS, and the login form uses the premium SSO card everywhere.
+- ✅ Tabbed Ecosystem admin panels load, persist last tab, and round-trip webhook/integration changes. See `docs/status-matrix.md`.
+- ✅ Analytics dashboard now sections into Summary|Geo|Events, includes CSV exports, copy-to-clipboard, country filter, sparkline, and map dots (`public/admin/analytics.html` & `.js`).
+- ✅ Public contact page uses the shared toasts for success/failure so the notice stays in sync with inline copy (`public/contact.js`, `public/site.js`).
+- ✅ Premium hero/footer data and social icons remain fully editable through the site CMS, and the login form uses the premium SSO card everywhere (`public/admin/site-settings.js` + shared CSS).
 
-## Pending validation
+## Pending validation (operational/DevOps)
 - 2FA cleanup: test user `smoke2fa+1768085603@example.com` still exists (owner-only deletion blocked).
 - DNS automation: configure Cloudflare env vars and verify TXT/CNAME auto-provisioning.
 - Routing rules: verify country/device/platform overrides across real traffic.

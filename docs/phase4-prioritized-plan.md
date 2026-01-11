@@ -4,20 +4,19 @@
 Close the remaining Phase 4 polish gaps (UI consistency, admin/marketing coverage, CMS stability, analytics, deployment scripts, docs) and then re‑engage Phases 1‑3 along with the requested auth/resilience upgrades plus Google login.
 
 ## Phase 4 polish priorities (week 0‑1)
-1. **Public/admin UI cohesion** (done)
-   - Ensure the premium template renders on every public page (home, about, contact, ecosystem, billing) and that CMS data drives hero, footer, branding, and social icons consistently. ✅
-   - Build tabs where the UX expects them (links list, site settings, billing) and wire tab content to sections so long pages behave as intended. ✅
-   - Improve toast/feedback surfaces (copy link, export CSV, CMS saves) and show availability/duplicates when choosing a custom slug. ✅
-2. **Admin tooling** (done)
-   - Surface the `/ecosystem` entry in every admin nav item (main, owner, affiliate) and add a nav link for the public page. ✅
-   - Add the tabs/segmentation requested for links and settings, fix the org ID field styling on login, and make contact form elements and captcha match the premium design. ✅
-   - Improve email templates, add CMS access for hero/stat sections (Campaign control, analytics blocks, etc.), and ensure CMS updates propagate everywhere. ✅
-3. **Analytics & redirect experience** (done)
-   - Replace the placeholder map resource with an accessible outline, show country/city detail, and add filters/exports for analytics dashboards. ✅
-   - Fix toasts and copy/QR behavior (popup for QR, custom slug availability). Ensure favicon, SPA navigation, and toasts avoid 429/500 issues. ✅
-4. **Devops & deployment**
-   - Verify the remote deploy script remains valid, check droplet service files, and run smoke tests (link creation, redirects, analytics, CMS, DNS verification).
-   - Document missing or legacy assets, move unused items to `legacy/`, and validate Redis/cache usage (in doc). Update docs to include the plan for the global deployment (DigitalOcean droplet).
+1. **Public/admin UI cohesion** (feature work finished)
+   - Premium branding now spans every public marketing page and the admin shell; CMS data feeds hero/footer/social copy so branding is centralized (`site.js`, `site.css`, `site-settings.js`, etc.).  
+   - Links/settings/ecosystem dashboards use tabbed panels so each area is easy to scan.  
+   - Toasts/notifications are now consistent, QR downloads are modals, and custom slug availability is live.
+2. **Admin tooling** (feature work finished)
+   - Every admin nav shows “Ecosystem”; the login SSO card uses the same premium inputs and the marketing contact form shares the toast helper.  
+   - Email templates, hero/stats sections, and analytics cards remain authorable via the CMS so the marketing content can be updated without additional code changes.
+3. **Analytics & redirect experience** (feature work finished)
+   - The admin analytics surface now breaks into Summary/Geo/Events tabs, exports/copy helpers, sparkline, and world-map dots with country/city tables.
+   - Toast handling and QR modals are in place, the favicon is served, and the public UI avoids the prior 429/500 issues.
+4. **Devops & deployment** (pending validation)
+   - Remote deployment script and `shortlink.service` work, but the production smoke checklist (DNS automation + TXT verification, 2FA cleanup, Redis/cache metrics, `SERVICE_MODE` validation, CSP headers, history exports) still needs manual execution.
+   - Document the remaining Redis/cache architecture notes, move unused assets to `legacy/` for safety, and keep `docs/status-matrix.md` as the source of truth until Phase 1‑3 work officially begins.
 
 ## Phase 1‑3 backlog (after Phase 4)
 1. **Platform foundation (Phase 1)**
