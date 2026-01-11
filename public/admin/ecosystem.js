@@ -75,6 +75,37 @@ function renderIntegrations() {
   });
 }
 
+function renderIntegrationSettings() {
+  const container = document.getElementById('integrationSettings');
+  if (!container) return;
+  const settings = state.config?.integrationSettings || {};
+  const zapier = settings.zapier || {};
+  const slack = settings.slack || {};
+  const ga4 = settings.ga4 || {};
+  container.innerHTML = `
+    <label class="muted small">
+      Zapier catch hook URL
+      <input class="input" data-role="zapier-webhook" value="${zapier.webhook_url || ''}" placeholder="https://hooks.zapier.com/...">
+    </label>
+    <label class="muted small">
+      Slack incoming webhook URL
+      <input class="input" data-role="slack-webhook" value="${slack.webhook_url || ''}" placeholder="https://hooks.slack.com/...">
+    </label>
+    <label class="muted small">
+      GA4 measurement ID
+      <input class="input" data-role="ga-measurement" value="${ga4.measurement_id || ''}" placeholder="G-XXXXXXXXXX">
+    </label>
+    <label class="muted small">
+      GA4 API secret
+      <input class="input" data-role="ga-secret" value="${ga4.api_secret || ''}" placeholder="Your GA4 API secret">
+    </label>
+    <label class="muted small">
+      Enable GA4 events
+      <input type="checkbox" data-role="ga-enabled" ${ga4.enabled ? 'checked' : ''}>
+    </label>
+  `;
+}
+
 function renderDomainHealth() {
   const container = document.getElementById('domainHealthGrid');
   const nextInput = document.getElementById('domainNextCheck');
@@ -167,12 +198,32 @@ function gatherIntegrations() {
   });
 }
 
+function gatherIntegrationSettings() {
+  const container = document.getElementById('integrationSettings');
+  if (!container) return {};
+  const zapierWebhook = container.querySelector('[data-role="zapier-webhook"]')?.value.trim() || '';
+  const slackWebhook = container.querySelector('[data-role="slack-webhook"]')?.value.trim() || '';
+  const gaMeasurement = container.querySelector('[data-role="ga-measurement"]')?.value.trim() || '';
+  const gaSecret = container.querySelector('[data-role="ga-secret"]')?.value.trim() || '';
+  const gaEnabled = Boolean(container.querySelector('[data-role="ga-enabled"]')?.checked);
+  return {
+    zapier: { webhook_url: zapierWebhook },
+    slack: { webhook_url: slackWebhook },
+    ga4: {
+      enabled: gaEnabled,
+      measurement_id: gaMeasurement,
+      api_secret: gaSecret,
+    },
+  };
+}
+
 async function saveConfig() {
   if (!state.config) return;
   const payload = {
     ...state.config,
     webhooks: gatherWebhooks(),
     integrations: gatherIntegrations(),
+    integrationSettings: gatherIntegrationSettings(),
     domainHealth: {
       ...(state.config.domainHealth || {}),
       nextCheck: document.getElementById('domainNextCheck')?.value || '',
@@ -196,6 +247,7 @@ function render() {
   renderHeroMetrics();
   renderWebhooks();
   renderIntegrations();
+  renderIntegrationSettings();
   renderDomainHealth();
   renderTools();
 }

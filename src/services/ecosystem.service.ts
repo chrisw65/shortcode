@@ -31,22 +31,35 @@ export const DEFAULT_ECOSYSTEM_CONFIG = {
     {
       id: 'zapier',
       name: 'Zapier',
-      description: 'Connect campaigns to Gmail, Sheets, Slack, and hundreds of apps.',
+      description: 'Send link events to any Zapier catch hook.',
       status: 'beta',
     },
     {
       id: 'slack',
       name: 'Slack',
-      description: 'Post new link analytics to a channel or DM the owner team.',
+      description: 'Post link events to a Slack channel via incoming webhook.',
       status: 'preview',
     },
     {
       id: 'google-analytics',
       name: 'Google Analytics',
-      description: 'Stream UTM-tracked campaigns directly into GA4 dashboards.',
+      description: 'Stream link events into GA4 via Measurement Protocol.',
       status: 'coming-soon',
     },
   ],
+  integrationSettings: {
+    zapier: {
+      webhook_url: '',
+    },
+    slack: {
+      webhook_url: '',
+    },
+    ga4: {
+      enabled: false,
+      measurement_id: '',
+      api_secret: '',
+    },
+  },
   tools: {
     extension: {
       label: 'Browser extension',

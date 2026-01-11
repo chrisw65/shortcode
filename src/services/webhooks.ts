@@ -1,6 +1,7 @@
 import { createHmac, randomUUID } from 'crypto';
 import { getEcosystemConfig } from './ecosystem.service';
 import { log } from '../utils/logger';
+import { dispatchIntegrationEvent } from './integrations';
 
 type WebhookConfig = {
   id: string;
@@ -105,6 +106,7 @@ export async function emitWebhook(eventType: string, data: Record<string, any>) 
     const maxRetries = Number(process.env.WEBHOOK_MAX_RETRIES || DEFAULT_MAX_RETRIES);
 
     targets.forEach((hook) => scheduleSend(hook, payload, 1, maxRetries, timeoutMs, secret));
+    void dispatchIntegrationEvent(payload);
   } catch (err) {
     log('error', 'webhook.emit.error', { error: String(err), event_type: eventType });
   }
