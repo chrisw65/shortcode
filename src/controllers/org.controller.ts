@@ -6,6 +6,8 @@ import db from '../config/database';
 import { logAudit } from '../services/audit';
 import { clearOrgLimitCache } from '../services/orgLimits';
 import { log } from '../utils/logger';
+import { getEffectivePlan } from '../services/plan';
+import { getPlanEntitlements } from '../services/entitlements';
 
 function tempPassword() {
   return randomBytes(9).toString('hex');
@@ -34,6 +36,20 @@ export async function addMember(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org!.orgId;
     const actorId = req.user?.userId ?? null;
+    const plan = await getEffectivePlan(actorId || '', orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    const seatLimit = entitlements?.limits?.team_seats;
+    if (seatLimit) {
+      const { rows: seatRows } = await db.query(
+        `SELECT COUNT(*)::int AS count
+           FROM org_memberships
+          WHERE org_id = $1`,
+        [orgId],
+      );
+      if ((seatRows[0]?.count ?? 0) >= seatLimit) {
+        return res.status(403).json({ success: false, error: 'Team seat limit reached for this plan' });
+      }
+    }
     const email = String(req.body?.email ?? '').trim().toLowerCase();
     const role = (String(req.body?.role ?? 'member').trim().toLowerCase() || 'member') as 'owner' | 'admin' | 'member';
     if (!email) return res.status(400).json({ success: false, error: 'email is required' });

@@ -1,4 +1,5 @@
 import db from '../config/database';
+import { getOrgEntitlements } from './entitlements';
 
 type OrgLimits = {
   apiRateLimitRpm: number;
@@ -34,9 +35,11 @@ export async function getOrgLimits(orgId: string): Promise<OrgLimits> {
   );
 
   const row = rows[0] || {};
-  const apiRate = normalizeLimit(row.api_rate_limit_rpm) || defaultApiRpm();
-  const linkLimit = normalizeLimit(row.link_limit);
-  const domainLimit = normalizeLimit(row.domain_limit);
+  const entitlements = await getOrgEntitlements(orgId);
+  const entLimits = entitlements?.limits || {};
+  const apiRate = normalizeLimit(row.api_rate_limit_rpm) || entLimits.api_rate_rpm || defaultApiRpm();
+  const linkLimit = normalizeLimit(row.link_limit) ?? (entLimits.links ?? null);
+  const domainLimit = normalizeLimit(row.domain_limit) ?? (entLimits.domains ?? null);
 
   const value = { apiRateLimitRpm: apiRate, linkLimit, domainLimit };
   cache.set(orgId, { value, expiresAt: Date.now() + TTL_MS });

@@ -2,6 +2,7 @@ import { createHmac, randomUUID } from 'crypto';
 import { getEcosystemConfig } from './ecosystem.service';
 import { log } from '../utils/logger';
 import { dispatchIntegrationEvent } from './integrations';
+import { getOrgEntitlements, isFeatureEnabled } from './entitlements';
 
 type WebhookConfig = {
   id: string;
@@ -100,6 +101,11 @@ export async function emitWebhook(eventType: string, data: Record<string, any>) 
       timestamp: new Date().toISOString(),
       data,
     };
+
+    if (data?.org_id) {
+      const entitlements = await getOrgEntitlements(String(data.org_id));
+      if (!isFeatureEnabled(entitlements, 'webhooks')) return;
+    }
 
     const secret = String(process.env.WEBHOOK_SECRET || '').trim();
     const timeoutMs = Number(process.env.WEBHOOK_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);

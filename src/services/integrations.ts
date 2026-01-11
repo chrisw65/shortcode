@@ -1,5 +1,6 @@
 import { getEcosystemConfig } from './ecosystem.service';
 import { log } from '../utils/logger';
+import { getOrgEntitlements, isFeatureEnabled } from './entitlements';
 
 const DEFAULT_TIMEOUT_MS = 5000;
 
@@ -95,6 +96,11 @@ async function sendGa4Event(payload: WebhookPayload, measurementId: string, apiS
 
 export async function dispatchIntegrationEvent(payload: WebhookPayload) {
   try {
+    const orgId = payload?.data?.org_id ? String(payload.data.org_id) : '';
+    if (orgId) {
+      const entitlements = await getOrgEntitlements(orgId);
+      if (!isFeatureEnabled(entitlements, 'integrations')) return;
+    }
     const config = await getEcosystemConfig();
     const settings = config?.integrationSettings || {};
 

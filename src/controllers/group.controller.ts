@@ -3,6 +3,8 @@ import type { OrgRequest } from '../middleware/org';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
 import { log } from '../utils/logger';
+import { getEffectivePlan } from '../services/plan';
+import { getPlanEntitlements, isFeatureEnabled } from '../services/entitlements';
 
 function normalizeName(value: any): string {
   return String(value || '').trim();
@@ -11,6 +13,11 @@ function normalizeName(value: any): string {
 export async function listGroups(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org!.orgId;
+    const plan = await getEffectivePlan(req.user?.userId || '', orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'groups')) {
+      return res.status(403).json({ success: false, error: 'Groups require an upgraded plan' });
+    }
     const { rows } = await db.query(
       `SELECT id, name, description, created_at, updated_at
          FROM link_groups
@@ -29,6 +36,11 @@ export async function createGroup(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org!.orgId;
     const userId = req.user?.userId ?? null;
+    const plan = await getEffectivePlan(userId || '', orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'groups')) {
+      return res.status(403).json({ success: false, error: 'Groups require an upgraded plan' });
+    }
     const name = normalizeName(req.body?.name);
     const description = normalizeName(req.body?.description);
     if (!name) return res.status(400).json({ success: false, error: 'name is required' });
@@ -67,6 +79,11 @@ export async function updateGroup(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org!.orgId;
     const userId = req.user?.userId ?? null;
+    const plan = await getEffectivePlan(userId || '', orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'groups')) {
+      return res.status(403).json({ success: false, error: 'Groups require an upgraded plan' });
+    }
     const { id } = req.params;
     const name = normalizeName(req.body?.name);
     const description = normalizeName(req.body?.description);
@@ -110,6 +127,11 @@ export async function deleteGroup(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org!.orgId;
     const userId = req.user?.userId ?? null;
+    const plan = await getEffectivePlan(userId || '', orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'groups')) {
+      return res.status(403).json({ success: false, error: 'Groups require an upgraded plan' });
+    }
     const { id } = req.params;
 
     const { rows } = await db.query(

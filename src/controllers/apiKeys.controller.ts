@@ -4,6 +4,8 @@ import type { OrgRequest } from '../middleware/org';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
 import { log } from '../utils/logger';
+import { getEffectivePlan } from '../services/plan';
+import { getPlanEntitlements, isFeatureEnabled } from '../services/entitlements';
 
 const ALLOWED_SCOPES = new Set([
   '*',
@@ -46,6 +48,11 @@ function generateKey() {
 export async function listApiKeys(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org!.orgId;
+    const plan = await getEffectivePlan(req.user?.userId || '', orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'api_keys')) {
+      return res.status(403).json({ success: false, error: 'API keys require an upgraded plan' });
+    }
     const { rows } = await db.query(
       `SELECT id, name, prefix, scopes, last_used_at, revoked_at, created_at
          FROM api_keys
@@ -64,6 +71,11 @@ export async function createApiKey(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org!.orgId;
     const userId = req.user?.userId ?? null;
+    const plan = await getEffectivePlan(userId || '', orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'api_keys')) {
+      return res.status(403).json({ success: false, error: 'API keys require an upgraded plan' });
+    }
     const name = String(req.body?.name ?? '').trim();
     if (!name) return res.status(400).json({ success: false, error: 'name is required' });
     const scopes = normalizeScopes(req.body?.scopes);
@@ -99,6 +111,11 @@ export async function revokeApiKey(req: OrgRequest, res: Response) {
   try {
     const orgId = req.org!.orgId;
     const userId = req.user?.userId ?? null;
+    const plan = await getEffectivePlan(userId || '', orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'api_keys')) {
+      return res.status(403).json({ success: false, error: 'API keys require an upgraded plan' });
+    }
     const { id } = req.params;
 
     const { rows } = await db.query(

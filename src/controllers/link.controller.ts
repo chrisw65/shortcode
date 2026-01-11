@@ -6,11 +6,12 @@ import db from '../config/database';
 import { parse } from 'csv-parse/sync';
 import { logAudit } from '../services/audit';
 import { tryGrantReferralReward } from '../services/referrals';
-import { getEffectivePlan, isPaidPlan } from '../services/plan';
+import { getEffectivePlan } from '../services/plan';
 import { invalidateCachedLinks, setCachedLink } from '../services/linkCache';
 import { getOrgLimits } from '../services/orgLimits';
 import { log } from '../utils/logger';
 import { emitWebhook } from '../services/webhooks';
+import { getPlanEntitlements, isFeatureEnabled } from '../services/entitlements';
 
 type UserReq = Request & { user: { userId: string }; org: { orgId: string } };
 
@@ -205,6 +206,8 @@ export async function createLink(req: UserReq, res: Response) {
       return res.status(400).json({ success: false, error: 'URL must be http(s)' });
     }
 
+    const plan = await getEffectivePlan(userId, orgId);
+    const entitlements = await getPlanEntitlements(plan);
     const quota = await ensureLinkQuota(orgId, 1);
     if (quota && !quota.allowed) {
       return res.status(403).json({
@@ -238,12 +241,18 @@ export async function createLink(req: UserReq, res: Response) {
     const tagIds = Array.isArray(tag_ids) ? tag_ids.filter(Boolean) : [];
     const groupIds = Array.isArray(group_ids) ? group_ids.filter(Boolean) : [];
     if (tagIds.length) {
+      if (!isFeatureEnabled(entitlements, 'tags')) {
+        return res.status(403).json({ success: false, error: 'Tags require an upgraded plan' });
+      }
       const tags = await fetchTags(orgId, tagIds);
       if (tags.length !== tagIds.length) {
         return res.status(400).json({ success: false, error: 'One or more tags are invalid' });
       }
     }
     if (groupIds.length) {
+      if (!isFeatureEnabled(entitlements, 'groups')) {
+        return res.status(403).json({ success: false, error: 'Groups require an upgraded plan' });
+      }
       const groups = await fetchGroups(orgId, groupIds);
       if (groups.length !== groupIds.length) {
         return res.status(400).json({ success: false, error: 'One or more groups are invalid' });
@@ -260,8 +269,7 @@ export async function createLink(req: UserReq, res: Response) {
     let deepLinkEnabled = false;
 
     if (domain_id) {
-      const plan = await getEffectivePlan(userId, orgId);
-      if (!isPaidPlan(plan)) {
+      if (!isFeatureEnabled(entitlements, 'custom_domains')) {
         return res.status(403).json({ success: false, error: 'Custom domains require a paid plan' });
       }
 
@@ -309,6 +317,9 @@ export async function createLink(req: UserReq, res: Response) {
       }
     }
     deepLinkEnabled = Boolean(deep_link_enabled) || Boolean(deepLinkUrl);
+    if (deepLinkEnabled && !isFeatureEnabled(entitlements, 'deep_links')) {
+      return res.status(403).json({ success: false, error: 'Deep links require an upgraded plan' });
+    }
 
     await db.query('BEGIN');
     const q = `
@@ -505,6 +516,8 @@ export async function updateLink(req: UserReq, res: Response) {
   try {
     const orgId = req.org.orgId;
     const { shortCode } = req.params;
+    const plan = await getEffectivePlan(req.user.userId, orgId);
+    const entitlements = await getPlanEntitlements(plan);
     const {
       url,
       title,
@@ -556,16 +569,27 @@ export async function updateLink(req: UserReq, res: Response) {
     const tagIds = Array.isArray(tag_ids) ? tag_ids.filter(Boolean) : null;
     const groupIds = Array.isArray(group_ids) ? group_ids.filter(Boolean) : null;
     if (tagIds !== null) {
+      if (tagIds.length && !isFeatureEnabled(entitlements, 'tags')) {
+        return res.status(403).json({ success: false, error: 'Tags require an upgraded plan' });
+      }
       const tags = await fetchTags(orgId, tagIds);
       if (tags.length !== tagIds.length) {
         return res.status(400).json({ success: false, error: 'One or more tags are invalid' });
       }
     }
     if (groupIds !== null) {
+      if (groupIds.length && !isFeatureEnabled(entitlements, 'groups')) {
+        return res.status(403).json({ success: false, error: 'Groups require an upgraded plan' });
+      }
       const groups = await fetchGroups(orgId, groupIds);
       if (groups.length !== groupIds.length) {
         return res.status(400).json({ success: false, error: 'One or more groups are invalid' });
       }
+    }
+
+    const wantsDeepLinks = Boolean(deep_link_enabled) || Boolean(deep_link_url);
+    if (wantsDeepLinks && !isFeatureEnabled(entitlements, 'deep_links')) {
+      return res.status(403).json({ success: false, error: 'Deep links require an upgraded plan' });
     }
 
     if (clear_password) {
@@ -831,6 +855,11 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
   try {
     const userId = req.user.userId;
     const orgId = req.org.orgId;
+    const plan = await getEffectivePlan(userId, orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'bulk_links')) {
+      return res.status(403).json({ success: false, error: 'Bulk actions require an upgraded plan' });
+    }
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
     const domainId = req.body?.domain_id || null;
     const tagIds = Array.isArray(req.body?.tag_ids) ? req.body.tag_ids.filter(Boolean) : [];
@@ -852,12 +881,18 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
     }
 
     if (tagIds.length) {
+      if (!isFeatureEnabled(entitlements, 'tags')) {
+        return res.status(403).json({ success: false, error: 'Tags require an upgraded plan' });
+      }
       const tags = await fetchTags(orgId, tagIds);
       if (tags.length !== tagIds.length) {
         return res.status(400).json({ success: false, error: 'One or more tags are invalid' });
       }
     }
     if (groupIds.length) {
+      if (!isFeatureEnabled(entitlements, 'groups')) {
+        return res.status(403).json({ success: false, error: 'Groups require an upgraded plan' });
+      }
       const groups = await fetchGroups(orgId, groupIds);
       if (groups.length !== groupIds.length) {
         return res.status(400).json({ success: false, error: 'One or more groups are invalid' });
@@ -873,14 +908,16 @@ export async function bulkCreateLinks(req: UserReq, res: Response) {
     if (req.body?.android_fallback_url && !androidFallbackUrl) {
       return res.status(400).json({ success: false, error: 'Android fallback must be http(s)' });
     }
+    if (deepLinkEnabled && !isFeatureEnabled(entitlements, 'deep_links')) {
+      return res.status(403).json({ success: false, error: 'Deep links require an upgraded plan' });
+    }
+    if (domainId && !isFeatureEnabled(entitlements, 'custom_domains')) {
+      return res.status(403).json({ success: false, error: 'Custom domains require a paid plan' });
+    }
 
     let domainHost: string | null = null;
     let resolvedDomainId: string | null = null;
     if (domainId) {
-      const plan = await getEffectivePlan(userId, orgId);
-      if (!isPaidPlan(plan)) {
-        return res.status(403).json({ success: false, error: 'Custom domains require a paid plan' });
-      }
       const { rows: domainRows } = await db.query(
         `SELECT id, domain, is_active, verified
            FROM domains
@@ -989,6 +1026,11 @@ export async function bulkImportLinks(req: UserReq, res: Response) {
   try {
     const userId = req.user.userId;
     const orgId = req.org.orgId;
+    const plan = await getEffectivePlan(userId, orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'bulk_links')) {
+      return res.status(403).json({ success: false, error: 'Bulk actions require an upgraded plan' });
+    }
     const csv = String(req.body?.csv || '');
     if (!csv.trim()) return res.status(400).json({ success: false, error: 'csv is required' });
 
@@ -1031,12 +1073,18 @@ export async function bulkImportLinks(req: UserReq, res: Response) {
     const deepLinkEnabled = Boolean(req.body?.deep_link_enabled) || Boolean(deepLinkUrl);
 
     if (tagIds.length) {
+      if (!isFeatureEnabled(entitlements, 'tags')) {
+        return res.status(403).json({ success: false, error: 'Tags require an upgraded plan' });
+      }
       const tags = await fetchTags(orgId, tagIds);
       if (tags.length !== tagIds.length) {
         return res.status(400).json({ success: false, error: 'One or more tags are invalid' });
       }
     }
     if (groupIds.length) {
+      if (!isFeatureEnabled(entitlements, 'groups')) {
+        return res.status(403).json({ success: false, error: 'Groups require an upgraded plan' });
+      }
       const groups = await fetchGroups(orgId, groupIds);
       if (groups.length !== groupIds.length) {
         return res.status(400).json({ success: false, error: 'One or more groups are invalid' });
@@ -1051,12 +1099,14 @@ export async function bulkImportLinks(req: UserReq, res: Response) {
     if (req.body?.android_fallback_url && !androidFallbackUrl) {
       return res.status(400).json({ success: false, error: 'Android fallback must be http(s)' });
     }
+    if (deepLinkEnabled && !isFeatureEnabled(entitlements, 'deep_links')) {
+      return res.status(403).json({ success: false, error: 'Deep links require an upgraded plan' });
+    }
 
     let domainHost: string | null = null;
     let resolvedDomainId: string | null = null;
     if (domainId) {
-      const plan = await getEffectivePlan(userId, orgId);
-      if (!isPaidPlan(plan)) {
+      if (!isFeatureEnabled(entitlements, 'custom_domains')) {
         return res.status(403).json({ success: false, error: 'Custom domains require a paid plan' });
       }
       const { rows: domainRows } = await db.query(
@@ -1178,6 +1228,11 @@ export async function bulkImportLinks(req: UserReq, res: Response) {
 export async function bulkDeleteLinks(req: UserReq, res: Response) {
   try {
     const orgId = req.org.orgId;
+    const plan = await getEffectivePlan(req.user.userId, orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'bulk_links')) {
+      return res.status(403).json({ success: false, error: 'Bulk actions require an upgraded plan' });
+    }
     const codes = Array.isArray(req.body?.codes)
       ? req.body.codes.map((c: any) => normalizeShortCode(c)).filter(Boolean)
       : [];
@@ -1203,6 +1258,11 @@ export async function bulkDeleteLinks(req: UserReq, res: Response) {
 export async function listVariants(req: UserReq, res: Response) {
   try {
     const orgId = req.org.orgId;
+    const plan = await getEffectivePlan(req.user.userId, orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'variants')) {
+      return res.status(403).json({ success: false, error: 'Variants require an upgraded plan' });
+    }
     const { shortCode } = req.params;
     const { rows: linkRows } = await db.query(
       `SELECT id FROM links WHERE org_id = $1 AND short_code = $2 LIMIT 1`,
@@ -1232,6 +1292,11 @@ export async function replaceVariants(req: UserReq, res: Response) {
   try {
     const orgId = req.org.orgId;
     const userId = req.user.userId;
+    const plan = await getEffectivePlan(userId, orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'variants')) {
+      return res.status(403).json({ success: false, error: 'Variants require an upgraded plan' });
+    }
     const { shortCode } = req.params;
     const variants = Array.isArray(req.body?.variants) ? req.body.variants : [];
 
@@ -1302,6 +1367,11 @@ export async function replaceVariants(req: UserReq, res: Response) {
 export async function listRoutes(req: UserReq, res: Response) {
   try {
     const orgId = req.org.orgId;
+    const plan = await getEffectivePlan(req.user.userId, orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'routes')) {
+      return res.status(403).json({ success: false, error: 'Smart routes require an upgraded plan' });
+    }
     const { shortCode } = req.params;
     const { rows: linkRows } = await db.query(
       `SELECT id FROM links WHERE org_id = $1 AND short_code = $2 LIMIT 1`,
@@ -1331,6 +1401,11 @@ export async function replaceRoutes(req: UserReq, res: Response) {
   try {
     const orgId = req.org.orgId;
     const userId = req.user.userId;
+    const plan = await getEffectivePlan(userId, orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'routes')) {
+      return res.status(403).json({ success: false, error: 'Smart routes require an upgraded plan' });
+    }
     const { shortCode } = req.params;
     const routes = Array.isArray(req.body?.routes) ? req.body.routes : [];
 

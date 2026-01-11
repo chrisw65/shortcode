@@ -5,10 +5,11 @@ import { promises as dns } from 'node:dns';
 import db from '../config/database';
 import { logAudit } from '../services/audit';
 import { tryGrantReferralReward } from '../services/referrals';
-import { getEffectivePlan, isPaidPlan } from '../services/plan';
+import { getEffectivePlan } from '../services/plan';
 import { getOrgLimits } from '../services/orgLimits';
 import { autoProvisionDns } from '../services/dnsAutomation';
 import { log } from '../utils/logger';
+import { getPlanEntitlements, isFeatureEnabled } from '../services/entitlements';
 
 // Local auth-aware request type (your middleware attaches req.user/org)
 type JwtUser = { userId: string; email?: string };
@@ -94,7 +95,8 @@ export async function createDomain(req: AuthedRequest, res: Response) {
     const { domain, make_default } = req.body ?? {};
 
     const plan = await getEffectivePlan(userId, orgId);
-    if (!isPaidPlan(plan)) {
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'custom_domains')) {
       return res.status(403).json({ success: false, error: 'Custom domains require a paid plan' });
     }
 

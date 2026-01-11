@@ -14,6 +14,7 @@ type BillingConfig = {
   prices?: Record<string, { monthly?: string; annual?: string }>;
   checkout?: { success_url?: string; cancel_url?: string };
   portal?: { return_url?: string };
+  entitlements?: Record<string, { features?: Record<string, boolean>; limits?: Record<string, number | null> }>;
 };
 
 const DEFAULT_BILLING_CONFIG: BillingConfig = {
@@ -30,6 +31,7 @@ const DEFAULT_BILLING_CONFIG: BillingConfig = {
   portal: {
     return_url: '',
   },
+  entitlements: {},
 };
 
 async function getBillingConfigRaw(): Promise<BillingConfig> {
@@ -62,6 +64,7 @@ function mergeBillingConfig(existing: BillingConfig, patch: BillingConfig): Bill
     ...patch,
     stripe: { ...(existing.stripe || {}), ...(patch.stripe || {}) },
     prices: patch.prices ?? existing.prices ?? {},
+    entitlements: patch.entitlements ?? existing.entitlements ?? {},
     checkout: { ...(existing.checkout || {}), ...(patch.checkout || {}) },
     portal: { ...(existing.portal || {}), ...(patch.portal || {}) },
   };

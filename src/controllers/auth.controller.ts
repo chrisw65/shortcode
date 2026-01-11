@@ -8,6 +8,7 @@ import { generateSecret, generateURI, verify } from 'otplib';
 import qrcode from 'qrcode';
 import db from '../config/database';
 import { getEffectivePlan } from '../services/plan';
+import { getPlanEntitlements } from '../services/entitlements';
 import { recordConsent } from '../services/consent';
 import { getRetentionDefaultDays } from '../services/platformConfig';
 import { defaultScopes, discoverIssuer, normalizeIssuer } from '../services/oidc';
@@ -578,7 +579,8 @@ async function meImpl(req: OrgRequest, res: Response) {
 
     const org = req.org ?? null;
     const effectivePlan = await getEffectivePlan(user.userId, org?.orgId);
-    return res.json({ success: true, data: { user: safeUser(rows[0]), org, effective_plan: effectivePlan } });
+    const entitlements = await getPlanEntitlements(effectivePlan);
+    return res.json({ success: true, data: { user: safeUser(rows[0]), org, effective_plan: effectivePlan, entitlements } });
   } catch (err) {
     log('error', 'auth.me.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });

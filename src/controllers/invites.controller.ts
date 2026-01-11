@@ -5,6 +5,8 @@ import db from '../config/database';
 import type { OrgRequest } from '../middleware/org';
 import { sendInviteEmail } from '../services/inviteEmails';
 import { log } from '../utils/logger';
+import { getEffectivePlan } from '../services/plan';
+import { getPlanEntitlements } from '../services/entitlements';
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -15,6 +17,20 @@ export async function createInvite(req: OrgRequest, res: Response) {
     const orgId = req.org?.orgId;
     const inviterId = req.user?.userId;
     if (!orgId || !inviterId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+    const plan = await getEffectivePlan(inviterId, orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    const seatLimit = entitlements?.limits?.team_seats;
+    if (seatLimit) {
+      const { rows: seatRows } = await db.query(
+        `SELECT COUNT(*)::int AS count
+           FROM org_memberships
+          WHERE org_id = $1`,
+        [orgId],
+      );
+      if ((seatRows[0]?.count ?? 0) >= seatLimit) {
+        return res.status(403).json({ success: false, error: 'Team seat limit reached for this plan' });
+      }
+    }
 
     const email = normalizeEmail(String(req.body?.email || ''));
     const role = String(req.body?.role || 'member');

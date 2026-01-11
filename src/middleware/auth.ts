@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { createHash } from 'crypto';
 import db from '../config/database';
 import { log } from '../utils/logger';
+import { getOrgEntitlements, isFeatureEnabled } from '../services/entitlements';
 
 export type AuthenticatedRequest = Request & {
   user?: {
@@ -53,6 +54,10 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       );
       if (!rows.length || !rows[0].user_id) {
         return res.status(401).json({ success: false, error: 'Invalid API key' });
+      }
+      const entitlements = await getOrgEntitlements(rows[0].org_id);
+      if (!isFeatureEnabled(entitlements, 'api_keys')) {
+        return res.status(403).json({ success: false, error: 'API keys are not enabled for this plan' });
       }
       await db.query(`UPDATE api_keys SET last_used_at = NOW() WHERE id = $1`, [rows[0].id]);
       req.apiKey = {

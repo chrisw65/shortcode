@@ -28,6 +28,10 @@ const planList = document.getElementById('planList');
 const currentPlan = document.getElementById('currentPlan');
 const billingMsg = document.getElementById('billingMsg');
 const manageBilling = document.getElementById('manageBilling');
+const entitlementsSection = document.getElementById('entitlementsSection');
+const entitlementsGrid = document.getElementById('entitlementsGrid');
+const entitlementsMsg = document.getElementById('entitlementsMsg');
+const saveEntitlements = document.getElementById('saveEntitlements');
 
 const stripeConfigSection = document.getElementById('stripeConfigSection');
 const stripePublishable = document.getElementById('stripePublishable');
@@ -75,6 +79,94 @@ tabButtons.forEach((btn) => {
 });
 activateTab('plan');
 
+const FEATURE_KEYS = [
+  { key: 'custom_domains', label: 'Custom domains' },
+  { key: 'api_keys', label: 'API keys' },
+  { key: 'webhooks', label: 'Webhooks' },
+  { key: 'integrations', label: 'Integrations' },
+  { key: 'bulk_links', label: 'Bulk actions' },
+  { key: 'variants', label: 'Variants (A/B)' },
+  { key: 'routes', label: 'Smart routes' },
+  { key: 'deep_links', label: 'Deep links' },
+  { key: 'tags', label: 'Tags' },
+  { key: 'groups', label: 'Groups' },
+];
+
+const LIMIT_KEYS = [
+  { key: 'links', label: 'Link limit' },
+  { key: 'domains', label: 'Domain limit' },
+  { key: 'team_seats', label: 'Team seats' },
+  { key: 'retention_days', label: 'Retention days' },
+  { key: 'api_rate_rpm', label: 'API rpm limit' },
+];
+
+const DEFAULT_ENTITLEMENTS = {
+  free: {
+    features: {
+      custom_domains: false,
+      api_keys: false,
+      webhooks: false,
+      integrations: false,
+      bulk_links: false,
+      variants: false,
+      routes: false,
+      deep_links: false,
+      tags: false,
+      groups: false,
+    },
+    limits: { links: 10, domains: 0, team_seats: 1, retention_days: 7, api_rate_rpm: 120 },
+  },
+  starter: {
+    features: {
+      custom_domains: true,
+      api_keys: true,
+      webhooks: true,
+      integrations: true,
+      bulk_links: true,
+      variants: false,
+      routes: false,
+      deep_links: false,
+      tags: true,
+      groups: true,
+    },
+    limits: { links: 1000, domains: 1, team_seats: 3, retention_days: 30, api_rate_rpm: 600 },
+  },
+  pro: {
+    features: {
+      custom_domains: true,
+      api_keys: true,
+      webhooks: true,
+      integrations: true,
+      bulk_links: true,
+      variants: true,
+      routes: true,
+      deep_links: true,
+      tags: true,
+      groups: true,
+    },
+    limits: { links: 10000, domains: 5, team_seats: 10, retention_days: 365, api_rate_rpm: 2000 },
+  },
+  enterprise: {
+    features: {
+      custom_domains: true,
+      api_keys: true,
+      webhooks: true,
+      integrations: true,
+      bulk_links: true,
+      variants: true,
+      routes: true,
+      deep_links: true,
+      tags: true,
+      groups: true,
+    },
+    limits: { links: null, domains: null, team_seats: null, retention_days: null, api_rate_rpm: null },
+  },
+};
+
+function defaultEntitlementsForPlan(planId) {
+  return DEFAULT_ENTITLEMENTS[planId] || DEFAULT_ENTITLEMENTS.free;
+}
+
 async function loadMe() {
   try {
     const res = await apiFetch('/api/auth/me');
@@ -87,6 +179,7 @@ async function loadMe() {
       stripeConfigSection.style.display = 'block';
       planMappingSection.style.display = 'block';
       platformDefaultsSection.style.display = 'block';
+      if (entitlementsSection) entitlementsSection.style.display = 'block';
     }
   } catch (err) {
     console.error('Failed to load user profile', err);
@@ -101,6 +194,7 @@ async function loadPricing() {
     pricingTiers = Array.isArray(pricing.tiers) ? pricing.tiers : [];
     renderPlanCards(pricing);
     renderPlanMapping();
+    renderEntitlements();
   } catch (err) {
     planList.innerHTML = '<div class="muted">Failed to load pricing.</div>';
   }
@@ -123,6 +217,7 @@ async function loadBillingConfig() {
     }
     renderPlanMapping();
     renderPlanCards();
+    renderEntitlements();
   } catch (err) {
     stripeConfigMsg.textContent = 'Failed to load Stripe config.';
   }
@@ -217,6 +312,66 @@ function renderPlanMapping() {
   });
 }
 
+function renderEntitlements() {
+  if (!entitlementsGrid || !meData?.user?.is_superadmin) return;
+  if (!pricingTiers.length) {
+    entitlementsGrid.innerHTML = '<div class="muted">No plan tiers available.</div>';
+    return;
+  }
+  const entitlements = billingConfig.entitlements || {};
+  entitlementsGrid.innerHTML = '';
+  pricingTiers.forEach((tier) => {
+    const planId = planIdForTier(tier);
+    const baseline = defaultEntitlementsForPlan(planId);
+    const override = entitlements[planId] || {};
+    const features = { ...baseline.features, ...(override.features || {}) };
+    const limits = { ...baseline.limits, ...(override.limits || {}) };
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <h4 style="margin-bottom:8px">${htmlesc(planId)}</h4>
+      <div class="grid grid-2">
+        ${FEATURE_KEYS.map((f) => `
+          <label class="muted small">
+            <input type="checkbox" data-plan="${htmlesc(planId)}" data-feature="${f.key}" ${features[f.key] ? 'checked' : ''}>
+            ${htmlesc(f.label)}
+          </label>
+        `).join('')}
+      </div>
+      <div class="grid grid-2" style="margin-top:10px">
+        ${LIMIT_KEYS.map((l) => `
+          <label class="muted small">
+            ${htmlesc(l.label)}
+            <input class="input" data-plan="${htmlesc(planId)}" data-limit="${l.key}" value="${limits[l.key] ?? ''}" placeholder="Leave empty for unlimited">
+          </label>
+        `).join('')}
+      </div>
+    `;
+    entitlementsGrid.appendChild(card);
+  });
+}
+
+function gatherEntitlements() {
+  const entitlements = {};
+  if (!entitlementsGrid) return entitlements;
+  pricingTiers.forEach((tier) => {
+    const planId = planIdForTier(tier);
+    const features = {};
+    FEATURE_KEYS.forEach((f) => {
+      const input = entitlementsGrid.querySelector(`[data-plan="${planId}"][data-feature="${f.key}"]`);
+      features[f.key] = Boolean(input?.checked);
+    });
+    const limits = {};
+    LIMIT_KEYS.forEach((l) => {
+      const input = entitlementsGrid.querySelector(`[data-plan="${planId}"][data-limit="${l.key}"]`);
+      const raw = input?.value.trim() || '';
+      limits[l.key] = raw ? Number(raw) : null;
+    });
+    entitlements[planId] = { features, limits };
+  });
+  return entitlements;
+}
+
 async function startCheckout(planId, interval) {
   billingMsg.textContent = '';
   try {
@@ -243,6 +398,27 @@ async function openPortal() {
   } catch (err) {
     showError(err, 'Failed to open billing portal');
   }
+}
+
+if (saveEntitlements) {
+  saveEntitlements.addEventListener('click', async () => {
+    if (!meData?.user?.is_superadmin) return;
+    entitlementsMsg.textContent = '';
+    const entitlements = gatherEntitlements();
+    try {
+      const res = await apiFetch('/api/billing/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entitlements }),
+      });
+      billingConfig = res.data || billingConfig;
+      renderEntitlements();
+      entitlementsMsg.textContent = 'Entitlements saved.';
+    } catch (err) {
+      entitlementsMsg.textContent = 'Failed to save entitlements.';
+      showError(err, 'Failed to save entitlements');
+    }
+  });
 }
 
 async function savePlatformDefaultsHandler() {
