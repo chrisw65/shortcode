@@ -1,3 +1,5 @@
+document.documentElement.classList.add('config-loading');
+
 const byId = (id) => document.getElementById(id);
 const qs = (sel) => document.querySelector(sel);
 
@@ -646,6 +648,8 @@ async function init() {
     bindToggle();
   } catch (err) {
     console.error('site init error', err);
+  } finally {
+    document.documentElement.classList.remove('config-loading');
   }
 }
 

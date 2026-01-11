@@ -404,6 +404,14 @@ a{color:inherit;text-decoration:none}
 .doc-body{
   display:grid;gap:18px
 }
+.doc-body{min-width:0}
+.doc-body .doc-grid{grid-template-columns:1fr}
+.doc-body .code-block{
+  max-width:100%;
+  width:100%;
+  box-sizing:border-box;
+}
+.split-grid > *{min-width:0}
 .doc-body > *{
   background:rgba(21,27,36,.92);border:1px solid var(--line);
   border-radius:18px;padding:20px;box-shadow:var(--glow)
@@ -442,4 +450,11 @@ a{color:inherit;text-decoration:none}
   .feature-grid{grid-template-columns:1fr}
   .topbar .nav{flex-wrap:wrap}
   .nav-cta{margin-left:0}
+}
+
+.config-loading .topbar,
+.config-loading main,
+.config-loading footer{
+  opacity:0;
+  pointer-events:none;
 }

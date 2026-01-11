@@ -44,14 +44,11 @@ async function insertHistory(action: string, value: any, userId?: string | null)
 export async function getPublicSiteConfig(req: Request, res: Response) {
   try {
     res.set('Cache-Control', 'no-store, must-revalidate');
-    const cached = await getCachedPublicConfig();
-    if (cached) return res.json({ success: true, data: cached });
     const published = await getSiteSetting('marketing_published');
     const draft = await getSiteSetting('marketing_draft');
     const base = published || draft || {};
     const config = mergeConfig(DEFAULT_SITE_CONFIG, base);
     const safe = sanitizePublicConfig(config);
-    await setCachedPublicConfig(safe);
     return res.json({ success: true, data: safe });
   } catch (err) {
     log('error', 'site.getPublicSiteConfig.error', { error: String(err) });
