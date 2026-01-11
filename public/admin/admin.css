@@ -221,6 +221,25 @@ body.tabs-ready .admin-content [data-tab].is-active{display:block}
 }
 .card h2,.card h3{letter-spacing:.2px;margin-top:0}
 
+.fold-card{
+  margin-top:14px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.1);
+  background:rgba(12,18,28,.7);
+  padding:12px 14px;
+}
+.fold-card > summary{
+  cursor:pointer;
+  list-style:none;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.fold-card > summary::-webkit-details-marker{display:none}
+.fold-card[open]{box-shadow:var(--shadow)}
+.fold-body{margin-top:12px}
+
 .btn{
   cursor:pointer;padding:10px 16px;border-radius:999px;
   background:linear-gradient(135deg,var(--accent),var(--accent-2));
