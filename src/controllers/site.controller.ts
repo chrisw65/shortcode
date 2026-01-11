@@ -43,6 +43,7 @@ async function insertHistory(action: string, value: any, userId?: string | null)
 
 export async function getPublicSiteConfig(req: Request, res: Response) {
   try {
+    res.set('Cache-Control', 'no-store, must-revalidate');
     const cached = await getCachedPublicConfig();
     if (cached) return res.json({ success: true, data: cached });
     const published = await getSiteSetting('marketing_published');
