@@ -234,6 +234,8 @@ body.tabs-ready .admin-content [data-tab].is-active{display:block}
 .grid-2{grid-template-columns:1fr 1fr}
 .grid-3{grid-template-columns:repeat(3,1fr)}
 .grid-aside{grid-template-columns:330px 1fr}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
 
 .nav{display:none}
 .wrap{max-width:100%;padding:0}

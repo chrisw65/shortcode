@@ -119,6 +119,30 @@ function renderTools() {
   }
 }
 
+function initTabs() {
+  const tabButtons = Array.from(document.querySelectorAll('[data-tab]'));
+  const tabPanels = Array.from(document.querySelectorAll('[data-panel]'));
+  if (!tabButtons.length || !tabPanels.length) return;
+  const setActiveTab = (name) => {
+    tabButtons.forEach((btn) => {
+      const isActive = btn.dataset.tab === name;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    tabPanels.forEach((panel) => {
+      panel.classList.toggle('active', panel.dataset.panel === name);
+    });
+    sessionStorage.setItem('ecosystem_tab', name);
+  };
+  tabButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setActiveTab(btn.dataset.tab || 'webhooks');
+    });
+  });
+  const saved = sessionStorage.getItem('ecosystem_tab') || 'webhooks';
+  setActiveTab(saved);
+}
+
 function gatherWebhooks() {
   const container = document.getElementById('webhooksList');
   if (!container) return [];
@@ -194,4 +218,5 @@ document.addEventListener('DOMContentLoaded', () => {
   loadConfig();
   document.getElementById('saveConfig')?.addEventListener('click', saveConfig);
   document.getElementById('resetConfig')?.addEventListener('click', loadConfig);
+  initTabs();
 });

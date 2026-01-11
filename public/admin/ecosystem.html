@@ -70,20 +70,26 @@
             </div>
           </div>
         </section>
+        <div class="tabs" role="tablist" aria-label="Ecosystem sections">
+          <button class="tab-btn active" type="button" data-tab="webhooks" role="tab" aria-selected="true">Webhooks</button>
+          <button class="tab-btn" type="button" data-tab="integrations" role="tab" aria-selected="false">Integrations</button>
+          <button class="tab-btn" type="button" data-tab="domains" role="tab" aria-selected="false">Domain health</button>
+          <button class="tab-btn" type="button" data-tab="tools" role="tab" aria-selected="false">Tools</button>
+        </div>
 
-        <section class="card">
+        <section class="card tab-panel active" data-panel="webhooks">
           <h2>Webhooks</h2>
           <p class="muted">Distribute events to CRMs, pipelines, or warehouses.</p>
           <div id="webhooksList"></div>
         </section>
 
-        <section class="card">
+        <section class="card tab-panel" data-panel="integrations">
           <h2>Integrations</h2>
           <p class="muted">Enable ready-made connectors or mark upcoming ones.</p>
           <div class="integration-grid" id="integrationList"></div>
         </section>
 
-        <section class="card">
+        <section class="card tab-panel" data-panel="domains">
           <h2>Domain health</h2>
           <p class="muted">Track TXT, SSL, and automation across your branded domains.</p>
           <div class="grid" id="domainHealthGrid"></div>
@@ -93,7 +99,7 @@
           </label>
         </section>
 
-        <section class="card">
+        <section class="card tab-panel" data-panel="tools">
           <h2>Tools</h2>
           <p class="muted">Publish the latest extension + bookmarklet instructions.</p>
           <div class="grid tool-grid" id="toolsSection"></div>
