@@ -7,7 +7,9 @@ This document captures what was built to fully close Phase 4 (Ecosystem & Exte
 1. **Ecosystem config service + API** (`/api/phase4/ecosystem`) that stores the Phase 4 catalog (webhooks, integrations, tools, domain health, mobile theme toggles) alongside the existing `site_settings` data so superadmins can tune the experience without database migrations.
 2. **Admin Ecosystem dashboard** (`/admin/ecosystem.html`, `/admin/ecosystem.js`) that shows hero metrics, lets owners configure webhook URLs/toggles, describes the integration catalog, surfaces domain health insights, and publishes the extension/bookmarklet toolkit. Styles and toast helpers reuse the premium admin shell.
 3. **Customer-facing ecosystem marketing page** (`/ecosystem.html`) plus refreshed `site-config` data and global nav entry so visitors can explore webhooks, integrations, and tooling. The page pulls from the shared marketing config so the new hero, feature grid, insights, and tool cards stay CMS-editable.
-4. **Supporting documentation** (this file) and Phase 4 test TODOs updated to reflect the new coverage; the roadmap now has a tangible proof point for the ecosystem extensions milestone.
+4. **Analytics dashboard polish**—the admin analytics surface now gives Summary/Geo/Events tabs, export helpers, clipboard copy, sparkline, and world-map filters while keeping the same premium shell.
+5. **Public UX touches**—site-wide toast feedback, the premium login SSO card, and contact form messaging are now consistent with the marketing brand and responsive layout.
+6. **Supporting documentation** (this file) and Phase 4 test TODOs updated to reflect the new coverage; the roadmap now has a tangible proof point for the ecosystem extensions milestone.
 
 ## Test notes
 
