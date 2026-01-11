@@ -68,49 +68,137 @@
           </div>
 
           <div class="grid">
-            <div class="card">
-              <div class="row-between">
-                <h2 class="m-0">Org overview</h2>
-                <div class="row" style="gap:8px">
-                  <select id="rangeSelect" class="input" style="max-width:140px">
-                    <option value="24h">Last 24h</option>
-                    <option value="7d" selected>Last 7d</option>
-                    <option value="30d">Last 30d</option>
-                    <option value="90d">Last 90d</option>
-                    <option value="all">All time</option>
+            <div class="tabs" role="tablist" aria-label="Analytics sections">
+              <button class="tab-btn active" type="button" data-analytics-tab="summary" aria-selected="true">Summary</button>
+              <button class="tab-btn" type="button" data-analytics-tab="geo">Geo &amp; country</button>
+              <button class="tab-btn" type="button" data-analytics-tab="events">Events</button>
+            </div>
+
+            <div class="tab-panel active" data-panel="summary">
+              <div class="card">
+                <div class="row-between">
+                  <h2 class="m-0">Org overview</h2>
+                  <div class="row" style="gap:8px">
+                    <select id="rangeSelect" class="input" style="max-width:140px">
+                      <option value="24h">Last 24h</option>
+                      <option value="7d" selected>Last 7d</option>
+                      <option value="30d">Last 30d</option>
+                      <option value="90d">Last 90d</option>
+                      <option value="all">All time</option>
+                    </select>
+                    <button id="exportOrgCsv" class="btn ghost" type="button">Export CSV</button>
+                  </div>
+                </div>
+                <div class="grid grid-3" style="margin-top:12px">
+                  <div class="card">
+                    <div class="muted">Total clicks</div>
+                    <div id="orgTotal" style="font-size:20px;font-weight:700">-</div>
+                  </div>
+                  <div class="card">
+                    <div class="muted" id="orgRangeLabel">Clicks (7d)</div>
+                    <div id="orgRange" style="font-size:20px;font-weight:700">-</div>
+                  </div>
+                  <div class="card">
+                    <div class="muted">Last click</div>
+                    <div id="orgLast" style="font-size:20px;font-weight:700">-</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="row-between">
+                  <h2 class="m-0" id="currentLink">Select a link</h2>
+                  <div class="row" style="gap:8px">
+                    <button id="copyUrl" class="btn ghost" type="button">Copy URL</button>
+                    <button id="exportLinkCsv" class="btn ghost" type="button">Export CSV</button>
+                  </div>
+                </div>
+                <div class="grid grid-2" style="margin-top:12px">
+                  <div class="card">
+                    <div class="muted">Total clicks</div>
+                    <div id="statTotal" style="font-size:20px;font-weight:700">-</div>
+                  </div>
+                  <div class="card">
+                    <div class="muted" id="statRangeLabel">Clicks (7d)</div>
+                    <div id="statRange" style="font-size:20px;font-weight:700">-</div>
+                  </div>
+                  <div class="card">
+                    <div class="muted">Last click</div>
+                    <div id="statLast" style="font-size:20px;font-weight:700">-</div>
+                  </div>
+                  <div class="card">
+                    <div class="muted">Quick view</div>
+                    <div class="muted">Referrers and devices below</div>
+                  </div>
+                </div>
+                <div class="row" style="margin-top:12px;gap:10px">
+                  <select id="countryFilter" class="input" style="max-width:220px">
+                    <option value="">All countries</option>
                   </select>
-                  <button id="exportOrgCsv" class="btn ghost" type="button">Export CSV</button>
+                  <span class="muted">Filter link analytics by country.</span>
                 </div>
               </div>
-              <div class="grid grid-3" style="margin-top:12px">
-                <div class="card">
-                  <div class="muted">Total clicks</div>
-                  <div id="orgTotal" style="font-size:20px;font-weight:700">-</div>
-                </div>
-                <div class="card">
-                  <div class="muted" id="orgRangeLabel">Clicks (7d)</div>
-                  <div id="orgRange" style="font-size:20px;font-weight:700">-</div>
-                </div>
-                <div class="card">
-                  <div class="muted">Last click</div>
-                  <div id="orgLast" style="font-size:20px;font-weight:700">-</div>
-                </div>
+
+              <div class="card">
+                <h3>Clicks by hour</h3>
+                <canvas id="spark" class="card" style="width:100%;height:140px"></canvas>
               </div>
-              <div class="grid grid-2" style="margin-top:16px">
-                <div>
-                  <h3>Top countries</h3>
+
+              <div class="grid grid-2">
+                <div class="card">
+                  <h3>Top referrers</h3>
                   <table style="margin-top:8px">
-                    <thead><tr><th>Country</th><th>Clicks</th></tr></thead>
-                    <tbody id="orgCountryBody">
+                    <thead>
+                      <tr><th>Referrer</th><th>Clicks</th></tr>
+                    </thead>
+                    <tbody id="refBody">
                       <tr><td class="empty" colspan="2">No data.</td></tr>
                     </tbody>
                   </table>
                 </div>
-                <div>
-                  <h3>Top cities</h3>
+                <div class="card">
+                  <h3>Devices</h3>
                   <table style="margin-top:8px">
-                    <thead><tr><th>City</th><th>Clicks</th></tr></thead>
-                    <tbody id="orgCityBody">
+                    <thead>
+                      <tr><th>Device</th><th>Clicks</th></tr>
+                    </thead>
+                    <tbody id="uaBody">
+                      <tr><td class="empty" colspan="2">No data.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="grid grid-3">
+                <div class="card">
+                  <h3>Browsers</h3>
+                  <table style="margin-top:8px">
+                    <thead>
+                      <tr><th>Browser</th><th>Clicks</th></tr>
+                    </thead>
+                    <tbody id="browserBody">
+                      <tr><td class="empty" colspan="2">No data.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="card">
+                  <h3>OS</h3>
+                  <table style="margin-top:8px">
+                    <thead>
+                      <tr><th>OS</th><th>Clicks</th></tr>
+                    </thead>
+                    <tbody id="osBody">
+                      <tr><td class="empty" colspan="2">No data.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="card">
+                  <h3>Devices (detail)</h3>
+                  <table style="margin-top:8px">
+                    <thead>
+                      <tr><th>Type</th><th>Clicks</th></tr>
+                    </thead>
+                    <tbody id="deviceBody">
                       <tr><td class="empty" colspan="2">No data.</td></tr>
                     </tbody>
                   </table>
@@ -118,158 +206,61 @@
               </div>
             </div>
 
-            <div class="card">
-              <div class="row-between">
-                <h2 class="m-0" id="currentLink">Select a link</h2>
-                <div class="row" style="gap:8px">
-                  <button id="copyUrl" class="btn ghost" type="button">Copy URL</button>
-                  <button id="exportLinkCsv" class="btn ghost" type="button">Export CSV</button>
+            <div class="tab-panel" data-panel="geo">
+              <div class="card">
+                <h3>Global map</h3>
+                <div class="world-map" id="worldMap">
+                  <img class="world-map-img" src="/admin/world-map.svg?v=3" alt="" aria-hidden="true" />
+                  <div class="world-dots" id="worldDots"></div>
+                  <div class="world-empty" id="worldEmpty">No geo data yet.</div>
                 </div>
+                <div class="muted" style="margin-top:8px">Dots represent recent clicks (size = volume).</div>
               </div>
-              <div class="grid grid-2" style="margin-top:12px">
+              <div class="grid grid-2">
                 <div class="card">
-                  <div class="muted">Total clicks</div>
-                  <div id="statTotal" style="font-size:20px;font-weight:700">-</div>
+                  <h3>Countries</h3>
+                  <table style="margin-top:8px">
+                    <thead>
+                      <tr><th>Country</th><th>Clicks</th></tr>
+                    </thead>
+                    <tbody id="countryBody">
+                      <tr><td class="empty" colspan="2">No data.</td></tr>
+                    </tbody>
+                  </table>
                 </div>
                 <div class="card">
-                  <div class="muted" id="statRangeLabel">Clicks (7d)</div>
-                  <div id="statRange" style="font-size:20px;font-weight:700">-</div>
+                  <h3>Cities</h3>
+                  <table style="margin-top:8px">
+                    <thead>
+                      <tr><th>City</th><th>Clicks</th></tr>
+                    </thead>
+                    <tbody id="cityBody">
+                      <tr><td class="empty" colspan="2">No data.</td></tr>
+                    </tbody>
+                  </table>
                 </div>
-                <div class="card">
-                  <div class="muted">Last click</div>
-                  <div id="statLast" style="font-size:20px;font-weight:700">-</div>
-                </div>
-                <div class="card">
-                  <div class="muted">Quick view</div>
-                  <div class="muted">Referrers and devices below</div>
-                </div>
-              </div>
-              <div class="row" style="margin-top:12px;gap:10px">
-                <select id="countryFilter" class="input" style="max-width:220px">
-                  <option value="">All countries</option>
-                </select>
-                <span class="muted">Filter link analytics by country.</span>
               </div>
             </div>
 
-            <div class="card">
-              <h3>Clicks by hour</h3>
-              <canvas id="spark" class="card" style="width:100%;height:140px"></canvas>
-            </div>
-
-            <div class="grid grid-2">
+            <div class="tab-panel" data-panel="events">
               <div class="card">
-                <h3>Top referrers</h3>
-                <table style="margin-top:8px">
+                <h3>Recent events</h3>
+                <table style="margin-top:10px">
                   <thead>
-                    <tr><th>Referrer</th><th>Clicks</th></tr>
+                    <tr>
+                      <th>Time</th>
+                      <th>IP</th>
+                      <th>Country</th>
+                      <th>City</th>
+                      <th>Referrer</th>
+                      <th>User agent</th>
+                    </tr>
                   </thead>
-                  <tbody id="refBody">
-                    <tr><td class="empty" colspan="2">No data.</td></tr>
+                  <tbody id="evBody">
+                    <tr><td class="empty" colspan="6">No events yet.</td></tr>
                   </tbody>
                 </table>
               </div>
-              <div class="card">
-                <h3>Devices</h3>
-                <table style="margin-top:8px">
-                  <thead>
-                    <tr><th>Device</th><th>Clicks</th></tr>
-                  </thead>
-                  <tbody id="uaBody">
-                    <tr><td class="empty" colspan="2">No data.</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="grid grid-3">
-              <div class="card">
-                <h3>Browsers</h3>
-                <table style="margin-top:8px">
-                  <thead>
-                    <tr><th>Browser</th><th>Clicks</th></tr>
-                  </thead>
-                  <tbody id="browserBody">
-                    <tr><td class="empty" colspan="2">No data.</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card">
-                <h3>OS</h3>
-                <table style="margin-top:8px">
-                  <thead>
-                    <tr><th>OS</th><th>Clicks</th></tr>
-                  </thead>
-                  <tbody id="osBody">
-                    <tr><td class="empty" colspan="2">No data.</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card">
-                <h3>Devices (detail)</h3>
-                <table style="margin-top:8px">
-                  <thead>
-                    <tr><th>Type</th><th>Clicks</th></tr>
-                  </thead>
-                  <tbody id="deviceBody">
-                    <tr><td class="empty" colspan="2">No data.</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="card">
-              <h3>Global map</h3>
-              <div class="world-map" id="worldMap">
-                <img class="world-map-img" src="/admin/world-map.svg?v=3" alt="" aria-hidden="true" />
-                <div class="world-dots" id="worldDots"></div>
-                <div class="world-empty" id="worldEmpty">No geo data yet.</div>
-              </div>
-              <div class="muted" style="margin-top:8px">Dots represent recent clicks (size = volume).</div>
-            </div>
-
-            <div class="grid grid-2">
-              <div class="card">
-                <h3>Countries</h3>
-                <table style="margin-top:8px">
-                  <thead>
-                    <tr><th>Country</th><th>Clicks</th></tr>
-                  </thead>
-                  <tbody id="countryBody">
-                    <tr><td class="empty" colspan="2">No data.</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card">
-                <h3>Cities</h3>
-                <table style="margin-top:8px">
-                  <thead>
-                    <tr><th>City</th><th>Clicks</th></tr>
-                  </thead>
-                  <tbody id="cityBody">
-                    <tr><td class="empty" colspan="2">No data.</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="card">
-              <h3>Recent events</h3>
-              <table style="margin-top:10px">
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th>IP</th>
-                    <th>Country</th>
-                    <th>City</th>
-                    <th>Referrer</th>
-                    <th>User agent</th>
-                  </tr>
-                </thead>
-                <tbody id="evBody">
-                  <tr><td class="empty" colspan="6">No events yet.</td></tr>
-                </tbody>
-              </table>
             </div>
           </div>
         </div>

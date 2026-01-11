@@ -1,4 +1,4 @@
-import {requireAuth, api, mountNav, htmlesc, fmtDate, getToken, showToast} from '/admin/admin-common.js?v=20260120';
+import {requireAuth, api, mountNav, htmlesc, fmtDate, getToken, showToast, copyText} from '/admin/admin-common.js?v=20260120';
 requireAuth(); mountNav('analytics');
 
 const searchInput = document.getElementById('search');
@@ -220,6 +220,28 @@ async function downloadCsv(path, filename){
   }
 }
 
+function initAnalyticsTabs() {
+  const tabs = Array.from(document.querySelectorAll('[data-analytics-tab]'));
+  const panels = Array.from(document.querySelectorAll('.tab-panel[data-panel]'));
+  if (!tabs.length || !panels.length) return;
+  const setTab = (tab) => {
+    tabs.forEach((btn) => {
+      const active = btn.dataset.analyticsTab === tab;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    panels.forEach((panel) => {
+      panel.classList.toggle('active', panel.dataset.panel === tab);
+    });
+    sessionStorage.setItem('analytics_active_tab', tab);
+  };
+  const saved = sessionStorage.getItem('analytics_active_tab') || 'summary';
+  setTab(saved);
+  tabs.forEach((btn) => {
+    btn.addEventListener('click', () => setTab(btn.dataset.analyticsTab));
+  });
+}
+
 searchInput.addEventListener('input', ()=>renderLinks(filterLinks(searchInput.value)));
 refreshBtn.addEventListener('click', loadLinks);
 rangeSelect?.addEventListener('change', () => {
@@ -251,6 +273,17 @@ exportLinkBtn?.addEventListener('click', () => {
   downloadCsv(`/api/analytics/links/${encodeURIComponent(selectedShort)}/export?${params.toString()}`, filename);
 });
 
+const copyUrlBtn = document.getElementById('copyUrl');
+copyUrlBtn?.addEventListener('click', () => {
+  if (!selectedShort) return showToast('Select a link first', 'error');
+  const selected = allLinks.find((l) => l.short_code === selectedShort);
+  if (selected?.short_url) {
+    copyText(selected.short_url);
+  } else {
+    showToast('No URL available to copy', 'error');
+  }
+});
+
 async function loadOrgSummary(){
   let summary = {};
   try { summary = (await api(`/api/analytics/summary?range=${encodeURIComponent(currentRange)}`)).data || {}; } catch {}
@@ -270,5 +303,6 @@ async function loadOrgSummary(){
   plotGeoPoints(summary?.geo_points || []);
 }
 
+initAnalyticsTabs();
 loadOrgSummary();
 loadLinks().catch(e=>{ linksBody.innerHTML = `<tr><td colspan="4" class="danger">Failed to load: ${e.message}</td></tr>`; });
