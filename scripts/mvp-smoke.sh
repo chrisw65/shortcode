@@ -19,7 +19,7 @@ fi
 
 echo "==> Register user"
 REGISTER_JSON=$(curl -fsS -X POST "${BASE_URL}/api/auth/register" \
-  -b "${COOKIE_JAR}" \
+  -b "${COOKIE_JAR}" -c "${COOKIE_JAR}" \
   ${RATE_LIMIT_BYPASS_TOKEN:+-H "x-rate-bypass: ${RATE_LIMIT_BYPASS_TOKEN}"} \
   -H 'Content-Type: application/json' \
   -H "X-CSRF-Token: ${CSRF_TOKEN}" \
