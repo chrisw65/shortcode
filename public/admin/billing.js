@@ -180,6 +180,8 @@ async function loadMe() {
       planMappingSection.style.display = 'block';
       platformDefaultsSection.style.display = 'block';
       if (entitlementsSection) entitlementsSection.style.display = 'block';
+    } else if (entitlementsSection) {
+      entitlementsSection.style.display = 'none';
     }
   } catch (err) {
     console.error('Failed to load user profile', err);
