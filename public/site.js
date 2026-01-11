@@ -8,17 +8,12 @@ function getPreviewMode() {
 
 async function fetchConfig() {
   const preview = getPreviewMode();
-  const headers = {};
   let path = '/api/public/site-config';
   if (preview) {
-    const token = localStorage.getItem('admin_token') || '';
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-      path = '/api/site-config';
-    }
+    path = '/api/site-config';
   }
 
-  const res = await fetch(path, { credentials: 'same-origin', headers });
+  const res = await fetch(path, { credentials: 'same-origin' });
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(data?.error || 'Failed to load site config');
   if (preview && data?.data?.draft) return data.data.draft;

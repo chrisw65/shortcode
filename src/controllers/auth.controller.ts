@@ -66,6 +66,8 @@ const APP_URL = process.env.PUBLIC_HOST || process.env.BASE_URL || 'https://okle
 const OIDC_STATE_COOKIE = 'oidc_state';
 const AUTH_COOKIE = 'auth_token';
 const AUTH_PRESENT_COOKIE = 'auth_present';
+const REFRESH_COOKIE = 'refresh_token';
+const REFRESH_TOKEN_TTL_DAYS = Number(process.env.REFRESH_TOKEN_TTL_DAYS || '30');
 const OIDC_STATE_TTL_SECONDS = 600;
 const TWO_FA_ISSUER = process.env.TOTP_ISSUER || 'OkLeaf';
 const TOTP_EPOCH_TOLERANCE = Number(process.env.TOTP_EPOCH_TOLERANCE || '30');
@@ -224,6 +226,33 @@ function clearAuthCookies(res: Response) {
   setCookie(res, AUTH_PRESENT_COOKIE, '', { maxAge: 0, path: '/', httpOnly: false });
 }
 
+function refreshExpiresAt() {
+  const ttl = Number.isFinite(REFRESH_TOKEN_TTL_DAYS) ? REFRESH_TOKEN_TTL_DAYS : 30;
+  return new Date(Date.now() + ttl * 24 * 60 * 60 * 1000);
+}
+
+function setRefreshCookie(res: Response, token: string, expiresAt: Date) {
+  const maxAge = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
+  setCookie(res, REFRESH_COOKIE, token, { maxAge, path: '/', httpOnly: true });
+}
+
+function clearRefreshCookie(res: Response) {
+  setCookie(res, REFRESH_COOKIE, '', { maxAge: 0, path: '/', httpOnly: true });
+}
+
+async function issueRefreshToken(userId: string) {
+  const token = randomBytes(32).toString('hex');
+  const tokenHash = hashToken(token);
+  const expiresAt = refreshExpiresAt();
+  const { rows } = await db.query(
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)
+     RETURNING id`,
+    [userId, tokenHash, expiresAt]
+  );
+  return { token, id: rows[0].id, expiresAt };
+}
+
 function signOidcState(payload: OidcState): string {
   const secret: Secret = process.env.JWT_SECRET as Secret;
   if (!secret) throw new Error('JWT_SECRET missing');
@@ -309,6 +338,8 @@ async function loginImpl(req: Request, res: Response) {
 
     const token = signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
     setAuthCookies(res, token);
+    const refresh = await issueRefreshToken(user.id);
+    setRefreshCookie(res, refresh.token, refresh.expiresAt);
     return res.json({ success: true, data: { user: safeUser(user), token } });
   } catch (err) {
     console.error('auth.login error:', err);
@@ -493,6 +524,11 @@ async function registerImpl(req: Request, res: Response) {
     }
 
     const token = needsVerification ? null : signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
+    if (token) {
+      setAuthCookies(res, token);
+      const refresh = await issueRefreshToken(user.id);
+      setRefreshCookie(res, refresh.token, refresh.expiresAt);
+    }
     return res.status(201).json({
       success: true,
       data: {
@@ -906,6 +942,8 @@ async function oidcCallbackImpl(req: Request, res: Response) {
     const token = signToken({ userId: user.id, email: user.email, is_superadmin: user.is_superadmin });
     setCookie(res, OIDC_STATE_COOKIE, '', { maxAge: 0, path: '/api/auth/oidc/callback' });
     setAuthCookies(res, token);
+    const refresh = await issueRefreshToken(user.id);
+    setRefreshCookie(res, refresh.token, refresh.expiresAt);
 
     const target = new URL(redirectPath, APP_URL);
     return res.redirect(target.toString());
@@ -1070,6 +1108,8 @@ async function twoFactorConfirmImpl(req: Request, res: Response) {
     await db.query(`UPDATE users SET totp_last_used = NOW() WHERE id = $1`, [userRow.id]);
     const token = signToken({ userId: userRow.id, email: userRow.email, is_superadmin: userRow.is_superadmin });
     setAuthCookies(res, token);
+    const refresh = await issueRefreshToken(userRow.id);
+    setRefreshCookie(res, refresh.token, refresh.expiresAt);
     return res.json({ success: true, data: { token } });
   } catch (err) {
     console.error('auth.2fa.confirm error:', err);
@@ -1089,7 +1129,24 @@ async function createSessionImpl(req: Request, res: Response) {
     if (payload?.type === '2fa') {
       return res.status(400).json({ success: false, error: 'Invalid session token' });
     }
+    const userId = String(payload.userId || '');
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Invalid session token' });
+    }
+    const { rows } = await db.query(
+      `SELECT id, is_active
+         FROM users
+        WHERE id = $1
+        LIMIT 1`,
+      [userId]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'User not found' });
+    if (rows[0].is_active === false) {
+      return res.status(403).json({ success: false, error: 'Account disabled' });
+    }
     setAuthCookies(res, token);
+    const refresh = await issueRefreshToken(userId);
+    setRefreshCookie(res, refresh.token, refresh.expiresAt);
     return res.json({ success: true });
   } catch (err) {
     console.error('auth.session error:', err);
@@ -1097,8 +1154,82 @@ async function createSessionImpl(req: Request, res: Response) {
   }
 }
 
-async function logoutImpl(_req: Request, res: Response) {
+async function refreshImpl(req: Request, res: Response) {
+  try {
+    const cookies = parseCookies(req);
+    const refreshToken = cookies[REFRESH_COOKIE];
+    if (!refreshToken) {
+      return res.status(401).json({ success: false, error: 'Missing refresh token' });
+    }
+    const tokenHash = hashToken(refreshToken);
+    await db.query('BEGIN');
+    const { rows } = await db.query(
+      `SELECT r.id, r.user_id, r.expires_at, r.revoked_at,
+              u.email, u.is_superadmin, u.is_active
+         FROM refresh_tokens r
+         JOIN users u ON u.id = r.user_id
+        WHERE r.token_hash = $1
+        LIMIT 1
+        FOR UPDATE`,
+      [tokenHash]
+    );
+    if (!rows.length) {
+      await db.query('ROLLBACK');
+      return res.status(401).json({ success: false, error: 'Invalid refresh token' });
+    }
+    const record = rows[0];
+    if (record.revoked_at || new Date(record.expires_at) <= new Date()) {
+      await db.query('ROLLBACK');
+      return res.status(401).json({ success: false, error: 'Refresh token expired' });
+    }
+    if (record.is_active === false) {
+      await db.query('ROLLBACK');
+      return res.status(403).json({ success: false, error: 'Account disabled' });
+    }
+
+    const newToken = randomBytes(32).toString('hex');
+    const newHash = hashToken(newToken);
+    const newExpires = refreshExpiresAt();
+    const insert = await db.query(
+      `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [record.user_id, newHash, newExpires]
+    );
+    await db.query(
+      `UPDATE refresh_tokens
+          SET revoked_at = NOW(),
+              replaced_by = $2
+        WHERE id = $1`,
+      [record.id, insert.rows[0].id]
+    );
+    await db.query('COMMIT');
+
+    const token = signToken({ userId: record.user_id, email: record.email, is_superadmin: record.is_superadmin });
+    setAuthCookies(res, token);
+    setRefreshCookie(res, newToken, newExpires);
+    return res.json({ success: true });
+  } catch (err) {
+    try { await db.query('ROLLBACK'); } catch {}
+    console.error('auth.refresh error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+async function logoutImpl(req: Request, res: Response) {
   clearAuthCookies(res);
+  clearRefreshCookie(res);
+  const cookies = parseCookies(req);
+  const refreshToken = cookies[REFRESH_COOKIE];
+  if (refreshToken) {
+    const tokenHash = hashToken(refreshToken);
+    await db.query(
+      `UPDATE refresh_tokens
+          SET revoked_at = NOW()
+        WHERE token_hash = $1 AND revoked_at IS NULL`,
+      [tokenHash]
+    );
+  }
   return res.json({ success: true });
 }
 
@@ -1115,7 +1246,8 @@ export class AuthController {
   oidcStart = (req: Request, res: Response) => { void oidcStartImpl(req, res); };
   oidcCallback = (req: Request, res: Response) => { void oidcCallbackImpl(req, res); };
   createSession = (req: Request, res: Response) => { void createSessionImpl(req, res); };
-  logout = (_req: Request, res: Response) => { void logoutImpl(_req, res); };
+  refresh = (req: Request, res: Response) => { void refreshImpl(req, res); };
+  logout = (req: Request, res: Response) => { void logoutImpl(req, res); };
   twoFactorSetup = (req: Request, res: Response) => { void twoFactorSetupImpl(req, res); };
   twoFactorVerify = (req: Request, res: Response) => { void twoFactorVerifyImpl(req, res); };
   twoFactorDisable = (req: Request, res: Response) => { void twoFactorDisableImpl(req, res); };
@@ -1132,6 +1264,7 @@ export const resendVerification = (req: Request, res: Response) => { void resend
 export const requestPasswordReset = (req: Request, res: Response) => { void requestPasswordResetImpl(req, res); };
 export const resetPassword = (req: Request, res: Response) => { void resetPasswordImpl(req, res); };
 export const createSession = (req: Request, res: Response) => { void createSessionImpl(req, res); };
+export const refresh = (req: Request, res: Response) => { void refreshImpl(req, res); };
 export const logout = (req: Request, res: Response) => { void logoutImpl(req, res); };
 export const twoFactorSetup = (req: Request, res: Response) => { void twoFactorSetupImpl(req, res); };
 export const twoFactorVerify = (req: Request, res: Response) => { void twoFactorVerifyImpl(req, res); };

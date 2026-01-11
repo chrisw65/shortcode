@@ -1,6 +1,12 @@
 const resetBtn = document.getElementById('resetRequestBtn');
 const notice = document.getElementById('resetNotice');
 
+function csrfHeaders() {
+  const token = document.cookie.split(';').map((p) => p.trim()).find((p) => p.startsWith('csrf_token='));
+  if (!token) return {};
+  return { 'X-CSRF-Token': decodeURIComponent(token.split('=').slice(1).join('=')) };
+}
+
 function setNotice(msg, isError = false) {
   if (!notice) return;
   notice.textContent = msg;
@@ -19,7 +25,7 @@ async function requestReset() {
   try {
     const res = await fetch('/api/auth/password-reset/request', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ email }),
     });
     const data = await res.json().catch(() => null);

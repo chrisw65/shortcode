@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
 import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -52,6 +52,7 @@ const enableJobs = enableWorker || enableApi;
 
 const app = express();
 const LOG_FORMAT = String(process.env.LOG_FORMAT || 'json').toLowerCase();
+const CSRF_COOKIE = 'csrf_token';
 
 function log(level: 'info' | 'warn' | 'error', message: string, meta: Record<string, any> = {}) {
   const payload = { level, message, time: new Date().toISOString(), ...meta };
@@ -62,11 +63,88 @@ function log(level: 'info' | 'warn' | 'error', message: string, meta: Record<str
   console.log(JSON.stringify(payload));
 }
 
+function isSecure(req: Request): boolean {
+  if (req.secure) return true;
+  const xfwd = String(req.headers['x-forwarded-proto'] || '').toLowerCase();
+  return xfwd.includes('https');
+}
+
+function parseCookies(header: string | undefined) {
+  const out: Record<string, string> = {};
+  const raw = header || '';
+  raw.split(';').forEach((part) => {
+    const [k, ...rest] = part.trim().split('=');
+    if (!k) return;
+    out[k] = decodeURIComponent(rest.join('='));
+  });
+  return out;
+}
+
+function appendCookie(res: Response, value: string) {
+  const existing = res.getHeader('Set-Cookie');
+  if (!existing) {
+    res.setHeader('Set-Cookie', value);
+    return;
+  }
+  if (Array.isArray(existing)) {
+    res.setHeader('Set-Cookie', [...existing, value]);
+    return;
+  }
+  res.setHeader('Set-Cookie', [existing as string, value]);
+}
+
+function ensureCsrfCookie(req: Request, res: Response, next: NextFunction) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  const cookies = parseCookies(req.headers.cookie);
+  if (cookies[CSRF_COOKIE]) return next();
+  const token = randomBytes(32).toString('hex');
+  const parts = [`${CSRF_COOKIE}=${encodeURIComponent(token)}`, 'Path=/', 'SameSite=Lax'];
+  if (isSecure(req)) parts.push('Secure');
+  appendCookie(res, parts.join('; '));
+  return next();
+}
+
+function csrfProtect(req: Request, res: Response, next: NextFunction) {
+  const method = req.method.toUpperCase();
+  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return next();
+  if (req.path.startsWith('/api/billing/webhook') || req.path.startsWith('/api/v1/billing/webhook')) {
+    return next();
+  }
+  const authHeader = String(req.headers.authorization || '');
+  const apiKeyHeader = String(req.headers['x-api-key'] || '');
+  if (authHeader || apiKeyHeader) return next();
+  const cookies = parseCookies(req.headers.cookie);
+  const csrfCookie = cookies[CSRF_COOKIE];
+  const csrfHeader = String(req.headers['x-csrf-token'] || req.headers['x-xsrf-token'] || '');
+  const csrfBody = String((req.body as any)?.csrf_token || (req.body as any)?._csrf || '');
+  const provided = csrfHeader || csrfBody;
+  if (!csrfCookie || !provided || csrfCookie !== provided) {
+    return res.status(403).json({ success: false, error: 'Invalid CSRF token' });
+  }
+  return next();
+}
+
 // If behind Cloudflare / a proxy
 app.set('trust proxy', true);
 
 // Security + basics
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      objectSrc: ["'none'"],
+      scriptSrc: ["'self'", 'https://challenges.cloudflare.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'", 'https://challenges.cloudflare.com'],
+      frameSrc: ["'self'", 'https://challenges.cloudflare.com'],
+      frameAncestors: ["'self'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+}));
 const normalizeOrigin = (raw: string | undefined | null) => {
   const trimmed = String(raw || '').trim();
   if (!trimmed) return null;
@@ -106,6 +184,8 @@ if (enableApi) {
 } else if (enableRedirect) {
   app.use(express.urlencoded({ extended: false }));
 }
+app.use(ensureCsrfCookie);
+app.use(csrfProtect);
 app.use((req, res, next) => {
   (req as any).id = randomUUID();
   res.setHeader('X-Request-Id', (req as any).id);

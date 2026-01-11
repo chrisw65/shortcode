@@ -1,5 +1,11 @@
 const notice = document.getElementById('verifyNotice');
 
+function csrfHeaders() {
+  const token = document.cookie.split(';').map((p) => p.trim()).find((p) => p.startsWith('csrf_token='));
+  if (!token) return {};
+  return { 'X-CSRF-Token': decodeURIComponent(token.split('=').slice(1).join('=')) };
+}
+
 function setNotice(msg, isError = false) {
   if (!notice) return;
   notice.textContent = msg;
@@ -20,7 +26,7 @@ async function verifyEmail() {
   try {
     const res = await fetch('/api/auth/verify-email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ token }),
     });
     const data = await res.json().catch(() => null);

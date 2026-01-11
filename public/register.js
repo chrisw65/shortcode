@@ -1,6 +1,12 @@
 const registerBtn = document.getElementById('registerBtn');
 const notice = document.getElementById('registerNotice');
 
+function csrfHeaders() {
+  const token = document.cookie.split(';').map((p) => p.trim()).find((p) => p.startsWith('csrf_token='));
+  if (!token) return {};
+  return { 'X-CSRF-Token': decodeURIComponent(token.split('=').slice(1).join('=')) };
+}
+
 function setNotice(msg, isError = false) {
   if (!notice) return;
   notice.textContent = msg;
@@ -32,7 +38,7 @@ async function register() {
   try {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({
         name,
         email,
@@ -48,7 +54,6 @@ async function register() {
     if (!res.ok) throw new Error(data?.error || 'Registration failed');
 
     if (data?.data?.token) {
-      localStorage.setItem('admin_token', data.data.token);
       window.location.href = '/admin/dashboard.html';
       return;
     }

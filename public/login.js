@@ -4,6 +4,12 @@ const loginSsoBtn = document.getElementById('loginSsoBtn');
 const ssoOrgIdInput = document.getElementById('ssoOrgId');
 const resendVerifyBtn = document.getElementById('resendVerifyBtn');
 
+function csrfHeaders() {
+  const token = document.cookie.split(';').map((p) => p.trim()).find((p) => p.startsWith('csrf_token='));
+  if (!token) return {};
+  return { 'X-CSRF-Token': decodeURIComponent(token.split('=').slice(1).join('=')) };
+}
+
 function setNotice(msg, isError = false) {
   if (!notice) return;
   notice.textContent = msg;
@@ -24,7 +30,7 @@ async function login() {
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json().catch(() => null);
@@ -34,10 +40,6 @@ async function login() {
         return;
       }
       throw new Error(data?.error || 'Login failed');
-    }
-
-    if (data?.data?.token) {
-      localStorage.setItem('admin_token', data.data.token);
     }
 
     window.location.href = '/admin/dashboard.html';
@@ -77,7 +79,7 @@ async function resendVerification() {
   try {
     const res = await fetch('/api/auth/verify-email/resend', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ email }),
     });
     const data = await res.json().catch(() => null);

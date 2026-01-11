@@ -3,6 +3,12 @@ const passwordInput = document.getElementById('password');
 const notice = document.querySelector('.notice');
 const loginBtn = document.querySelector('button.btn.primary');
 
+function csrfHeaders() {
+  const token = document.cookie.split(';').map((p) => p.trim()).find((p) => p.startsWith('csrf_token='));
+  if (!token) return {};
+  return { 'X-CSRF-Token': decodeURIComponent(token.split('=').slice(1).join('=')) };
+}
+
 function setNotice(message, isError = false) {
   if (!notice) return;
   notice.textContent = message;
@@ -22,7 +28,7 @@ async function loginAffiliate() {
   try {
     const res = await fetch('/api/affiliate/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json().catch(() => null);

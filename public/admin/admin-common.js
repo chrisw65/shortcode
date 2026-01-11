@@ -6,6 +6,8 @@ const AUTH_PRESENT_COOKIE = 'auth_present';
 const ORG_KEY = 'active_org_id';
 const API_BASE = ''; // same-origin
 
+try { localStorage.removeItem('admin_token'); } catch {}
+
 function getCookie(name) {
   const parts = document.cookie.split(';').map((p) => p.trim());
   for (const part of parts) {
@@ -14,6 +16,10 @@ function getCookie(name) {
     if (k === name) return decodeURIComponent(rest.join('='));
   }
   return '';
+}
+
+function getCsrfToken() {
+  return getCookie('csrf_token') || '';
 }
 
 export const getToken = () => '';
@@ -80,16 +86,30 @@ onReady(() => {
 // ========================= API =========================
 export async function apiFetch(path, opts = {}) {
   const headers = { ...(opts.headers || {}) };
+  const csrf = getCsrfToken();
+  if (csrf) headers['X-CSRF-Token'] = csrf;
   const tok = getToken();
   if (tok) headers.Authorization = `Bearer ${tok}`;
   const orgId = getActiveOrgId();
   if (orgId) headers['X-Org-Id'] = orgId;
 
+  const { _retry, ...fetchOpts } = opts;
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'same-origin',
-    ...opts,
+    ...fetchOpts,
     headers,
   });
+  if (res.status === 401 && !_retry && hasSession()) {
+    try {
+      await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+        credentials: 'same-origin',
+        body: JSON.stringify({}),
+      });
+      return apiFetch(path, { ...opts, _retry: true });
+    } catch {}
+  }
 
   // Attempt to parse JSON; if not JSON, still let 2xx return an empty object
   let body = null;

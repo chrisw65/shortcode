@@ -468,6 +468,18 @@ CREATE INDEX IF NOT EXISTS idx_org_memberships_org_id ON org_memberships(org_id)
 CREATE INDEX IF NOT EXISTS idx_click_events_link_id ON click_events(link_id);
 CREATE INDEX IF NOT EXISTS idx_click_events_occurred_at ON click_events(occurred_at);
 
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  token_hash VARCHAR(128) UNIQUE NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  revoked_at TIMESTAMP NULL,
+  replaced_by UUID NULL
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+
 COMMIT;
 SQL
 

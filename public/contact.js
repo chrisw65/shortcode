@@ -1,3 +1,9 @@
+function csrfHeaders() {
+  const token = document.cookie.split(';').map((p) => p.trim()).find((p) => p.startsWith('csrf_token='));
+  if (!token) return {};
+  return { 'X-CSRF-Token': decodeURIComponent(token.split('=').slice(1).join('=')) };
+}
+
 async function sendContact() {
   const name = document.getElementById('name')?.value.trim();
   const company = document.getElementById('company')?.value.trim();
@@ -31,7 +37,7 @@ async function sendContact() {
   try {
     const res = await fetch('/api/public/contact', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ name, company, org, email, message, website, captchaAnswer, captchaToken }),
     });
     const data = await res.json().catch(() => null);

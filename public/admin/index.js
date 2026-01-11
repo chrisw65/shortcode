@@ -12,6 +12,12 @@ const twofaCodeEl = document.getElementById('twofaCode');
 let twofaChallengeToken = '';
 let twofaRequired = false;
 
+function csrfHeaders() {
+  const token = document.cookie.split(';').map((p) => p.trim()).find((p) => p.startsWith('csrf_token='));
+  if (!token) return {};
+  return { 'X-CSRF-Token': decodeURIComponent(token.split('=').slice(1).join('=')) };
+}
+
 // If already logged in, bounce to dashboard
 if (hasSession()) {
   location.replace('/admin/dashboard.html');
@@ -49,7 +55,7 @@ function setTwofaMode(enabled) {
 async function login(email, password) {
   const res = await fetch('/api/auth/login', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
     credentials: 'same-origin',
     body: JSON.stringify({ email, password })
   });
@@ -74,7 +80,7 @@ async function login(email, password) {
 async function confirmTwoFactor(challengeToken, code) {
   const res = await fetch('/api/auth/2fa/confirm', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
     credentials: 'same-origin',
     body: JSON.stringify({ challenge_token: challengeToken, code })
   });
@@ -107,8 +113,7 @@ form?.addEventListener('submit', async (e) => {
   uiBusy(true);
   try {
     if (twofaRequired) {
-      const token = await confirmTwoFactor(twofaChallengeToken, code);
-      await setToken(token);
+      await confirmTwoFactor(twofaChallengeToken, code);
       location.replace('/admin/dashboard.html'); // success
       return;
     }
@@ -119,7 +124,7 @@ form?.addEventListener('submit', async (e) => {
       if (twofaCodeEl) twofaCodeEl.focus();
       return;
     }
-    await setToken(result.token);
+    // auth cookies already set by the server
     location.replace('/admin/dashboard.html'); // success
   } catch (err) {
     console.error('login error:', err);
