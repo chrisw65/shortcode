@@ -3,6 +3,7 @@ import db from '../config/database';
 import redisClient from '../config/redis';
 import { lookupGeo } from './geoip';
 import { log } from '../utils/logger';
+import { emitWebhook } from './webhooks';
 
 const QUEUE_KEY = 'shortlink:clicks';
 let workerStarted = false;
@@ -25,6 +26,8 @@ async function waitForRedisReady() {
 
 type ClickPayload = {
   link_id: string;
+  org_id?: string;
+  short_code?: string;
   ip: string | null;
   referer: string | null;
   user_agent: string | null;
@@ -54,6 +57,28 @@ async function processClick(payload: ClickPayload) {
       geo?.longitude ?? null,
     ]
   );
+  let orgId = payload.org_id || null;
+  let shortCode = payload.short_code || null;
+  if (!orgId || !shortCode) {
+    const { rows } = await db.query(`SELECT org_id, short_code FROM links WHERE id = $1 LIMIT 1`, [payload.link_id]);
+    orgId = rows[0]?.org_id ?? orgId;
+    shortCode = rows[0]?.short_code ?? shortCode;
+  }
+  void emitWebhook('click.recorded', {
+    link_id: payload.link_id,
+    short_code: shortCode,
+    org_id: orgId,
+    ip: payload.ip,
+    referer: payload.referer,
+    user_agent: payload.user_agent,
+    country_code: geo?.country_code ?? null,
+    country_name: geo?.country_name ?? null,
+    region: geo?.region ?? null,
+    city: geo?.city ?? null,
+    latitude: geo?.latitude ?? null,
+    longitude: geo?.longitude ?? null,
+    occurred_at: new Date().toISOString(),
+  });
 }
 
 export function startClickWorker() {

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OkLeaf Browser Extension</title>
+  <meta name="description" content="Install the OkLeaf browser extension to shorten any page and copy the short link." />
+  <meta property="og:title" content="OkLeaf Browser Extension" />
+  <meta property="og:description" content="Install the OkLeaf browser extension to shorten pages from your toolbar." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/site.css" />
+</head>
+<body data-page="docs-extension">
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="/">
+        <span class="brand-badge" data-brand-badge>O</span>
+        <span id="brandName" data-bind="brandName">OkLeaf</span>
+      </a>
+      <nav class="nav-links" data-nav-links>
+        <a href="/features.html">Features</a>
+        <a href="/ecosystem.html">Ecosystem</a>
+        <a href="/pricing.html">Pricing</a>
+        <a href="/docs.html">Docs</a>
+        <a href="/case-studies.html">Case studies</a>
+        <a href="/affiliate/index.html">Affiliates</a>
+        <a href="/about.html">About</a>
+        <a href="/contact.html">Contact</a>
+      </nav>
+      <div class="nav-cta" data-nav-ctas>
+        <a class="btn ghost small" href="/login.html">Login</a>
+        <a class="btn primary small" href="/register.html">Start free</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container page-hero-grid reveal">
+        <div>
+          <div class="kicker">Docs</div>
+          <h1 class="section-title">Browser extension</h1>
+          <p class="section-sub">Shorten the current tab, copy the short URL, and keep moving without leaving your workflow.</p>
+          <div class="hero-actions">
+            <a class="btn primary" href="/extension/okleaf-extension.zip">Download extension</a>
+            <a class="btn ghost" href="https://github.com/chrisw65/shortcode/tree/master/extension" target="_blank" rel="noreferrer">View source</a>
+          </div>
+        </div>
+        <div class="page-hero-card">
+          <h3>What it does</h3>
+          <div class="panel-list">
+            <div class="panel-item"><strong>Shorten instantly</strong> Click the icon to create a short link.</div>
+            <div class="panel-item"><strong>Copy fast</strong> One-click copy to the clipboard.</div>
+            <div class="panel-item"><strong>API key auth</strong> Uses your OkLeaf API key.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container reveal">
+        <h2 class="section-title">Install (developer mode)</h2>
+        <div class="doc-card">
+          <ol>
+            <li>Download the extension zip and unzip it.</li>
+            <li>Open <strong>chrome://extensions</strong> (or <strong>about:addons</strong> in Firefox).</li>
+            <li>Enable Developer Mode.</li>
+            <li>Click <strong>Load unpacked</strong> and select the unzipped folder.</li>
+            <li>Open the extension Options page and set your API key.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container reveal">
+        <h2 class="section-title">API requirements</h2>
+        <p class="section-sub">The extension uses <code>X-API-Key</code> and calls <code>POST /api/links</code>.</p>
+        <pre class="code-block"><code>curl -X POST https://okleaf.link/api/links \
+  -H "X-API-Key: &lt;YOUR_API_KEY&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com"}'</code></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container row">
+      <div>
+        <strong id="footerCompany" data-bind="footerCompany">OkLeaf</strong>
+        <div id="footerAddress" data-bind="footerAddress">Amsterdam - Remote-first</div>
+      </div>
+      <div>
+        <div data-footer-heading-support>Support</div>
+        <div id="footerEmail" data-bind="footerEmail">support@okleaf.link</div>
+      </div>
+      <div>
+        <div data-footer-heading-company>Company</div>
+        <div class="footer-links" data-footer-links></div>
+      </div>
+      <div>
+        <div data-footer-heading-social>Social</div>
+        <div class="footer-social" data-social-links></div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/site.js?v=20260116"></script>
+</body>
+</html>

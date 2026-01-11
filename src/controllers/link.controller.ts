@@ -10,6 +10,7 @@ import { getEffectivePlan, isPaidPlan } from '../services/plan';
 import { invalidateCachedLinks, setCachedLink } from '../services/linkCache';
 import { getOrgLimits } from '../services/orgLimits';
 import { log } from '../utils/logger';
+import { emitWebhook } from '../services/webhooks';
 
 type UserReq = Request & { user: { userId: string }; org: { orgId: string } };
 
@@ -350,6 +351,7 @@ export async function createLink(req: UserReq, res: Response) {
     try { await tryGrantReferralReward(userId, orgId); } catch (err) { log('error', 'referral reward error', { error: String(err) }); }
     void setCachedLink(code, {
       id: rows[0].id,
+      org_id: orgId,
       original_url: rows[0].original_url,
       domain: domainHost || null,
       expires_at: rows[0].expires_at,
@@ -364,10 +366,9 @@ export async function createLink(req: UserReq, res: Response) {
     });
     const tagRows = tagIds.length ? await fetchTags(orgId, tagIds) : [];
     const groupRows = groupIds.length ? await fetchGroups(orgId, groupIds) : [];
-    return res.status(201).json({
-      success: true,
-      data: shapeLink({ ...rows[0], domain: domainHost, tags: tagRows, groups: groupRows }, coreBase),
-    });
+    const linkData = shapeLink({ ...rows[0], domain: domainHost, tags: tagRows, groups: groupRows }, coreBase);
+    void emitWebhook('link.created', { link: linkData, org_id: orgId, user_id: userId });
+    return res.status(201).json({ success: true, data: linkData });
   } catch (e: any) {
     try { await db.query('ROLLBACK'); } catch (rbErr) { log('warn', 'createLink.rollback_failed', { error: String(rbErr) }); }
     if (e?.code === '23505') {
@@ -783,10 +784,17 @@ export async function deleteLink(req: UserReq, res: Response) {
   try {
     const orgId = req.org.orgId;
     const { shortCode } = req.params;
-    const result = await db.query(
-      `DELETE FROM links WHERE org_id = $1 AND short_code = $2`,
+    const existing = await db.query(
+      `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
+              d.domain AS domain
+         FROM links l
+         LEFT JOIN domains d ON d.id = l.domain_id
+        WHERE l.org_id = $1 AND l.short_code = $2
+        LIMIT 1`,
       [orgId, shortCode]
     );
+    const result = await db.query(`DELETE FROM links WHERE org_id = $1 AND short_code = $2`, [orgId, shortCode]);
+    const deleted = result.rowCount ? result.rowCount > 0 : false;
 
     await logAudit({
       org_id: orgId,
@@ -797,7 +805,12 @@ export async function deleteLink(req: UserReq, res: Response) {
       metadata: { short_code: shortCode, deleted: (result.rowCount ?? 0) > 0 },
     });
     void invalidateCachedLinks([shortCode]);
-    return res.json({ success: true, data: { deleted: result.rowCount ? result.rowCount > 0 : false, short_code: shortCode } });
+    if (deleted && existing.rows.length) {
+      const coreBase = coreBaseUrl();
+      const linkData = shapeLink(existing.rows[0], coreBase);
+      void emitWebhook('link.deleted', { link: linkData, org_id: orgId, user_id: req.user.userId });
+    }
+    return res.json({ success: true, data: { deleted, short_code: shortCode } });
   } catch (e) {
     log('error', 'deleteLink error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });

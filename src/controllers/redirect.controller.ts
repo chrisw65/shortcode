@@ -10,6 +10,7 @@ import { enqueueClick } from '../services/clickQueue';
 import { getCachedLink, setCachedLink } from '../services/linkCache';
 import { anonymizeIp } from '../utils/ip';
 import { log } from '../utils/logger';
+import { emitWebhook } from '../services/webhooks';
 
 function nowUtc(): Date { return new Date(); }
 function safeRedirectUrl(raw: string): string | null {
@@ -365,11 +366,28 @@ export class RedirectController {
           link_id: link?.id,
           short_code: shortCode,
         }));
+        void emitWebhook('click.recorded', {
+          link_id: link?.id,
+          short_code: shortCode,
+          org_id: link?.org_id,
+          ip,
+          referer,
+          user_agent: ua,
+          country_code: geo?.country_code ?? null,
+          country_name: geo?.country_name ?? null,
+          region: geo?.region ?? null,
+          city: geo?.city ?? null,
+          latitude: geo?.latitude ?? null,
+          longitude: geo?.longitude ?? null,
+          occurred_at: new Date().toISOString(),
+        });
       };
 
       if (redisClient.isReady) {
         void enqueueClick({
           link_id: link.id,
+          org_id: link.org_id,
+          short_code: shortCode,
           ip,
           referer,
           user_agent: ua,
