@@ -1,4 +1,4 @@
-import { requireAuth, api, htmlesc, copyText } from '/admin/admin-common.js?v=20260120';
+import { requireAuth, api, apiPost, htmlesc, copyText } from '/admin/admin-common.js?v=20260120';
 
 requireAuth();
 
@@ -117,7 +117,7 @@ async function addMember() {
 
   btnAdd.disabled = true;
   try {
-    const res = await api('/api/org/invites', { method: 'POST', body: { email, role } });
+    const res = await apiPost('/api/org/invites', { email, role });
     const data = res?.data || res;
     const link = `${window.location.origin}/register.html?invite=${encodeURIComponent(data.token)}`;
     inviteMsg.textContent = `Invite created. Share: ${link}`;

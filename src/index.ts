@@ -37,8 +37,8 @@ import redisClient from './config/redis';
 import { startClickWorker } from './services/clickQueue';
 import { scheduleRetentionCleanup } from './services/retention';
 
-// Ensure DB connects on boot (side-effect import if you have it)
-import './config/database';
+// Ensure DB connects on boot
+import db from './config/database';
 
 const modeRaw = String(process.env.SERVICE_MODE || 'all').toLowerCase();
 const modeTokens = modeRaw.split(',').map((mode) => mode.trim()).filter(Boolean);
@@ -57,9 +57,34 @@ app.set('trust proxy', true);
 
 // Security + basics
 app.use(helmet());
+const normalizeOrigin = (raw: string | undefined | null) => {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return null;
+  try {
+    const url = trimmed.startsWith('http://') || trimmed.startsWith('https://')
+      ? new URL(trimmed)
+      : new URL(`https://${trimmed}`);
+    return url.origin;
+  } catch {
+    return null;
+  }
+};
+const corsEnv = String(process.env.CORS_ORIGINS || '').trim();
+const inferredOrigins = [
+  process.env.PUBLIC_HOST,
+  process.env.BASE_URL,
+  process.env.CORE_DOMAIN,
+].filter(Boolean) as string[];
+const originList = corsEnv ? corsEnv.split(',') : inferredOrigins;
+const allowedOrigins = originList.map((o) => normalizeOrigin(o)).filter(Boolean) as string[];
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const normalized = normalizeOrigin(origin);
+      const ok = normalized ? allowedOrigins.includes(normalized) : false;
+      return callback(null, ok);
+    },
     credentials: true,
   })
 );
@@ -104,8 +129,23 @@ if (enableStatic) {
 }
 
 // Healthcheck
-app.get('/health', (_req, res) => {
-  res.json({ ok: true, env: process.env.NODE_ENV || 'development', mode: modeRaw });
+app.get('/health', async (_req, res) => {
+  let dbOk = false;
+  try {
+    await db.query('SELECT 1');
+    dbOk = true;
+  } catch (err) {
+    console.error('Healthcheck DB failed:', err);
+  }
+  const redisOk = redisClient.isReady;
+  const ok = dbOk;
+  res.status(ok ? 200 : 503).json({
+    ok,
+    env: process.env.NODE_ENV || 'development',
+    mode: modeRaw,
+    db: dbOk,
+    redis: redisOk,
+  });
 });
 
 // Serve favicon explicitly to avoid hitting redirect/rate-limit path

@@ -114,7 +114,8 @@ async function selectLink(short, meta) {
   const evParams = new URLSearchParams({ limit: '500', range: currentRange });
   if (currentCountry) evParams.set('country', currentCountry);
   try { events = (await api(`/api/analytics/links/${encodeURIComponent(short)}/events?${evParams.toString()}`)).data || []; } catch {}
-  renderEvents(events); drawSparkline(events);
+  renderEvents(events);
+  drawSparkline(summary?.sparkline || [], events);
 }
 
 function renderEvents(events){
@@ -132,17 +133,32 @@ function renderEvents(events){
   `).join('');
 }
 
-function drawSparkline(events){
+function drawSparkline(series, events){
   const ctx=sparkCanvas.getContext('2d');
   const W=sparkCanvas.clientWidth|0, H=sparkCanvas.clientHeight|0;
   sparkCanvas.width=W*devicePixelRatio; sparkCanvas.height=H*devicePixelRatio; ctx.scale(devicePixelRatio,devicePixelRatio);
   ctx.clearRect(0,0,W,H);
-  const now=Date.now(), bins=new Array(24).fill(0);
-  for(const ev of events){ const t=new Date(ev.occurred_at||0).getTime(); const diffH=(now-t)/(1000*60*60); if(diffH>=0&&diffH<24){ bins[23-Math.floor(diffH)]++ } }
-  const max=Math.max(1,...bins), stepX=W/23;
+  let bins = [];
+  if (Array.isArray(series) && series.length) {
+    bins = series.map((point) => Number(point?.y || 0));
+  } else {
+    const now=Date.now();
+    bins=new Array(24).fill(0);
+    for(const ev of events){
+      const t=new Date(ev.occurred_at||0).getTime();
+      const diffH=(now-t)/(1000*60*60);
+      if(diffH>=0&&diffH<24){ bins[23-Math.floor(diffH)]++ }
+    }
+  }
+  const max=Math.max(1,...bins);
+  const stepX=bins.length > 1 ? W/(bins.length-1) : W;
   ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.beginPath(); ctx.moveTo(0,H-0.5); ctx.lineTo(W,H-0.5); ctx.stroke();
   ctx.strokeStyle='#4ea1ff'; ctx.lineWidth=2; ctx.beginPath();
-  for(let i=0;i<24;i++){ const x=i*stepX, y=H-(bins[i]/max)*(H-8)-4; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y) }
+  for(let i=0;i<bins.length;i++){
+    const x=i*stepX;
+    const y=H-(bins[i]/max)*(H-8)-4;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
   ctx.stroke();
 }
 

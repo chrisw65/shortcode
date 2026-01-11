@@ -50,6 +50,9 @@ router.get('/:shortCode', requireApiScope('links:read'), wrap(linkController.get
 // Update a link (title/url/expiry) by short code
 router.put('/:shortCode', requireApiScope('links:write'), wrap(linkController.updateLink));
 
+// Pause/resume a link
+router.put('/:shortCode/status', requireApiScope('links:write'), wrap(linkController.updateLinkStatus));
+
 // Delete a link by short code
 router.delete('/:shortCode', requireApiScope('links:write'), wrap(linkController.deleteLink));
 

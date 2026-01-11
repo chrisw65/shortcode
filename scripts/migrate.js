@@ -418,17 +418,6 @@ CREATE INDEX IF NOT EXISTS idx_click_events_link_id ON click_events(link_id);
 CREATE INDEX IF NOT EXISTS idx_click_events_occurred_at ON click_events(occurred_at);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
--- Create admin user (password: admin123)
-INSERT INTO users (email, password, name, plan, is_active, email_verified)
-VALUES (
-  'admin@shortlink.com',
-  '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW7QK5VQ7q5u',
-  'Admin User',
-  'enterprise',
-  true,
-  true
-) ON CONFLICT (email) DO NOTHING;
-
 -- Backfill orgs and memberships for any users
 DO $$
 DECLARE
@@ -448,6 +437,18 @@ async function migrate() {
   try {
     console.log('Running database migrations...');
     await pool.query(schema);
+    const seedEmail = process.env.SEED_ADMIN_EMAIL;
+    const seedHash = process.env.SEED_ADMIN_PASSWORD_HASH;
+    if (seedEmail && seedHash) {
+      const seedName = process.env.SEED_ADMIN_NAME || 'Admin User';
+      const seedPlan = process.env.SEED_ADMIN_PLAN || 'enterprise';
+      await pool.query(
+        `INSERT INTO users (email, password, name, plan, is_active, email_verified)
+         VALUES ($1, $2, $3, $4, true, true)
+         ON CONFLICT (email) DO NOTHING`,
+        [seedEmail, seedHash, seedName, seedPlan]
+      );
+    }
     console.log('✓ Migrations completed successfully');
     process.exit(0);
   } catch (error) {

@@ -1,4 +1,4 @@
-import { requireAuth, api, htmlesc } from '/admin/admin-common.js?v=20260120';
+import { requireAuth, api, apiPost, htmlesc } from '/admin/admin-common.js?v=20260120';
 
 requireAuth();
 
@@ -60,7 +60,7 @@ async function createKey() {
   }
   btnCreate.disabled = true;
   try {
-    const res = await api('/api/api-keys', { method: 'POST', body: { name, scopes } });
+    const res = await apiPost('/api/api-keys', { name, scopes });
     const data = res?.data || res;
     if (data?.api_key) {
       keyMsg.textContent = `New API key (copy now): ${data.api_key}`;
