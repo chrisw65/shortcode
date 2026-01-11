@@ -1,5 +1,7 @@
 const loginBtn = document.getElementById('loginBtn');
 const notice = document.getElementById('loginNotice');
+const loginSsoBtn = document.getElementById('loginSsoBtn');
+const ssoOrgIdInput = document.getElementById('ssoOrgId');
 
 function setNotice(msg, isError = false) {
   if (!notice) return;
@@ -42,5 +44,17 @@ async function login() {
 if (loginBtn) {
   loginBtn.addEventListener('click', () => {
     login();
+  });
+}
+
+if (loginSsoBtn) {
+  loginSsoBtn.addEventListener('click', () => {
+    const orgId = (ssoOrgIdInput?.value || '').trim();
+    if (!orgId) {
+      setNotice('Organization ID is required for SSO login.', true);
+      return;
+    }
+    const redirect = encodeURIComponent('/admin/dashboard.html');
+    window.location.href = `/api/auth/oidc/start?org_id=${encodeURIComponent(orgId)}&redirect=${redirect}`;
   });
 }

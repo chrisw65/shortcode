@@ -148,8 +148,24 @@ async function applyAdminTheme() {
   }
 }
 
+function ensureAdminNavIncludesEcosystem() {
+  const nav = document.querySelector('.side-nav');
+  if (!nav) return;
+  if (nav.querySelector('a[href="/admin/ecosystem.html"]')) return;
+  const link = document.createElement('a');
+  link.href = '/admin/ecosystem.html';
+  link.textContent = 'Ecosystem';
+  const billingLink = nav.querySelector('a[href="/admin/billing.html"]');
+  if (billingLink && billingLink.parentNode) {
+    billingLink.insertAdjacentElement('afterend', link);
+  } else {
+    nav.appendChild(link);
+  }
+}
+
 onReady(() => {
   applyAdminTheme();
+  ensureAdminNavIncludesEcosystem();
 });
 
 export function setText(el, value) {
