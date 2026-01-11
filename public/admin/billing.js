@@ -32,6 +32,7 @@ const entitlementsSection = document.getElementById('entitlementsSection');
 const entitlementsGrid = document.getElementById('entitlementsGrid');
 const entitlementsMsg = document.getElementById('entitlementsMsg');
 const saveEntitlements = document.getElementById('saveEntitlements');
+const entitlementsPlanSelect = document.getElementById('entitlementsPlanSelect');
 
 const stripeConfigSection = document.getElementById('stripeConfigSection');
 const stripePublishable = document.getElementById('stripePublishable');
@@ -60,6 +61,7 @@ let pricingTiers = [];
 let billingConfig = { prices: {}, stripe: {} };
 let platformConfig = {};
 let meData = null;
+let selectedEntitlementsPlan = '';
 const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
 const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
 const entitlementsTabBtn = document.querySelector('.tab-btn[data-tab="entitlements"]');
@@ -166,6 +168,32 @@ const DEFAULT_ENTITLEMENTS = {
 
 function defaultEntitlementsForPlan(planId) {
   return DEFAULT_ENTITLEMENTS[planId] || DEFAULT_ENTITLEMENTS.free;
+}
+
+function renderEntitlementsPlanSelector() {
+  if (!entitlementsPlanSelect) return;
+  entitlementsPlanSelect.innerHTML = '';
+  if (!pricingTiers.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No plans';
+    entitlementsPlanSelect.appendChild(opt);
+    entitlementsPlanSelect.disabled = true;
+    return;
+  }
+  entitlementsPlanSelect.disabled = false;
+  pricingTiers.forEach((tier) => {
+    const planId = planIdForTier(tier);
+    const opt = document.createElement('option');
+    opt.value = planId;
+    opt.textContent = tier.name || planId;
+    entitlementsPlanSelect.appendChild(opt);
+  });
+  const fallbackPlan = planIdForTier(pricingTiers[0]);
+  if (!selectedEntitlementsPlan || !pricingTiers.some((tier) => planIdForTier(tier) === selectedEntitlementsPlan)) {
+    selectedEntitlementsPlan = fallbackPlan;
+  }
+  entitlementsPlanSelect.value = selectedEntitlementsPlan;
 }
 
 async function loadMe() {
@@ -323,57 +351,56 @@ function renderEntitlements() {
     entitlementsGrid.innerHTML = '<div class="muted">No plan tiers available.</div>';
     return;
   }
+  renderEntitlementsPlanSelector();
   const entitlements = billingConfig.entitlements || {};
   entitlementsGrid.innerHTML = '';
-  pricingTiers.forEach((tier) => {
-    const planId = planIdForTier(tier);
-    const baseline = defaultEntitlementsForPlan(planId);
-    const override = entitlements[planId] || {};
-    const features = { ...baseline.features, ...(override.features || {}) };
-    const limits = { ...baseline.limits, ...(override.limits || {}) };
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <h4 style="margin-bottom:8px">${htmlesc(planId)}</h4>
-      <div class="grid grid-2">
-        ${FEATURE_KEYS.map((f) => `
-          <label class="muted small">
-            <input type="checkbox" data-plan="${htmlesc(planId)}" data-feature="${f.key}" ${features[f.key] ? 'checked' : ''}>
-            ${htmlesc(f.label)}
-          </label>
-        `).join('')}
-      </div>
-      <div class="grid grid-2" style="margin-top:10px">
-        ${LIMIT_KEYS.map((l) => `
-          <label class="muted small">
-            ${htmlesc(l.label)}
-            <input class="input" data-plan="${htmlesc(planId)}" data-limit="${l.key}" value="${limits[l.key] ?? ''}" placeholder="Leave empty for unlimited">
-          </label>
-        `).join('')}
-      </div>
-    `;
-    entitlementsGrid.appendChild(card);
-  });
+  const planId = selectedEntitlementsPlan || planIdForTier(pricingTiers[0]);
+  const tier = pricingTiers.find((t) => planIdForTier(t) === planId) || pricingTiers[0];
+  const baseline = defaultEntitlementsForPlan(planId);
+  const override = entitlements[planId] || {};
+  const features = { ...baseline.features, ...(override.features || {}) };
+  const limits = { ...baseline.limits, ...(override.limits || {}) };
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <h4 style="margin-bottom:8px">${htmlesc(tier?.name || planId)}</h4>
+    <div class="grid grid-2">
+      ${FEATURE_KEYS.map((f) => `
+        <label class="muted small">
+          <input type="checkbox" data-plan="${htmlesc(planId)}" data-feature="${f.key}" ${features[f.key] ? 'checked' : ''}>
+          ${htmlesc(f.label)}
+        </label>
+      `).join('')}
+    </div>
+    <div class="grid grid-2" style="margin-top:10px">
+      ${LIMIT_KEYS.map((l) => `
+        <label class="muted small">
+          ${htmlesc(l.label)}
+          <input class="input" data-plan="${htmlesc(planId)}" data-limit="${l.key}" value="${limits[l.key] ?? ''}" placeholder="Leave empty for unlimited">
+        </label>
+      `).join('')}
+    </div>
+  `;
+  entitlementsGrid.appendChild(card);
 }
 
 function gatherEntitlements() {
-  const entitlements = {};
+  const entitlements = { ...(billingConfig.entitlements || {}) };
   if (!entitlementsGrid) return entitlements;
-  pricingTiers.forEach((tier) => {
-    const planId = planIdForTier(tier);
-    const features = {};
-    FEATURE_KEYS.forEach((f) => {
-      const input = entitlementsGrid.querySelector(`[data-plan="${planId}"][data-feature="${f.key}"]`);
-      features[f.key] = Boolean(input?.checked);
-    });
-    const limits = {};
-    LIMIT_KEYS.forEach((l) => {
-      const input = entitlementsGrid.querySelector(`[data-plan="${planId}"][data-limit="${l.key}"]`);
-      const raw = input?.value.trim() || '';
-      limits[l.key] = raw ? Number(raw) : null;
-    });
-    entitlements[planId] = { features, limits };
+  const planId = selectedEntitlementsPlan || (pricingTiers[0] ? planIdForTier(pricingTiers[0]) : '');
+  if (!planId) return entitlements;
+  const features = {};
+  FEATURE_KEYS.forEach((f) => {
+    const input = entitlementsGrid.querySelector(`[data-plan="${planId}"][data-feature="${f.key}"]`);
+    features[f.key] = Boolean(input?.checked);
   });
+  const limits = {};
+  LIMIT_KEYS.forEach((l) => {
+    const input = entitlementsGrid.querySelector(`[data-plan="${planId}"][data-limit="${l.key}"]`);
+    const raw = input?.value.trim() || '';
+    limits[l.key] = raw ? Number(raw) : null;
+  });
+  entitlements[planId] = { features, limits };
   return entitlements;
 }
 
@@ -425,6 +452,11 @@ if (saveEntitlements) {
     }
   });
 }
+
+entitlementsPlanSelect?.addEventListener('change', () => {
+  selectedEntitlementsPlan = entitlementsPlanSelect.value;
+  renderEntitlements();
+});
 
 async function savePlatformDefaultsHandler() {
   if (!meData?.user?.is_superadmin) return;
