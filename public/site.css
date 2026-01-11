@@ -432,6 +432,13 @@ body[data-page="docs"] .doc-body{
 body[data-page="docs"] .stack-grid{
   grid-row:2;
 }
+body[data-page="docs"] .page-hero-grid{
+  grid-template-columns:1fr;
+  align-items:start;
+}
+body[data-page="docs"] .page-hero-card{
+  margin-top:18px;
+}
 .muted p{margin:0 0 12px}
 .hp-field{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
 
