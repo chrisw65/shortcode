@@ -47,26 +47,45 @@ document.addEventListener('DOMContentLoaded', () => {
   let uiMode = 'beginner';
   let createdDomain = null;
   let wizardStep = 1;
-  const POLL_INTERVAL_MS = 20000;
-  const DNS_CHECK_INTERVAL_MS = 60000;
+  const POLL_INTERVAL_FAST_MS = 20000;
+  const POLL_INTERVAL_SLOW_MS = 60000;
+  const POLL_FAST_WINDOW_MS = 5 * 60 * 1000;
+  const DNS_CHECK_INTERVAL_MS = 90000;
   let pollTimer = null;
   let countdownTimer = null;
   let nextPollAt = 0;
   let lastDnsCheckAt = 0;
+  let pollStartedAt = 0;
   const statusMap = new Map();
 
   function isPaid() {
     return String(effectivePlan || '').toLowerCase() !== 'free';
   }
 
+  function currentPollInterval() {
+    if (!pollStartedAt) return POLL_INTERVAL_FAST_MS;
+    return Date.now() - pollStartedAt >= POLL_FAST_WINDOW_MS
+      ? POLL_INTERVAL_SLOW_MS
+      : POLL_INTERVAL_FAST_MS;
+  }
+
+  function scheduleNextPoll() {
+    if (!pollStartedAt) return;
+    const interval = currentPollInterval();
+    nextPollAt = Date.now() + interval;
+    pollTimer = window.setTimeout(async () => {
+      pollTimer = null;
+      if (!document.hidden) {
+        await refreshDomainsOnly();
+      }
+      if (pollStartedAt) scheduleNextPoll();
+    }, interval);
+  }
+
   function startPolling() {
     if (pollTimer) return;
-    nextPollAt = Date.now() + POLL_INTERVAL_MS;
-    pollTimer = window.setInterval(() => {
-      if (document.hidden) return;
-      nextPollAt = Date.now() + POLL_INTERVAL_MS;
-      refreshDomainsOnly();
-    }, POLL_INTERVAL_MS);
+    if (!pollStartedAt) pollStartedAt = Date.now();
+    scheduleNextPoll();
     if (!countdownTimer) {
       countdownTimer = window.setInterval(() => {
         if (!validateCountdown) return;
@@ -81,9 +100,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function stopPolling() {
-    if (!pollTimer) return;
-    window.clearInterval(pollTimer);
-    pollTimer = null;
+    if (pollTimer) {
+      window.clearTimeout(pollTimer);
+      pollTimer = null;
+    }
+    pollStartedAt = 0;
     if (countdownTimer) {
       window.clearInterval(countdownTimer);
       countdownTimer = null;
