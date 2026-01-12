@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shortlink Admin - Link-in-bio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/admin/admin.css?v=20260113">
+  <style>
+    .bio-grid { display:grid; gap:16px; grid-template-columns: 1fr 1.2fr; }
+    .bio-links-list { display:grid; gap:10px; }
+    .bio-link-row { display:grid; gap:10px; grid-template-columns: 1.2fr 2fr 120px; align-items:center; }
+    .bio-link-row input { width:100%; }
+    @media (max-width: 980px) {
+      .bio-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
+      </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a class="active" href="/admin/bio.html">Link-in-bio</a>
+        <a href="/admin/domains.html">Domains</a>
+        <a href="/admin/analytics.html">Analytics</a>
+        <a href="/admin/audit.html">Audit</a>
+        <a href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a href="/admin/site-settings.html">Site</a>
+        <a href="/admin/billing.html">Billing</a>
+        <a href="/admin/ecosystem.html">Ecosystem</a>
+        <a href="/admin/affiliates.html">Affiliates</a>
+        <a href="/admin/settings.html">Settings</a>
+      </nav>
+      <div class="side-footer">
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Link-in-bio</h1>
+          <p class="page-sub">Create profile pages with curated links.</p>
+        </div>
+      </header>
+
+      <main class="admin-content">
+        <div class="bio-grid">
+          <section class="card">
+            <div class="row-between">
+              <div>
+                <h3>Pages</h3>
+                <div class="muted small">Manage your published bio pages.</div>
+              </div>
+              <button class="btn ghost" id="bioRefresh" type="button">Refresh</button>
+            </div>
+            <div id="bioPages" class="grid" style="margin-top:12px"></div>
+            <div class="muted small" id="bioListMsg" style="margin-top:8px"></div>
+          </section>
+
+          <section class="card">
+            <div class="row-between">
+              <div>
+                <h3 id="bioEditorTitle">Create page</h3>
+                <div class="muted small" id="bioEditorSubtitle">Start a new profile page.</div>
+              </div>
+              <div class="row" style="gap:8px">
+                <button class="btn ghost" id="bioNew" type="button">New page</button>
+                <button class="btn" id="bioSave" type="button">Save page</button>
+              </div>
+            </div>
+            <div class="grid" style="margin-top:14px">
+              <label>
+                Slug
+                <input id="bioSlug" class="input" type="text" placeholder="chris">
+              </label>
+              <label>
+                Title
+                <input id="bioTitle" class="input" type="text" placeholder="Chris Williams">
+              </label>
+              <label>
+                Description
+                <textarea id="bioDescription" class="input" rows="3" placeholder="Founder, builder, and storyteller."></textarea>
+              </label>
+              <label>
+                Avatar URL
+                <input id="bioAvatar" class="input" type="url" placeholder="https://.../avatar.jpg">
+              </label>
+              <div class="grid grid-2">
+                <label>
+                  CTA label
+                  <input id="bioCtaLabel" class="input" type="text" placeholder="Work with me">
+                </label>
+                <label>
+                  CTA URL
+                  <input id="bioCtaUrl" class="input" type="url" placeholder="https://cal.com/...">
+                </label>
+              </div>
+              <div class="grid grid-3">
+                <label>
+                  Background
+                  <input id="bioThemeBg" class="input" type="color" value="#0b0d10">
+                </label>
+                <label>
+                  Card
+                  <input id="bioThemeCard" class="input" type="color" value="#151c26">
+                </label>
+                <label>
+                  Accent
+                  <input id="bioThemeAccent" class="input" type="color" value="#e0b15a">
+                </label>
+              </div>
+              <div class="grid grid-2">
+                <label>
+                  Text
+                  <input id="bioThemeText" class="input" type="color" value="#f5f1e8">
+                </label>
+                <label>
+                  Muted
+                  <input id="bioThemeMuted" class="input" type="color" value="#b8b3a9">
+                </label>
+              </div>
+              <label class="row" style="gap:8px">
+                <input id="bioActive" type="checkbox" checked>
+                <span class="muted">Page active</span>
+              </label>
+            </div>
+
+            <div class="card" style="margin-top:16px">
+              <div class="row-between">
+                <div>
+                  <div style="font-weight:600">Links</div>
+                  <div class="muted small">Add or reorder your profile links.</div>
+                </div>
+                <div class="row" style="gap:8px">
+                  <button class="btn ghost" id="bioReorder" type="button">Save order</button>
+                  <button class="btn ghost" id="bioAddLink" type="button">Add link</button>
+                </div>
+              </div>
+              <div class="bio-links-list" id="bioLinks" style="margin-top:12px"></div>
+              <div class="muted small" id="bioLinksMsg" style="margin-top:8px"></div>
+            </div>
+
+            <div class="row" style="justify-content:flex-end;margin-top:12px">
+              <button class="btn danger" id="bioDelete" type="button">Delete page</button>
+            </div>
+            <div class="muted small" id="bioSaveMsg" style="margin-top:8px"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/admin-common.js"></script>
+  <script type="module" src="/admin/bio.js"></script>
+</body>
+</html>

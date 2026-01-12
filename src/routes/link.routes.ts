@@ -53,6 +53,10 @@ router.put('/:shortCode', requireApiScope('links:write'), requireOrgRole(['admin
 // Pause/resume a link
 router.put('/:shortCode/status', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.updateLinkStatus));
 
+// QR customization
+router.get('/:shortCode/qr-settings', requireApiScope('links:read'), wrap(linkController.getLinkQrSettings));
+router.put('/:shortCode/qr-settings', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.updateLinkQrSettings));
+
 // Delete a link by short code
 router.delete('/:shortCode', requireApiScope('links:write'), requireOrgRole(['admin', 'owner']), wrap(linkController.deleteLink));
 

@@ -210,6 +210,36 @@ function ensureAdminNavIncludesEcosystem() {
   }
 }
 
+function ensureAdminNavIncludesBio() {
+  const nav = document.querySelector('.side-nav');
+  if (!nav) return;
+  if (nav.querySelector('a[href="/admin/bio.html"]')) return;
+  const link = document.createElement('a');
+  link.href = '/admin/bio.html';
+  link.textContent = 'Link-in-bio';
+  const linksLink = nav.querySelector('a[href="/admin/links.html"]');
+  if (linksLink && linksLink.parentNode) {
+    linksLink.insertAdjacentElement('afterend', link);
+  } else {
+    nav.appendChild(link);
+  }
+}
+
+function ensureAdminNavIncludesMobileApps() {
+  const nav = document.querySelector('.side-nav');
+  if (!nav) return;
+  if (nav.querySelector('a[href="/admin/mobile-apps.html"]')) return;
+  const link = document.createElement('a');
+  link.href = '/admin/mobile-apps.html';
+  link.textContent = 'Mobile apps';
+  const bioLink = nav.querySelector('a[href="/admin/bio.html"]');
+  if (bioLink && bioLink.parentNode) {
+    bioLink.insertAdjacentElement('afterend', link);
+  } else {
+    nav.appendChild(link);
+  }
+}
+
 async function ensureEmailVerificationBanner() {
   if (!hasSession()) return;
   const main = document.querySelector('.admin-main');
@@ -322,6 +352,8 @@ async function ensureOrgSwitcher() {
 onReady(() => {
   applyAdminTheme();
   ensureAdminNavIncludesEcosystem();
+  ensureAdminNavIncludesBio();
+  ensureAdminNavIncludesMobileApps();
   ensureEmailVerificationBanner();
   ensureExtensionInstallBanner();
   ensureOrgSwitcher();

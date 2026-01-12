@@ -92,6 +92,36 @@ function normalizeShortCode(raw: string): string {
   return String(raw || '').trim().replace(/\s+/g, '');
 }
 
+function normalizeHexColor(value: unknown, fallback: string | null): string | null {
+  if (value === null || typeof value === 'undefined' || value === '') return fallback;
+  const raw = String(value).trim();
+  if (raw === 'transparent') return raw;
+  if (/^#[0-9a-fA-F]{3}$/.test(raw) || /^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
+  return null;
+}
+
+function normalizeQrNumber(value: unknown, fallback: number, min: number, max: number): number | null {
+  if (value === null || typeof value === 'undefined' || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function normalizeQrErrorCorrection(value: unknown, fallback: 'L' | 'M' | 'Q' | 'H'): 'L' | 'M' | 'Q' | 'H' | null {
+  if (value === null || typeof value === 'undefined' || value === '') return fallback;
+  const raw = String(value).trim().toUpperCase();
+  if (raw === 'L' || raw === 'M' || raw === 'Q' || raw === 'H') return raw;
+  return null;
+}
+
+function normalizeQrLogoUrl(value: unknown): string | null {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (!/^https?:\/\//i.test(raw)) return null;
+  return raw;
+}
+
 async function isShortCodeTaken(code: string, excludeId?: string): Promise<boolean> {
   const q = excludeId
     ? `SELECT 1 FROM links WHERE LOWER(short_code) = LOWER($1) AND id <> $2 LIMIT 1`
@@ -803,6 +833,123 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
     return res.json({ success: true, data: shapeLink(rows[0], coreBase) });
   } catch (e) {
     log('error', 'updateLinkStatus error', { error: String(e) });
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/links/:shortCode/qr-settings
+ */
+export async function getLinkQrSettings(req: UserReq, res: Response) {
+  try {
+    const orgId = req.org.orgId;
+    const { shortCode } = req.params;
+    const { rows } = await db.query(
+      `SELECT l.id,
+              qs.color, qs.bg_color, qs.size, qs.margin, qs.error_correction, qs.logo_url, qs.logo_scale
+         FROM links l
+         LEFT JOIN link_qr_settings qs ON qs.link_id = l.id
+        WHERE l.org_id = $1 AND l.short_code = $2
+        LIMIT 1`,
+      [orgId, shortCode]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'Link not found' });
+
+    const row = rows[0];
+    return res.json({
+      success: true,
+      data: {
+        color: row.color || '#0b0d10',
+        bg_color: row.bg_color || '#ffffff',
+        size: row.size || 256,
+        margin: row.margin ?? 1,
+        error_correction: row.error_correction || 'M',
+        logo_url: row.logo_url || '',
+        logo_scale: row.logo_scale ? Number(row.logo_scale) : 0.22,
+      },
+    });
+  } catch (e) {
+    log('error', 'links.qrSettings.get error', { error: String(e) });
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
+ * PUT /api/links/:shortCode/qr-settings
+ */
+export async function updateLinkQrSettings(req: UserReq, res: Response) {
+  try {
+    const orgId = req.org.orgId;
+    const userId = req.user.userId;
+    const { shortCode } = req.params;
+
+    const plan = await getEffectivePlan(userId, orgId);
+    const entitlements = await getPlanEntitlements(plan);
+    if (!isFeatureEnabled(entitlements, 'qr_customization')) {
+      return res.status(403).json({ success: false, error: 'QR customization requires an upgraded plan' });
+    }
+
+    const linkRes = await db.query(`SELECT id FROM links WHERE org_id = $1 AND short_code = $2 LIMIT 1`, [orgId, shortCode]);
+    const link = linkRes.rows[0];
+    if (!link) return res.status(404).json({ success: false, error: 'Link not found' });
+
+    const color = normalizeHexColor(req.body?.color, null);
+    if (req.body?.color && !color) {
+      return res.status(400).json({ success: false, error: 'color must be a hex value' });
+    }
+    const bgColor = normalizeHexColor(req.body?.bg_color, null);
+    if (req.body?.bg_color && !bgColor) {
+      return res.status(400).json({ success: false, error: 'bg_color must be a hex value' });
+    }
+    const size = normalizeQrNumber(req.body?.size, 256, 128, 1024);
+    if (size === null) {
+      return res.status(400).json({ success: false, error: 'size must be 128-1024' });
+    }
+    const margin = normalizeQrNumber(req.body?.margin, 1, 0, 10);
+    if (margin === null) {
+      return res.status(400).json({ success: false, error: 'margin must be 0-10' });
+    }
+    const errorCorrection = normalizeQrErrorCorrection(req.body?.error_correction, 'M');
+    if (!errorCorrection) {
+      return res.status(400).json({ success: false, error: 'error_correction must be L, M, Q, or H' });
+    }
+    const logoUrl = normalizeQrLogoUrl(req.body?.logo_url);
+    if (req.body?.logo_url && !logoUrl) {
+      return res.status(400).json({ success: false, error: 'logo_url must be http(s)' });
+    }
+    const logoScale = normalizeQrNumber(req.body?.logo_scale, 0.22, 0.1, 0.45);
+    if (logoScale === null) {
+      return res.status(400).json({ success: false, error: 'logo_scale must be 0.1-0.45' });
+    }
+
+    const { rows } = await db.query(
+      `INSERT INTO link_qr_settings (link_id, color, bg_color, size, margin, error_correction, logo_url, logo_scale, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+       ON CONFLICT (link_id) DO UPDATE SET
+         color = EXCLUDED.color,
+         bg_color = EXCLUDED.bg_color,
+         size = EXCLUDED.size,
+         margin = EXCLUDED.margin,
+         error_correction = EXCLUDED.error_correction,
+         logo_url = EXCLUDED.logo_url,
+         logo_scale = EXCLUDED.logo_scale,
+         updated_at = NOW()
+       RETURNING color, bg_color, size, margin, error_correction, logo_url, logo_scale`,
+      [link.id, color, bgColor, size, margin, errorCorrection, logoUrl, logoScale]
+    );
+
+    await logAudit({
+      org_id: orgId,
+      user_id: userId,
+      action: 'link.qr.update',
+      entity_type: 'link',
+      entity_id: link.id,
+      metadata: { short_code: shortCode },
+    });
+
+    return res.json({ success: true, data: rows[0] });
+  } catch (e) {
+    log('error', 'links.qrSettings.update error', { error: String(e) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

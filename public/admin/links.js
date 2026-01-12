@@ -46,6 +46,8 @@ const els = {
   inPassword: document.getElementById('inPassword'),
   inDeepLink: document.getElementById('inDeepLink'),
   inDeepLinkEnabled: document.getElementById('inDeepLinkEnabled'),
+  inMobileApp: document.getElementById('inMobileApp'),
+  inMobilePath: document.getElementById('inMobilePath'),
   inIosFallback: document.getElementById('inIosFallback'),
   inAndroidFallback: document.getElementById('inAndroidFallback'),
   inTags:    document.getElementById('inTags'),
@@ -78,6 +80,15 @@ const els = {
   qrImage:   document.getElementById('qrImage'),
   qrTitle:   document.getElementById('qrTitle'),
   qrDownload:document.getElementById('qrDownload'),
+  qrColor:   document.getElementById('qrColor'),
+  qrBgColor: document.getElementById('qrBgColor'),
+  qrSize:    document.getElementById('qrSize'),
+  qrMargin:  document.getElementById('qrMargin'),
+  qrEcc:     document.getElementById('qrEcc'),
+  qrLogoUrl: document.getElementById('qrLogoUrl'),
+  qrLogoScale: document.getElementById('qrLogoScale'),
+  qrSaveSettings: document.getElementById('qrSaveSettings'),
+  qrSettingsMsg: document.getElementById('qrSettingsMsg'),
   variantsModal: document.getElementById('variantsModal'),
   variantsBackdrop: document.getElementById('variantsBackdrop'),
   variantsClose: document.getElementById('variantsClose'),
@@ -137,6 +148,7 @@ let effectivePlan = 'free';
 let domains = [];
 let tags = [];
 let groups = [];
+let mobileApps = [];
 let selectedVariantCode = '';
 let selectedRouteCode = '';
 let selectedPasswordCode = '';
@@ -433,6 +445,54 @@ async function loadContext() {
     renderGroupsList();
     const host = selectedDomain().host;
     setCodeStatus('muted', `Auto-generate on ${host}.`);
+  }
+
+  try {
+    const appRes = await api('/api/mobile-apps');
+    const appList = unwrap(appRes);
+    mobileApps = Array.isArray(appList) ? appList : [];
+  } catch (err) {
+    mobileApps = [];
+  } finally {
+    renderMobileAppSelect();
+  }
+}
+
+function renderMobileAppSelect() {
+  if (!els.inMobileApp) return;
+  const options = ['<option value="">No template</option>'].concat(
+    mobileApps.map(app => (
+      `<option value="${htmlesc(app.id)}">${htmlesc(app.name)} (${htmlesc(app.platform)})</option>`
+    ))
+  );
+  els.inMobileApp.innerHTML = options.join('');
+}
+
+function getSelectedMobileApp() {
+  const id = els.inMobileApp?.value || '';
+  return mobileApps.find(app => app.id === id) || null;
+}
+
+function applyMobileTemplate() {
+  const app = getSelectedMobileApp();
+  if (!app) return;
+  const rawPath = (els.inMobilePath?.value || '').trim();
+  const path = rawPath ? (rawPath.startsWith('/') ? rawPath : `/${rawPath}`) : '';
+  let deepLink = '';
+  if (app.scheme) {
+    deepLink = app.scheme.endsWith('://') || app.scheme.endsWith(':') ? `${app.scheme}${path.replace(/^\//, '')}` : `${app.scheme}${path}`;
+  } else if (app.universal_link_domain) {
+    deepLink = `https://${app.universal_link_domain}${path}`;
+  }
+  if (deepLink && els.inDeepLink) els.inDeepLink.value = deepLink;
+  if (app.platform === 'ios' && app.app_store_url && els.inIosFallback && !els.inIosFallback.value) {
+    els.inIosFallback.value = app.app_store_url;
+  }
+  if (app.platform === 'android' && app.app_store_url && els.inAndroidFallback && !els.inAndroidFallback.value) {
+    els.inAndroidFallback.value = app.app_store_url;
+  }
+  if (els.inDeepLinkEnabled && els.inDeepLinkEnabled.value === 'auto') {
+    // keep auto; user can override
   }
 }
 
@@ -932,16 +992,102 @@ function exportCSV() {
   }, 800);
 }
 
+let currentQr = { code: '', type: 'png' };
+
+function getQrSettingsFromUi() {
+  return {
+    color: els.qrColor?.value || '#0b0d10',
+    bg_color: els.qrBgColor?.value || '#ffffff',
+    size: Number(els.qrSize?.value || 256),
+    margin: Number(els.qrMargin?.value || 1),
+    error_correction: els.qrEcc?.value || 'M',
+    logo_url: (els.qrLogoUrl?.value || '').trim(),
+    logo_scale: Number(els.qrLogoScale?.value || 0.22),
+  };
+}
+
+function applyQrSettingsToUi(settings) {
+  if (els.qrColor) els.qrColor.value = settings?.color || '#0b0d10';
+  if (els.qrBgColor) els.qrBgColor.value = settings?.bg_color || '#ffffff';
+  if (els.qrSize) els.qrSize.value = settings?.size || 256;
+  if (els.qrMargin) els.qrMargin.value = settings?.margin ?? 1;
+  if (els.qrEcc) els.qrEcc.value = settings?.error_correction || 'M';
+  if (els.qrLogoUrl) els.qrLogoUrl.value = settings?.logo_url || '';
+  if (els.qrLogoScale) els.qrLogoScale.value = settings?.logo_scale || 0.22;
+}
+
+function buildQrUrl(code, type, settings) {
+  const safeType = (type === 'svg') ? 'svg' : 'png';
+  const params = new URLSearchParams();
+  if (settings?.color) params.set('color', settings.color);
+  if (settings?.bg_color) params.set('bg', settings.bg_color);
+  if (settings?.size) params.set('size', settings.size);
+  if (settings?.margin !== undefined) params.set('margin', settings.margin);
+  if (settings?.error_correction) params.set('ecc', settings.error_correction);
+  if (settings?.logo_url && safeType === 'svg') params.set('logo', settings.logo_url);
+  if (settings?.logo_scale && safeType === 'svg') params.set('logo_scale', settings.logo_scale);
+  const query = params.toString();
+  return `/api/qr/${encodeURIComponent(code)}.${safeType}${query ? `?${query}` : ''}`;
+}
+
+async function loadQrSettings(code, type) {
+  if (!els.qrSettingsMsg) return;
+  els.qrSettingsMsg.textContent = '';
+  try {
+    const res = await apiFetch(`/api/links/${encodeURIComponent(code)}/qr-settings`);
+    applyQrSettingsToUi(res?.data || {});
+  } catch (err) {
+    els.qrSettingsMsg.textContent = 'QR customization unavailable on this plan.';
+    els.qrSettingsMsg.className = 'muted small status warn';
+  }
+  updateQrPreview(code, type);
+}
+
+function updateQrPreview(code, type) {
+  if (!els.qrImage) return;
+  const settings = getQrSettingsFromUi();
+  const src = buildQrUrl(code, type, settings);
+  els.qrImage.src = src;
+  if (els.qrDownload) {
+    els.qrDownload.href = src;
+    els.qrDownload.download = `qr-${code}.${type}`;
+  }
+}
+
+async function saveQrSettings() {
+  if (!currentQr.code) return;
+  if (els.qrSaveSettings) els.qrSaveSettings.disabled = true;
+  if (els.qrSettingsMsg) els.qrSettingsMsg.textContent = '';
+  try {
+    const payload = getQrSettingsFromUi();
+    await apiFetch(`/api/links/${encodeURIComponent(currentQr.code)}/qr-settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (els.qrSettingsMsg) {
+      els.qrSettingsMsg.textContent = 'QR settings saved.';
+      els.qrSettingsMsg.className = 'muted small status ok';
+    }
+    updateQrPreview(currentQr.code, currentQr.type);
+  } catch (err) {
+    if (els.qrSettingsMsg) {
+      els.qrSettingsMsg.textContent = 'Failed to save QR settings.';
+      els.qrSettingsMsg.className = 'muted small status warn';
+    }
+    showError(err, 'Failed to save QR settings');
+  } finally {
+    if (els.qrSaveSettings) els.qrSaveSettings.disabled = false;
+  }
+}
+
 function openQrModal(code, type) {
   if (!els.qrModal || !els.qrImage) return;
   const safeType = (type === 'svg') ? 'svg' : 'png';
-  const src = `/api/qr/${encodeURIComponent(code)}.${safeType}`;
-  els.qrImage.src = src;
+  currentQr = { code, type: safeType };
   if (els.qrTitle) els.qrTitle.textContent = `QR code (${code})`;
-  if (els.qrDownload) {
-    els.qrDownload.href = src;
-    els.qrDownload.download = `qr-${code}.${safeType}`;
-  }
+  applyQrSettingsToUi({});
+  loadQrSettings(code, safeType);
   els.qrModal.classList.add('open');
   els.qrModal.setAttribute('aria-hidden', 'false');
 }
@@ -951,6 +1097,7 @@ function closeQrModal() {
   els.qrModal.classList.remove('open');
   els.qrModal.setAttribute('aria-hidden', 'true');
   if (els.qrImage) els.qrImage.src = '';
+  currentQr = { code: '', type: 'png' };
 }
 
 function renderVariantRow(variant = {}) {
@@ -1359,6 +1506,8 @@ els.utmClear?.addEventListener('click', () => {
   if (els.utmContent) els.utmContent.value = '';
   updateUtmPreview();
 });
+els.inMobileApp?.addEventListener('change', applyMobileTemplate);
+els.inMobilePath?.addEventListener('input', applyMobileTemplate);
 ['utmSource','utmMedium','utmCampaign','utmTerm','utmContent','inUrl'].forEach(key => {
   const el = els[key];
   if (el) el.addEventListener('input', () => updateUtmPreview());
@@ -1368,6 +1517,13 @@ setUtmWizardStep(1);
 loadUiMode();
 els.qrClose?.addEventListener('click', closeQrModal);
 els.qrBackdrop?.addEventListener('click', closeQrModal);
+els.qrSaveSettings?.addEventListener('click', saveQrSettings);
+['qrColor','qrBgColor','qrSize','qrMargin','qrEcc','qrLogoUrl','qrLogoScale'].forEach((key) => {
+  const el = els[key];
+  if (el) el.addEventListener('input', () => {
+    if (currentQr.code) updateQrPreview(currentQr.code, currentQr.type);
+  });
+});
 els.variantsClose?.addEventListener('click', closeVariantsModal);
 els.variantsBackdrop?.addEventListener('click', closeVariantsModal);
 els.variantAdd?.addEventListener('click', () => {

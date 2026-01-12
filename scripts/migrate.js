@@ -365,6 +365,70 @@ CREATE TABLE IF NOT EXISTS link_routes (
 CREATE INDEX IF NOT EXISTS idx_link_routes_link_id ON link_routes(link_id);
 CREATE INDEX IF NOT EXISTS idx_link_routes_type ON link_routes(rule_type);
 
+-- Link QR customization
+CREATE TABLE IF NOT EXISTS link_qr_settings (
+  link_id UUID PRIMARY KEY REFERENCES links(id) ON DELETE CASCADE,
+  color VARCHAR(16),
+  bg_color VARCHAR(16),
+  size INTEGER DEFAULT 256,
+  margin INTEGER DEFAULT 1,
+  error_correction VARCHAR(1) DEFAULT 'M',
+  logo_url TEXT,
+  logo_scale NUMERIC DEFAULT 0.22,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Link-in-bio pages
+CREATE TABLE IF NOT EXISTS bio_pages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  slug VARCHAR(120) UNIQUE NOT NULL,
+  title VARCHAR(160) NOT NULL,
+  description TEXT,
+  avatar_url TEXT,
+  theme JSONB,
+  cta_label VARCHAR(120),
+  cta_url TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_bio_pages_org_id ON bio_pages(org_id);
+
+CREATE TABLE IF NOT EXISTS bio_links (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  page_id UUID REFERENCES bio_pages(id) ON DELETE CASCADE,
+  label VARCHAR(120) NOT NULL,
+  url TEXT NOT NULL,
+  icon VARCHAR(120),
+  sort_order INTEGER DEFAULT 100,
+  is_active BOOLEAN DEFAULT true,
+  click_count BIGINT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_bio_links_page_id ON bio_links(page_id);
+
+-- Mobile apps registry
+CREATE TABLE IF NOT EXISTS mobile_apps (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  name VARCHAR(120) NOT NULL,
+  platform VARCHAR(20) NOT NULL,
+  bundle_id VARCHAR(160),
+  package_name VARCHAR(160),
+  app_store_url TEXT,
+  scheme VARCHAR(120),
+  universal_link_domain VARCHAR(255),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (org_id, name, platform)
+);
+CREATE INDEX IF NOT EXISTS idx_mobile_apps_org_id ON mobile_apps(org_id);
+
 -- Link groups / campaigns
 CREATE TABLE IF NOT EXISTS link_groups (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

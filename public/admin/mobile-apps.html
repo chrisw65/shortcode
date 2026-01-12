@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shortlink Admin - Mobile Apps</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/admin/admin.css?v=20260113">
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
+      </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a href="/admin/bio.html">Link-in-bio</a>
+        <a class="active" href="/admin/mobile-apps.html">Mobile apps</a>
+        <a href="/admin/domains.html">Domains</a>
+        <a href="/admin/analytics.html">Analytics</a>
+        <a href="/admin/audit.html">Audit</a>
+        <a href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a href="/admin/site-settings.html">Site</a>
+        <a href="/admin/billing.html">Billing</a>
+        <a href="/admin/ecosystem.html">Ecosystem</a>
+        <a href="/admin/affiliates.html">Affiliates</a>
+        <a href="/admin/settings.html">Settings</a>
+      </nav>
+      <div class="side-footer">
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Mobile apps</h1>
+          <p class="page-sub">Register your iOS and Android apps for deep link templates.</p>
+        </div>
+      </header>
+
+      <main class="admin-content">
+        <section class="card">
+          <div class="row-between">
+            <div>
+              <h3>Add app</h3>
+              <div class="muted small">Use app scheme or universal link domain to build deep links quickly.</div>
+            </div>
+            <button class="btn" id="mobileSave" type="button">Save app</button>
+          </div>
+          <div class="grid" style="margin-top:12px">
+            <div class="grid grid-2">
+              <label>
+                App name
+                <input class="input" id="mobileName" type="text" placeholder="OkLeaf iOS">
+              </label>
+              <label>
+                Platform
+                <select class="input" id="mobilePlatform">
+                  <option value="ios">iOS</option>
+                  <option value="android">Android</option>
+                </select>
+              </label>
+            </div>
+            <div class="grid grid-2">
+              <label>
+                Bundle ID (iOS)
+                <input class="input" id="mobileBundleId" type="text" placeholder="com.okleaf.app">
+              </label>
+              <label>
+                Package name (Android)
+                <input class="input" id="mobilePackageName" type="text" placeholder="com.okleaf.app">
+              </label>
+            </div>
+            <div class="grid grid-2">
+              <label>
+                App store URL
+                <input class="input" id="mobileStoreUrl" type="url" placeholder="https://apps.apple.com/...">
+              </label>
+              <label>
+                Deep link scheme
+                <input class="input" id="mobileScheme" type="text" placeholder="okleaf://">
+              </label>
+            </div>
+            <label>
+              Universal link domain
+              <input class="input" id="mobileUniversalDomain" type="text" placeholder="links.okleaf.app">
+            </label>
+            <label class="row" style="gap:8px">
+              <input id="mobileActive" type="checkbox" checked>
+              <span class="muted">Active</span>
+            </label>
+          </div>
+          <div class="muted small" id="mobileSaveMsg" style="margin-top:8px"></div>
+        </section>
+
+        <section class="card">
+          <div class="row-between">
+            <div>
+              <h3>Registered apps</h3>
+              <div class="muted small">Use these in the Links page to auto-fill deep links.</div>
+            </div>
+            <button class="btn ghost" id="mobileRefresh" type="button">Refresh</button>
+          </div>
+          <div class="grid" id="mobileList" style="margin-top:12px"></div>
+          <div class="muted small" id="mobileListMsg" style="margin-top:8px"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/admin-common.js"></script>
+  <script type="module" src="/admin/mobile-apps.js"></script>
+</body>
+</html>

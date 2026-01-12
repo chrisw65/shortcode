@@ -25,6 +25,10 @@ const ALLOWED_SCOPES = new Set([
   'api-keys:write',
   'invites:read',
   'invites:write',
+  'bio:read',
+  'bio:write',
+  'mobile-apps:read',
+  'mobile-apps:write',
 ]);
 
 function normalizeScopes(input: unknown) {

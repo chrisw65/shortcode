@@ -33,7 +33,10 @@ import billingRoutes from './routes/billing.routes';
 import openapiRoutes from './routes/openapi.routes';
 import platformRoutes from './routes/platform.routes';
 import ecosystemRoutes from './routes/ecosystem.routes';
+import bioRoutes from './routes/bio.routes';
+import mobileAppsRoutes from './routes/mobileApps.routes';
 import { stripeWebhook } from './controllers/billing.controller';
+import { getPublicBioPage, getPublicBioPageJson, redirectBioLink } from './controllers/bio.controller';
 import redisClient from './config/redis';
 import { startClickWorker } from './services/clickQueue';
 import { scheduleRetentionCleanup } from './services/retention';
@@ -241,6 +244,14 @@ if (enableStatic) {
   app.use(express.static(path.join(__dirname, '..', 'public')));
 }
 
+// Public bio pages (rendered server-side)
+if (enableApi || enableRedirect) {
+  app.get('/b/:slug', getPublicBioPage);
+  app.get('/b/:slug/go/:linkId', redirectBioLink);
+  app.get('/bio/:slug', getPublicBioPage);
+  app.get('/api/public/bio/:slug', getPublicBioPageJson);
+}
+
 // Healthcheck
 app.get('/health', async (_req, res) => {
   let dbOk = false;
@@ -294,6 +305,8 @@ if (enableApi) {
     app.use(`${base}/billing`, billingRoutes);
     app.use(`${base}/phase4/ecosystem`, ecosystemRoutes);
     app.use(`${base}/platform-config`, platformRoutes);
+    app.use(`${base}/bio`, bioRoutes);
+    app.use(`${base}/mobile-apps`, mobileAppsRoutes);
     app.use(base, openapiRoutes);
   };
 

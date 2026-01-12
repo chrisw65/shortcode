@@ -12,6 +12,9 @@ export type PlanFeatures = {
   deep_links: boolean;
   tags: boolean;
   groups: boolean;
+  link_in_bio: boolean;
+  qr_customization: boolean;
+  mobile_apps: boolean;
 };
 
 export type PlanLimits = {
@@ -40,6 +43,9 @@ const DEFAULT_ENTITLEMENTS: Record<string, PlanEntitlements> = {
       deep_links: false,
       tags: false,
       groups: false,
+      link_in_bio: false,
+      qr_customization: false,
+      mobile_apps: false,
     },
     limits: {
       links: 10,
@@ -61,6 +67,9 @@ const DEFAULT_ENTITLEMENTS: Record<string, PlanEntitlements> = {
       deep_links: false,
       tags: true,
       groups: true,
+      link_in_bio: false,
+      qr_customization: false,
+      mobile_apps: false,
     },
     limits: {
       links: 1000,
@@ -82,6 +91,9 @@ const DEFAULT_ENTITLEMENTS: Record<string, PlanEntitlements> = {
       deep_links: true,
       tags: true,
       groups: true,
+      link_in_bio: true,
+      qr_customization: true,
+      mobile_apps: true,
     },
     limits: {
       links: 10000,
@@ -103,6 +115,9 @@ const DEFAULT_ENTITLEMENTS: Record<string, PlanEntitlements> = {
       deep_links: true,
       tags: true,
       groups: true,
+      link_in_bio: true,
+      qr_customization: true,
+      mobile_apps: true,
     },
     limits: {
       links: null,
