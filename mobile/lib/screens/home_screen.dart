@@ -38,24 +38,27 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Oaklink Mobile'),
         actions: [
-          IconButton(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'logout') _logout();
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'logout', child: Text('Sign out')),
+            ],
           ),
         ],
       ),
       body: _screens[_index],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
-        onTap: (idx) => setState(() => _index = idx),
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.link), label: 'Links'),
-          BottomNavigationBarItem(icon: Icon(Icons.add_box), label: 'Create'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Analytics'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Bio'),
-          BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'QR'),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (idx) => setState(() => _index = idx),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.link), label: 'Links'),
+          NavigationDestination(icon: Icon(Icons.add_box), label: 'Create'),
+          NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Analytics'),
+          NavigationDestination(icon: Icon(Icons.person), label: 'Bio'),
+          NavigationDestination(icon: Icon(Icons.qr_code), label: 'QR'),
         ],
       ),
     );

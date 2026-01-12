@@ -4,6 +4,7 @@ import 'package:oaklink_mobile/screens/login_screen.dart';
 import 'package:oaklink_mobile/screens/two_factor_screen.dart';
 import 'package:oaklink_mobile/services/api_client.dart';
 import 'package:oaklink_mobile/services/auth_service.dart';
+import 'package:oaklink_mobile/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,11 +19,8 @@ class OaklinkApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Oaklink Mobile',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0B0D10)),
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF6F4EF),
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
       home: const SessionGate(),
       routes: {
         LoginScreen.routeName: (_) => const LoginScreen(),

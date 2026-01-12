@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:oaklink_mobile/services/api_client.dart';
+import 'package:oaklink_mobile/widgets/empty_state.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class BioScreen extends StatefulWidget {
@@ -13,6 +15,7 @@ class _BioScreenState extends State<BioScreen> {
   Future<List<dynamic>>? _future;
   final _slugCtrl = TextEditingController();
   final _titleCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
   bool _busy = false;
 
   @override
@@ -38,6 +41,8 @@ class _BioScreenState extends State<BioScreen> {
   }
 
   Future<void> _create() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _busy = true);
     final payload = {
       'slug': _slugCtrl.text.trim(),
@@ -60,32 +65,76 @@ class _BioScreenState extends State<BioScreen> {
   }
 
   @override
+  void dispose() {
+    _slugCtrl.dispose();
+    _titleCtrl.dispose();
+    super.dispose();
+  }
+
+  void _copy(String slug) {
+    Clipboard.setData(ClipboardData(text: '${ApiClient.baseUrl}/b/$slug'));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Bio link copied')),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text('Create bio page', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _slugCtrl,
-            decoration: const InputDecoration(labelText: 'Slug'),
+          Text('Bio pages', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 6),
+          Text(
+            'Create a simple link hub and share it anywhere.',
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _titleCtrl,
-            decoration: const InputDecoration(labelText: 'Title'),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _slugCtrl,
+                      decoration: const InputDecoration(labelText: 'Slug'),
+                      validator: (value) {
+                        final text = value?.trim() ?? '';
+                        if (text.isEmpty) return 'Slug is required';
+                        if (text.contains(' ')) return 'Use dashes instead of spaces';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _titleCtrl,
+                      decoration: const InputDecoration(labelText: 'Title'),
+                      validator: (value) {
+                        if ((value ?? '').trim().isEmpty) return 'Title is required';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton(
+                        onPressed: _busy ? null : _create,
+                        child: _busy
+                            ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Create page'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
-          FilledButton(
-            onPressed: _busy ? null : _create,
-            child: _busy
-                ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Create'),
-          ),
-          const SizedBox(height: 20),
-          const Text('Your pages', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Text('Your pages', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           FutureBuilder<List<dynamic>>(
             future: _future,
@@ -96,9 +145,20 @@ class _BioScreenState extends State<BioScreen> {
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
+              if (snapshot.hasError) {
+                return EmptyState(
+                  icon: Icons.warning_amber_rounded,
+                  title: 'Unable to load pages',
+                  subtitle: 'Pull down to refresh.',
+                );
+              }
               final items = snapshot.data ?? [];
               if (items.isEmpty) {
-                return const Text('No bio pages yet.');
+                return const EmptyState(
+                  icon: Icons.person_outline,
+                  title: 'No bio pages yet',
+                  subtitle: 'Create your first page to start sharing.',
+                );
               }
               return Column(
                 children: items.map((page) {
@@ -107,8 +167,19 @@ class _BioScreenState extends State<BioScreen> {
                     child: ListTile(
                       title: Text(p['title']?.toString() ?? p['slug']?.toString() ?? ''),
                       subtitle: Text('/${p['slug']}'),
-                      trailing: const Icon(Icons.open_in_new),
-                      onTap: () => _open(p['slug']?.toString() ?? ''),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.copy_rounded),
+                            onPressed: () => _copy(p['slug']?.toString() ?? ''),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.open_in_new),
+                            onPressed: () => _open(p['slug']?.toString() ?? ''),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }).toList(),

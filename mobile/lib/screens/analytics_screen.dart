@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:oaklink_mobile/services/api_client.dart';
+import 'package:oaklink_mobile/widgets/empty_state.dart';
+import 'package:oaklink_mobile/widgets/stat_card.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -38,24 +40,58 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
+          if (snapshot.hasError) {
+            return ListView(
+              padding: const EdgeInsets.all(24),
+              children: [
+                EmptyState(
+                  icon: Icons.bar_chart,
+                  title: 'Analytics unavailable',
+                  subtitle: 'Pull to refresh or try again in a moment.',
+                  action: FilledButton(
+                    onPressed: _refresh,
+                    child: const Text('Retry'),
+                  ),
+                ),
+              ],
+            );
+          }
           final data = snapshot.data ?? {};
           final total = data['total_clicks'] ?? 0;
           final clicks24h = data['clicks_24h'] ?? 0;
+          final unique24h = data['unique_24h'] ?? 0;
+          final linksTotal = data['links_total'] ?? 0;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Card(
-                child: ListTile(
-                  title: const Text('Total clicks'),
-                  trailing: Text('$total'),
-                ),
+              Text('Overview', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              StatCard(
+                label: 'Total clicks',
+                value: '$total',
+                helper: 'All time',
+                icon: Icons.stacked_line_chart,
               ),
               const SizedBox(height: 12),
-              Card(
-                child: ListTile(
-                  title: const Text('Clicks (24h)'),
-                  trailing: Text('$clicks24h'),
-                ),
+              StatCard(
+                label: 'Clicks (24h)',
+                value: '$clicks24h',
+                helper: 'Last 24 hours',
+                icon: Icons.bolt,
+              ),
+              const SizedBox(height: 12),
+              StatCard(
+                label: 'Unique (24h)',
+                value: '$unique24h',
+                helper: 'Estimated unique clicks',
+                icon: Icons.person_outline,
+              ),
+              const SizedBox(height: 12),
+              StatCard(
+                label: 'Links tracked',
+                value: '$linksTotal',
+                helper: 'Active links in your org',
+                icon: Icons.link_rounded,
               ),
             ],
           );
