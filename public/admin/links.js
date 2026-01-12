@@ -5,6 +5,38 @@ function fmtDate(v) {
   const d = new Date(v); if (isNaN(d)) return '—';
   return d.toLocaleString(undefined, { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
 }
+function toIsoFromLocalInput(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (isNaN(d)) return null;
+  return d.toISOString();
+}
+function toLocalInputValue(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d)) return '';
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+function scheduleLabel(link) {
+  const start = link.scheduled_start_at ? new Date(link.scheduled_start_at) : null;
+  const end = link.scheduled_end_at ? new Date(link.scheduled_end_at) : null;
+  const now = new Date();
+  if (start && end) {
+    if (now < start) return `Starts ${fmtDate(start)}`;
+    if (now > end) return `Ended ${fmtDate(end)}`;
+    return `Ends ${fmtDate(end)}`;
+  }
+  if (start) {
+    if (now < start) return `Starts ${fmtDate(start)}`;
+    return `Active since ${fmtDate(start)}`;
+  }
+  if (end) {
+    if (now > end) return `Ended ${fmtDate(end)}`;
+    return `Ends ${fmtDate(end)}`;
+  }
+  return '—';
+}
 function hostFrom(url) { try { return new URL(url).host; } catch { return '—'; } }
 
 function unwrap(res) {
@@ -44,6 +76,8 @@ const els = {
   inCode:    document.getElementById('inCode'),
   inDomain:  document.getElementById('inDomain'),
   inPassword: document.getElementById('inPassword'),
+  inScheduleStart: document.getElementById('inScheduleStart'),
+  inScheduleEnd: document.getElementById('inScheduleEnd'),
   inDeepLink: document.getElementById('inDeepLink'),
   inDeepLinkEnabled: document.getElementById('inDeepLinkEnabled'),
   inMobileApp: document.getElementById('inMobileApp'),
@@ -112,6 +146,14 @@ const els = {
   passwordMsg: document.getElementById('passwordMsg'),
   passwordSave: document.getElementById('passwordSave'),
   passwordClear: document.getElementById('passwordClear'),
+  scheduleModal: document.getElementById('scheduleModal'),
+  scheduleBackdrop: document.getElementById('scheduleBackdrop'),
+  scheduleClose: document.getElementById('scheduleClose'),
+  scheduleStart: document.getElementById('scheduleStart'),
+  scheduleEnd: document.getElementById('scheduleEnd'),
+  scheduleMsg: document.getElementById('scheduleMsg'),
+  scheduleSave: document.getElementById('scheduleSave'),
+  scheduleClear: document.getElementById('scheduleClear'),
   tagName:   document.getElementById('tagName'),
   tagColor:  document.getElementById('tagColor'),
   tagAdd:    document.getElementById('tagAdd'),
@@ -152,6 +194,7 @@ let mobileApps = [];
 let selectedVariantCode = '';
 let selectedRouteCode = '';
 let selectedPasswordCode = '';
+let selectedScheduleCode = '';
 let uiMode = 'beginner';
 let utmWizardStep = 1;
 
@@ -274,7 +317,7 @@ function applySort(list) {
 function render() {
   const list = applySort(applyFilter(allLinks));
   if (!list.length) {
-    els.tbody.innerHTML = `<tr><td class="empty" colspan="10">No links found.</td></tr>`;
+    els.tbody.innerHTML = `<tr><td class="empty" colspan="11">No links found.</td></tr>`;
     return;
   }
 
@@ -285,6 +328,7 @@ function render() {
     const clicks = l.click_count ?? 0;
     const created= fmtDate(l.created_at);
     const security = l.password_protected ? '<span class="badge">Protected</span>' : '<span class="muted">—</span>';
+    const schedule = scheduleLabel(l);
     const tagHtml = (l.tags || []).length
       ? (l.tags || []).map(t => {
         const color = t.color ? ` style="border-color:${htmlesc(t.color)};color:${htmlesc(t.color)}"` : '';
@@ -308,11 +352,13 @@ function render() {
         </td>
         <td>${clicks}</td>
         <td>${created}</td>
+        <td>${htmlesc(schedule)}</td>
         <td class="row" style="gap:6px">
           <button class="btn btn-qr" data-type="png" data-code="${htmlesc(code)}">QR PNG</button>
           <button class="btn btn-qr" data-type="svg" data-code="${htmlesc(code)}">QR SVG</button>
           <button class="btn btn-variants" data-code="${htmlesc(code)}">Variants</button>
           <button class="btn btn-routes" data-code="${htmlesc(code)}">Routing</button>
+          <button class="btn btn-schedule" data-code="${htmlesc(code)}">Schedule</button>
           <button class="btn btn-protect" data-code="${htmlesc(code)}">${l.password_protected ? 'Reset password' : 'Protect'}</button>
           ${l.password_protected ? `<button class="btn ghost btn-clear" data-code="${htmlesc(code)}">Clear</button>` : ''}
           <a class="btn" href="/admin/analytics.html?code=${encodeURIComponent(code)}">Analytics</a>
@@ -371,6 +417,13 @@ function render() {
     });
   });
 
+  els.tbody.querySelectorAll('.btn-schedule').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.dataset.code || '';
+      openScheduleModal(code);
+    });
+  });
+
   els.tbody.querySelectorAll('.btn-protect').forEach(btn => {
     btn.addEventListener('click', async () => {
       const code = btn.dataset.code || '';
@@ -397,6 +450,8 @@ async function load(opts = {}) {
       short_url: x.short_url,
       click_count: x.click_count ?? 0,
       created_at: x.created_at,
+      scheduled_start_at: x.scheduled_start_at,
+      scheduled_end_at: x.scheduled_end_at,
       password_protected: Boolean(x.password_protected),
       tags: Array.isArray(x.tags) ? x.tags : [],
       groups: Array.isArray(x.groups) ? x.groups : [],
@@ -405,7 +460,7 @@ async function load(opts = {}) {
     if (opts.toast) showToast('Links refreshed');
   } catch (err) {
     console.error('Load error:', err);
-    els.tbody.innerHTML = `<tr><td class="empty danger" colspan="10">Failed to load links.</td></tr>`;
+    els.tbody.innerHTML = `<tr><td class="empty danger" colspan="11">Failed to load links.</td></tr>`;
     if (opts.toast) showToast('Refresh failed', 'error');
   }
 }
@@ -769,6 +824,16 @@ async function createLink() {
   const iosFallback = (els.inIosFallback?.value || '').trim();
   const androidFallback = (els.inAndroidFallback?.value || '').trim();
   const deepLinkEnabledRaw = (els.inDeepLinkEnabled?.value || 'auto').trim();
+  const scheduleStartRaw = els.inScheduleStart?.value || '';
+  const scheduleEndRaw = els.inScheduleEnd?.value || '';
+  const scheduleStart = toIsoFromLocalInput(scheduleStartRaw);
+  const scheduleEnd = toIsoFromLocalInput(scheduleEndRaw);
+  if (scheduleStartRaw && !scheduleStart) { alert('Schedule start is invalid.'); return; }
+  if (scheduleEndRaw && !scheduleEnd) { alert('Schedule end is invalid.'); return; }
+  if (scheduleStart && scheduleEnd && new Date(scheduleStart) >= new Date(scheduleEnd)) {
+    alert('Schedule end must be after start.');
+    return;
+  }
   const tagIds = Array.from(els.inTags?.selectedOptions || []).map(opt => opt.value).filter(Boolean);
   const groupId = (els.inGroup?.value || '').trim();
   const utmParams = readUtmParams();
@@ -791,6 +856,8 @@ async function createLink() {
     if (iosFallback) body.ios_fallback_url = iosFallback;
     if (androidFallback) body.android_fallback_url = androidFallback;
     if (deepLinkEnabledRaw !== 'auto') body.deep_link_enabled = deepLinkEnabledRaw === 'true';
+    if (scheduleStart !== null) body.scheduled_start_at = scheduleStart;
+    if (scheduleEnd !== null) body.scheduled_end_at = scheduleEnd;
     const res = unwrap(await api('/api/links', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -800,6 +867,8 @@ async function createLink() {
     await load();
     els.inUrl.value = ''; els.inTitle.value = ''; els.inCode.value = '';
     if (els.inPassword) els.inPassword.value = '';
+    if (els.inScheduleStart) els.inScheduleStart.value = '';
+    if (els.inScheduleEnd) els.inScheduleEnd.value = '';
     if (els.inDeepLink) els.inDeepLink.value = '';
     if (els.inIosFallback) els.inIosFallback.value = '';
     if (els.inAndroidFallback) els.inAndroidFallback.value = '';
@@ -969,7 +1038,7 @@ function exportCSV() {
     els.btnExport.disabled = true;
     els.btnExport.textContent = 'Exporting...';
   }
-  const header = ['title','short_code','short_url','click_count','created_at','tags','groups'];
+  const header = ['title','short_code','short_url','click_count','created_at','scheduled_start_at','scheduled_end_at','tags','groups'];
   const rows = [header.join(',')].concat(
     allLinks.map(l => header.map(k => {
       if (k === 'tags') return csvCell((l.tags || []).map(t => t.name).join('; '));
@@ -1346,6 +1415,75 @@ async function clearPassword() {
   }
 }
 
+function openScheduleModal(code) {
+  selectedScheduleCode = code;
+  const link = allLinks.find(l => l.short_code === code);
+  if (!els.scheduleModal) return;
+  if (els.scheduleMsg) els.scheduleMsg.textContent = '';
+  if (els.scheduleStart) els.scheduleStart.value = toLocalInputValue(link?.scheduled_start_at);
+  if (els.scheduleEnd) els.scheduleEnd.value = toLocalInputValue(link?.scheduled_end_at);
+  els.scheduleModal.classList.add('open');
+  els.scheduleModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeScheduleModal() {
+  if (!els.scheduleModal) return;
+  els.scheduleModal.classList.remove('open');
+  els.scheduleModal.setAttribute('aria-hidden', 'true');
+  selectedScheduleCode = '';
+}
+
+async function saveSchedule() {
+  if (!selectedScheduleCode) return;
+  const rawStart = els.scheduleStart?.value || '';
+  const rawEnd = els.scheduleEnd?.value || '';
+  const startIso = toIsoFromLocalInput(rawStart);
+  const endIso = toIsoFromLocalInput(rawEnd);
+  if (rawStart && !startIso) {
+    if (els.scheduleMsg) els.scheduleMsg.textContent = 'Start time is invalid.';
+    return;
+  }
+  if (rawEnd && !endIso) {
+    if (els.scheduleMsg) els.scheduleMsg.textContent = 'End time is invalid.';
+    return;
+  }
+  if (startIso && endIso && new Date(startIso) >= new Date(endIso)) {
+    if (els.scheduleMsg) els.scheduleMsg.textContent = 'End must be after start.';
+    return;
+  }
+  if (els.scheduleMsg) els.scheduleMsg.textContent = '';
+  try {
+    await api(`/api/links/${encodeURIComponent(selectedScheduleCode)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scheduled_start_at: startIso,
+        scheduled_end_at: endIso,
+      }),
+    });
+    await load();
+    closeScheduleModal();
+  } catch (err) {
+    if (els.scheduleMsg) els.scheduleMsg.textContent = `Save failed: ${err.message || err}`;
+  }
+}
+
+async function clearSchedule() {
+  if (!selectedScheduleCode) return;
+  if (!confirm('Clear schedule for this link?')) return;
+  try {
+    await api(`/api/links/${encodeURIComponent(selectedScheduleCode)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scheduled_start_at: null, scheduled_end_at: null }),
+    });
+    await load();
+    closeScheduleModal();
+  } catch (err) {
+    if (els.scheduleMsg) els.scheduleMsg.textContent = `Clear failed: ${err.message || err}`;
+  }
+}
+
 async function saveVariants() {
   if (!selectedVariantCode) return;
   const rows = Array.from(els.variantsList?.querySelectorAll('.card') || []);
@@ -1542,12 +1680,17 @@ els.passwordClose?.addEventListener('click', closePasswordModal);
 els.passwordBackdrop?.addEventListener('click', closePasswordModal);
 els.passwordSave?.addEventListener('click', savePassword);
 els.passwordClear?.addEventListener('click', clearPassword);
+els.scheduleClose?.addEventListener('click', closeScheduleModal);
+els.scheduleBackdrop?.addEventListener('click', closeScheduleModal);
+els.scheduleSave?.addEventListener('click', saveSchedule);
+els.scheduleClear?.addEventListener('click', clearSchedule);
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeQrModal();
     closeVariantsModal();
     closeRoutesModal();
     closePasswordModal();
+    closeScheduleModal();
   }
 });
 

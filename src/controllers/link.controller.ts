@@ -137,6 +137,16 @@ function coreBaseUrl(): string {
   return base.replace(/\/+$/, '');
 }
 
+function parseOptionalDate(value: unknown, field: string): Date | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`${field} must be a valid datetime`);
+  }
+  return date;
+}
+
 function shapeLink(row: any, coreBase: string) {
   const domain = row.domain || null;
   const baseUrl = domain ? `https://${domain}` : coreBase;
@@ -151,6 +161,8 @@ function shapeLink(row: any, coreBase: string) {
     click_count: Number(row.click_count || 0),
     created_at: row.created_at,
     expires_at: row.expires_at,
+    scheduled_start_at: row.scheduled_start_at ?? null,
+    scheduled_end_at: row.scheduled_end_at ?? null,
     active: row.active !== false, // default true
     short_url: `${baseUrl}/${row.short_code}`,
     domain,
@@ -208,7 +220,7 @@ async function setLinkGroups(linkId: string, groupIds: string[]) {
 
 /**
  * POST /api/links
- * Body: { url: string, title?: string, short_code?: string, expires_at?: string }
+ * Body: { url: string, title?: string, short_code?: string, expires_at?: string, scheduled_start_at?: string, scheduled_end_at?: string }
  * Accepts optional custom short_code with validation.
  */
 export async function createLink(req: UserReq, res: Response) {
@@ -228,6 +240,8 @@ export async function createLink(req: UserReq, res: Response) {
       ios_fallback_url,
       android_fallback_url,
       deep_link_enabled,
+      scheduled_start_at: scheduledStartRaw,
+      scheduled_end_at: scheduledEndRaw,
     } = req.body ?? {};
     if (!url) return res.status(400).json({ success: false, error: 'URL is required' });
 
@@ -247,6 +261,17 @@ export async function createLink(req: UserReq, res: Response) {
     }
 
     const autoTitle = parseHostnameFromUrl(normalizedUrl) || 'link';
+    let scheduledStart: Date | null | undefined;
+    let scheduledEnd: Date | null | undefined;
+    try {
+      scheduledStart = parseOptionalDate(scheduledStartRaw, 'scheduled_start_at');
+      scheduledEnd = parseOptionalDate(scheduledEndRaw, 'scheduled_end_at');
+    } catch (err) {
+      return res.status(400).json({ success: false, error: String(err).replace('Error: ', '') });
+    }
+    if (scheduledStart && scheduledEnd && scheduledStart >= scheduledEnd) {
+      return res.status(400).json({ success: false, error: 'scheduled_end_at must be after scheduled_start_at' });
+    }
 
     const rawCode = short_code ? String(short_code) : '';
     let code = rawCode ? normalizeShortCode(rawCode) : '';
@@ -353,10 +378,12 @@ export async function createLink(req: UserReq, res: Response) {
 
     await db.query('BEGIN');
     const q = `
-      INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, expires_at, active, password_hash,
+      INSERT INTO links (org_id, user_id, short_code, original_url, title, domain_id, expires_at,
+                         scheduled_start_at, scheduled_end_at, active, password_hash,
                          deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled)
-      VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, $8, true, $9, $10, $11, $12, $13)
-      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
+      VALUES ($1, $2, $3, $4, COALESCE($5, $6), $7, $8, $9, $10, true, $11, $12, $13, $14, $15)
+      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at,
+                scheduled_start_at, scheduled_end_at, active,
                 (password_hash IS NOT NULL) AS password_protected,
                 deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled
     `;
@@ -369,6 +396,8 @@ export async function createLink(req: UserReq, res: Response) {
       autoTitle,
       domainId,
       expires_at ?? null,
+      scheduledStart ?? null,
+      scheduledEnd ?? null,
       passwordHash,
       deepLinkUrl,
       iosFallbackUrl,
@@ -396,6 +425,8 @@ export async function createLink(req: UserReq, res: Response) {
       original_url: rows[0].original_url,
       domain: domainHost || null,
       expires_at: rows[0].expires_at,
+      scheduled_start_at: rows[0].scheduled_start_at ?? null,
+      scheduled_end_at: rows[0].scheduled_end_at ?? null,
       active: rows[0].active !== false,
       password_hash: passwordHash,
       deep_link_url: deepLinkUrl,
@@ -473,7 +504,8 @@ export async function getUserLinks(req: UserReq, res: Response) {
     const orgId = req.org.orgId;
     const coreBase = coreBaseUrl();
     const { rows } = await db.query(
-      `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
+      `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at,
+              l.scheduled_start_at, l.scheduled_end_at, l.active,
               d.domain AS domain,
               (l.password_hash IS NOT NULL) AS password_protected,
               l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled,
@@ -508,7 +540,8 @@ export async function getLinkDetails(req: UserReq, res: Response) {
     const orgId = req.org.orgId;
     const { shortCode } = req.params;
     const { rows } = await db.query(
-      `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
+      `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at,
+              l.scheduled_start_at, l.scheduled_end_at, l.active,
               d.domain AS domain,
               (l.password_hash IS NOT NULL) AS password_protected,
               l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled,
@@ -539,7 +572,8 @@ export async function getLinkDetails(req: UserReq, res: Response) {
 
 /**
  * PUT /api/links/:shortCode
- * Body may include: { url?: string, title?: string, expires_at?: string | null, short_code?: string }
+ * Body may include: { url?: string, title?: string, expires_at?: string | null, short_code?: string,
+ *   scheduled_start_at?: string | null, scheduled_end_at?: string | null }
  * You may also update custom code (validates and preserves uniqueness).
  */
 export async function updateLink(req: UserReq, res: Response) {
@@ -561,6 +595,8 @@ export async function updateLink(req: UserReq, res: Response) {
       ios_fallback_url,
       android_fallback_url,
       deep_link_enabled,
+      scheduled_start_at: scheduledStartRaw,
+      scheduled_end_at: scheduledEndRaw,
     } = req.body ?? {};
 
     const { rows: existing } = await db.query(
@@ -584,6 +620,25 @@ export async function updateLink(req: UserReq, res: Response) {
     }
     if (title !== undefined) { sets.push(`title = $${i++}`); vals.push(title); }
     if (expires_at !== undefined) { sets.push(`expires_at = $${i++}`); vals.push(expires_at); }
+    let scheduledStart: Date | null | undefined;
+    let scheduledEnd: Date | null | undefined;
+    try {
+      scheduledStart = parseOptionalDate(scheduledStartRaw, 'scheduled_start_at');
+      scheduledEnd = parseOptionalDate(scheduledEndRaw, 'scheduled_end_at');
+    } catch (err) {
+      return res.status(400).json({ success: false, error: String(err).replace('Error: ', '') });
+    }
+    if (scheduledStart && scheduledEnd && scheduledStart >= scheduledEnd) {
+      return res.status(400).json({ success: false, error: 'scheduled_end_at must be after scheduled_start_at' });
+    }
+    if (scheduledStart !== undefined) {
+      sets.push(`scheduled_start_at = $${i++}`);
+      vals.push(scheduledStart);
+    }
+    if (scheduledEnd !== undefined) {
+      sets.push(`scheduled_end_at = $${i++}`);
+      vals.push(scheduledEnd);
+    }
     let newCodeValue: string | null = null;
     if (short_code !== undefined) {
       const newCode = normalizeShortCode(short_code);
@@ -689,7 +744,8 @@ export async function updateLink(req: UserReq, res: Response) {
         UPDATE links
            SET ${sets.join(', ')}
          WHERE org_id = $${i++} AND short_code = $${i++}
-        RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
+        RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at,
+                  scheduled_start_at, scheduled_end_at, active,
                   (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain,
                   (password_hash IS NOT NULL) AS password_protected,
                   deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled,
@@ -708,7 +764,8 @@ export async function updateLink(req: UserReq, res: Response) {
       rows = result.rows;
     } else {
       const result = await db.query(
-        `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
+        `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at,
+                l.scheduled_start_at, l.scheduled_end_at, l.active,
                 (SELECT domain FROM domains d WHERE d.id = l.domain_id) AS domain,
                 (l.password_hash IS NOT NULL) AS password_protected,
                 l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled,
@@ -734,7 +791,8 @@ export async function updateLink(req: UserReq, res: Response) {
     if (groupIds !== null) await setLinkGroups(linkId, groupIds);
     if (tagIds !== null || groupIds !== null) {
       const refreshed = await db.query(
-        `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
+        `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at,
+                l.scheduled_start_at, l.scheduled_end_at, l.active,
                 (SELECT domain FROM domains d WHERE d.id = l.domain_id) AS domain,
                 (l.password_hash IS NOT NULL) AS password_protected,
                 l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled,
@@ -801,7 +859,8 @@ export async function updateLinkStatus(req: UserReq, res: Response) {
       `UPDATE links
           SET active = $1
         WHERE org_id = $2 AND short_code = $3
-      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at, active,
+      RETURNING id, user_id, short_code, original_url, title, click_count, created_at, expires_at,
+                scheduled_start_at, scheduled_end_at, active,
                 (SELECT domain FROM domains d WHERE d.id = links.domain_id) AS domain,
                 (password_hash IS NOT NULL) AS password_protected,
                 deep_link_url, ios_fallback_url, android_fallback_url, deep_link_enabled,
@@ -962,7 +1021,8 @@ export async function deleteLink(req: UserReq, res: Response) {
     const orgId = req.org.orgId;
     const { shortCode } = req.params;
     const existing = await db.query(
-      `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at, l.active,
+      `SELECT l.id, l.user_id, l.short_code, l.original_url, l.title, l.click_count, l.created_at, l.expires_at,
+              l.scheduled_start_at, l.scheduled_end_at, l.active,
               d.domain AS domain
          FROM links l
          LEFT JOIN domains d ON d.id = l.domain_id

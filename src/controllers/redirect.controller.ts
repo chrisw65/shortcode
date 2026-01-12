@@ -248,7 +248,7 @@ export class RedirectController {
       }
       if (!link) {
         const q = `
-          SELECT l.id, l.original_url, l.expires_at, l.active, l.org_id, o.ip_anonymization, l.password_hash,
+          SELECT l.id, l.original_url, l.expires_at, l.scheduled_start_at, l.scheduled_end_at, l.active, l.org_id, o.ip_anonymization, l.password_hash,
                  l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled,
                  d.domain AS domain
             FROM links l
@@ -278,6 +278,8 @@ export class RedirectController {
           original_url: rows[0].original_url,
           domain: rows[0].domain || null,
           expires_at: rows[0].expires_at,
+          scheduled_start_at: rows[0].scheduled_start_at ?? null,
+          scheduled_end_at: rows[0].scheduled_end_at ?? null,
           active: rows[0].active !== false,
           org_id: rows[0].org_id,
           ip_anonymization: rows[0].ip_anonymization === true,
@@ -306,6 +308,12 @@ export class RedirectController {
 
       if (link.active === false) {
         return res.status(410).send('Link is paused');
+      }
+      if (link.scheduled_start_at && new Date(link.scheduled_start_at) > nowUtc()) {
+        return res.status(404).send('Not found');
+      }
+      if (link.scheduled_end_at && new Date(link.scheduled_end_at) <= nowUtc()) {
+        return res.status(410).send('Link expired');
       }
       if (link.expires_at && new Date(link.expires_at) <= nowUtc()) {
         return res.status(410).send('Link expired');

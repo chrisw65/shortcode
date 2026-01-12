@@ -335,6 +335,8 @@ CREATE TABLE IF NOT EXISTS links (
   ios_fallback_url TEXT,
   android_fallback_url TEXT,
   deep_link_enabled BOOLEAN DEFAULT false,
+  scheduled_start_at TIMESTAMP,
+  scheduled_end_at TIMESTAMP,
   active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   expires_at TIMESTAMP
@@ -506,6 +508,8 @@ ALTER TABLE orgs ADD COLUMN IF NOT EXISTS ip_anonymization BOOLEAN DEFAULT false
 ALTER TABLE orgs ADD COLUMN IF NOT EXISTS api_rate_limit_rpm INTEGER;
 ALTER TABLE orgs ADD COLUMN IF NOT EXISTS link_limit INTEGER;
 ALTER TABLE orgs ADD COLUMN IF NOT EXISTS domain_limit INTEGER;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS scheduled_start_at TIMESTAMP;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS scheduled_end_at TIMESTAMP;
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_links_short_code ON links(short_code);

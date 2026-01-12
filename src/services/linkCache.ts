@@ -9,6 +9,8 @@ export type CachedLink = {
   original_url: string;
   domain?: string | null;
   expires_at: string | null;
+  scheduled_start_at?: string | null;
+  scheduled_end_at?: string | null;
   active: boolean;
   org_id?: string;
   ip_anonymization?: boolean;
