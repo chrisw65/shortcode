@@ -61,4 +61,23 @@ describe('rbac integration', () => {
 
     expect(res.status).toBe(403);
   });
+
+  it('blocks member from creating billing checkout sessions', async () => {
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .post('/api/billing/checkout')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ plan_id: 'pro', interval: 'monthly' });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('blocks member from creating billing portal sessions', async () => {
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .post('/api/billing/portal')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+  });
 });

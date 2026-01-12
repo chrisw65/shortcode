@@ -121,6 +121,27 @@ describe('org SSO and policy integration', () => {
     expect(res.body?.success).toBe(true);
   });
 
+  it('returns default policy when none exists', async () => {
+    (db.query as jest.Mock).mockImplementation((sql: string) => {
+      if (sql.includes('FROM org_memberships')) {
+        return Promise.resolve({ rows: [{ org_id: 'org-1', role: 'owner' }] });
+      }
+      if (sql.includes('FROM org_policies')) {
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .get('/api/org/policy')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body?.success).toBe(true);
+    expect(res.body?.data?.require_sso).toBe(false);
+  });
+
   it('returns default SSO config when none exists', async () => {
     (db.query as jest.Mock).mockImplementation((sql: string) => {
       if (sql.includes('FROM org_memberships')) {
@@ -140,5 +161,83 @@ describe('org SSO and policy integration', () => {
     expect(res.status).toBe(200);
     expect(res.body?.success).toBe(true);
     expect(res.body?.data?.provider).toBe('oidc');
+  });
+
+  it('rejects unsupported SSO provider', async () => {
+    (db.query as jest.Mock).mockResolvedValue({ rows: [{ org_id: 'org-1', role: 'admin' }] });
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .put('/api/org/sso')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ provider: 'saml', issuer_url: 'https://issuer', client_id: 'client', enabled: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body?.success).toBe(false);
+  });
+
+  it('rejects invalid default_role for SSO', async () => {
+    (db.query as jest.Mock).mockResolvedValue({ rows: [{ org_id: 'org-1', role: 'admin' }] });
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .put('/api/org/sso')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ provider: 'oidc', default_role: 'superuser', enabled: false });
+
+    expect(res.status).toBe(400);
+    expect(res.body?.success).toBe(false);
+  });
+
+  it('rejects enabling SSO without issuer_url or client_id', async () => {
+    (db.query as jest.Mock).mockResolvedValue({ rows: [{ org_id: 'org-1', role: 'admin' }] });
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .put('/api/org/sso')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ provider: 'oidc', issuer_url: '', client_id: '', enabled: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body?.success).toBe(false);
+  });
+
+  it('rejects disabling SSO while require_sso policy is active', async () => {
+    (db.query as jest.Mock).mockImplementation((sql: string) => {
+      if (sql.includes('FROM org_memberships')) {
+        return Promise.resolve({ rows: [{ org_id: 'org-1', role: 'admin' }] });
+      }
+      if (sql.includes('FROM org_policies')) {
+        return Promise.resolve({ rows: [{ require_sso: true }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .put('/api/org/sso')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ provider: 'oidc', enabled: false });
+
+    expect(res.status).toBe(400);
+    expect(res.body?.success).toBe(false);
+  });
+
+  it('rejects require_sso when SSO is disabled', async () => {
+    (db.query as jest.Mock).mockImplementation((sql: string) => {
+      if (sql.includes('FROM org_memberships')) {
+        return Promise.resolve({ rows: [{ org_id: 'org-1', role: 'owner' }] });
+      }
+      if (sql.includes('FROM org_sso')) {
+        return Promise.resolve({ rows: [{ enabled: false, issuer_url: 'https://issuer', client_id: 'client' }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .put('/api/org/policy')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ require_sso: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body?.success).toBe(false);
   });
 });
