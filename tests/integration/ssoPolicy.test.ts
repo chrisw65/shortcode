@@ -89,4 +89,56 @@ describe('org SSO and policy integration', () => {
     expect(res.status).toBe(400);
     expect(res.body?.success).toBe(false);
   });
+
+  it('allows require_sso when SSO is configured', async () => {
+    (db.query as jest.Mock).mockImplementation((sql: string) => {
+      if (sql.includes('FROM org_memberships')) {
+        return Promise.resolve({ rows: [{ org_id: 'org-1', role: 'owner' }] });
+      }
+      if (sql.includes('FROM org_sso')) {
+        return Promise.resolve({ rows: [{ enabled: true, issuer_url: 'https://issuer', client_id: 'client' }] });
+      }
+      if (sql.includes('INSERT INTO org_policies')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'policy-1',
+            require_sso: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .put('/api/org/policy')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ require_sso: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.success).toBe(true);
+  });
+
+  it('returns default SSO config when none exists', async () => {
+    (db.query as jest.Mock).mockImplementation((sql: string) => {
+      if (sql.includes('FROM org_memberships')) {
+        return Promise.resolve({ rows: [{ org_id: 'org-1', role: 'owner' }] });
+      }
+      if (sql.includes('FROM org_sso')) {
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .get('/api/org/sso')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body?.success).toBe(true);
+    expect(res.body?.data?.provider).toBe('oidc');
+  });
 });
