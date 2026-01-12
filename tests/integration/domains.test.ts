@@ -118,4 +118,37 @@ describe('domains integration', () => {
     expect(res.body?.data?.txt?.host_match).toBe(true);
     expect(res.body?.data?.a_records?.records?.length).toBe(1);
   });
+
+  it('lists domains for the org', async () => {
+    (db.query as jest.Mock).mockImplementation((sql: string) => {
+      if (sql.includes('FROM org_memberships')) {
+        return Promise.resolve({ rows: [{ org_id: 'org-1', role: 'owner' }] });
+      }
+      if (sql.includes('FROM domains')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'domain-1',
+            user_id: 'user-1',
+            domain: 'example.com',
+            is_default: true,
+            is_active: true,
+            verified: true,
+            verification_token: 'token123',
+            verified_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+          }],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .get('/api/domains')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body?.success).toBe(true);
+    expect(res.body?.data?.length).toBe(1);
+  });
 });
