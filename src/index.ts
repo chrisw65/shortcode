@@ -54,7 +54,7 @@ const enableWorker = enableAll || modeSet.has('worker');
 const enableStatic = enableApi;
 const enableJobs = enableWorker || enableApi;
 
-const app = express();
+export const app = express();
 const LOG_FORMAT = String(process.env.LOG_FORMAT || 'json').toLowerCase();
 const CSRF_COOKIE = 'csrf_token';
 const sentryDsn = String(process.env.SENTRY_DSN || '').trim();
