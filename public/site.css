@@ -218,8 +218,8 @@ a{color:inherit;text-decoration:none}
 .page-hero-card .panel-row{display:flex;justify-content:space-between;gap:12px;margin-bottom:10px}
 .page-hero-card .panel-list{display:grid;gap:10px;margin-top:12px}
 .panel-item{
-  border:1px solid rgba(213,162,75,.2);border-radius:14px;padding:12px 14px;
-  background:rgba(15,20,27,.85);color:var(--muted);font-size:14px
+  border:1px solid rgba(213,162,75,.2);border-radius:14px;padding:14px 16px;
+  background:rgba(15,20,27,.85);color:var(--muted);font-size:14px;line-height:1.6
 }
 .panel-item strong{display:block;color:var(--text);margin-bottom:4px}
 .panel-item pre{margin:0}
@@ -237,17 +237,17 @@ a{color:inherit;text-decoration:none}
   font-family:"Newsreader","Space Grotesk",serif;
   font-size:40px;margin:0 0 10px
 }
-.docs-sub{color:var(--muted);max-width:680px;margin:0}
+.docs-sub{color:var(--muted);max-width:680px;margin:0;line-height:1.7}
 .docs-shell{padding:28px 0 60px}
 .docs-shell-inner{
-  display:grid;grid-template-columns:280px minmax(0,1fr);gap:28px;align-items:start;
+  display:grid;grid-template-columns:300px minmax(0,1fr);gap:32px;align-items:start;
   width:100%;box-sizing:border-box
 }
 .docs-sidebar{display:grid;gap:18px;position:sticky;top:88px;height:fit-content}
 .docs-article{min-width:0}
 .docs-card{
   background:rgba(21,27,36,.92);border:1px solid var(--line);
-  border-radius:18px;padding:18px;box-shadow:var(--glow)
+  border-radius:18px;padding:20px;box-shadow:var(--glow)
 }
 .docs-card-title{font-weight:600;margin-bottom:12px}
 .docs-links{display:grid;gap:10px}
@@ -437,12 +437,16 @@ a{color:inherit;text-decoration:none}
 .doc-body{min-width:0}
 .doc-body .doc-grid{grid-template-columns:1fr}
 .doc-body .section{padding:0}
-.doc-body .section-title{font-size:22px;margin:0 0 8px}
-.doc-body .section-sub{margin:0 0 12px}
+.doc-body .section-title{font-size:24px;margin:0 0 10px}
+.doc-body .section-sub{margin:0 0 14px;line-height:1.7}
 .doc-body .code-block{
   max-width:100%;
   width:100%;
   box-sizing:border-box;
+  font-size:13px;
+  line-height:1.6;
+  white-space:pre-wrap;
+  word-break:break-word;
 }
 .doc-body > *{
   max-width:100%;
