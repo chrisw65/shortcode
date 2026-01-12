@@ -85,43 +85,67 @@
           </div>
         </section>
 
-        <section class="card tab-panel" data-panel="stripe" style="margin-top:18px">
-          <h3>Stripe connection</h3>
-          <div class="grid grid-2" style="margin-top:10px">
+        <section class="card tab-panel" data-panel="stripe" id="stripeConfigSection" style="margin-top:18px">
+          <div class="row-between">
             <div>
-              <label class="muted">Publishable key</label>
-              <input id="stripePublishable" class="input" placeholder="pk_live_...">
+              <h3 class="m-0">Stripe connection</h3>
+              <p class="muted">Connect Stripe in guided steps or switch to expert mode for the full form.</p>
             </div>
-            <div>
-              <label class="muted">Secret key</label>
-              <input id="stripeSecret" class="input" type="password" placeholder="sk_live_...">
-              <div class="muted small" id="stripeSecretHint"></div>
-            </div>
-            <div>
-              <label class="muted">Webhook secret</label>
-              <input id="stripeWebhook" class="input" type="password" placeholder="whsec_...">
-              <div class="muted small" id="stripeWebhookHint"></div>
-            </div>
-            <div>
-              <label class="muted">Checkout success URL</label>
-              <input id="stripeSuccessUrl" class="input" placeholder="https://okleaf.link/admin/billing.html?success=1">
-            </div>
-            <div>
-              <label class="muted">Checkout cancel URL</label>
-              <input id="stripeCancelUrl" class="input" placeholder="https://okleaf.link/admin/billing.html?canceled=1">
-            </div>
-            <div>
-              <label class="muted">Portal return URL</label>
-              <input id="stripeReturnUrl" class="input" placeholder="https://okleaf.link/admin/billing.html">
-            </div>
+            <span class="pill" id="stripeWizardBadge">Beginner mode</span>
           </div>
-          <div class="row" style="margin-top:12px">
-            <button id="saveStripeConfig" class="btn">Save Stripe settings</button>
-            <span id="stripeConfigMsg" class="muted"></span>
+          <div class="wizard" id="stripeWizard" data-step="1">
+            <div class="wizard-steps">
+              <button class="wizard-step" type="button" data-step="1">1. API keys</button>
+              <button class="wizard-step" type="button" data-step="2">2. Webhooks</button>
+              <button class="wizard-step" type="button" data-step="3">3. Redirect URLs</button>
+            </div>
+            <div class="wizard-panels">
+              <div class="wizard-panel" data-step="1">
+                <div class="grid grid-2">
+                  <div>
+                    <label class="muted">Publishable key</label>
+                    <input id="stripePublishable" class="input" placeholder="pk_live_...">
+                  </div>
+                  <div>
+                    <label class="muted">Secret key</label>
+                    <input id="stripeSecret" class="input" type="password" placeholder="sk_live_...">
+                    <div class="muted small" id="stripeSecretHint"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="wizard-panel" data-step="2">
+                <label class="muted">Webhook secret</label>
+                <input id="stripeWebhook" class="input" type="password" placeholder="whsec_...">
+                <div class="muted small" id="stripeWebhookHint"></div>
+                <div class="muted small" style="margin-top:8px">Use Stripe's webhook signing secret for your endpoint.</div>
+              </div>
+              <div class="wizard-panel" data-step="3">
+                <div class="grid grid-2">
+                  <div>
+                    <label class="muted">Checkout success URL</label>
+                    <input id="stripeSuccessUrl" class="input" placeholder="https://okleaf.link/admin/billing.html?success=1">
+                  </div>
+                  <div>
+                    <label class="muted">Checkout cancel URL</label>
+                    <input id="stripeCancelUrl" class="input" placeholder="https://okleaf.link/admin/billing.html?canceled=1">
+                  </div>
+                  <div>
+                    <label class="muted">Portal return URL</label>
+                    <input id="stripeReturnUrl" class="input" placeholder="https://okleaf.link/admin/billing.html">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="wizard-actions">
+              <button id="stripeWizardPrev" class="btn ghost wizard-nav" type="button">Back</button>
+              <button id="stripeWizardNext" class="btn wizard-nav" type="button">Next</button>
+              <button id="saveStripeConfig" class="btn" type="button">Save Stripe settings</button>
+              <span id="stripeConfigMsg" class="muted"></span>
+            </div>
           </div>
         </section>
 
-        <section class="card tab-panel" data-panel="stripe" style="margin-top:18px">
+        <section class="card tab-panel" data-panel="stripe" id="planMappingSection" style="margin-top:18px">
           <div class="row-between">
             <h3 class="m-0">Stripe price mapping</h3>
             <button id="reloadPlanMapping" class="btn ghost" type="button">Reload tiers</button>
@@ -145,7 +169,7 @@
           </div>
         </section>
 
-        <section class="card tab-panel" data-panel="platform" style="margin-top:18px">
+        <section class="card tab-panel" data-panel="platform" id="platformDefaultsSection" style="margin-top:18px">
           <h3>Platform defaults</h3>
           <div class="grid grid-2" style="margin-top:10px">
             <div>

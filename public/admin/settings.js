@@ -66,8 +66,14 @@ const privacyExportBtn = document.getElementById('privacyExportBtn');
 const privacyDeleteBtn = document.getElementById('privacyDeleteBtn');
 const privacyAcceptBtn = document.getElementById('privacyAcceptBtn');
 const privacyMsg = document.getElementById('privacyMsg');
+const platformExperienceSection = document.getElementById('platformExperienceSection');
+const platformUIMode = document.getElementById('platformUIMode');
+const savePlatformUIMode = document.getElementById('savePlatformUIMode');
+const platformUIModeMsg = document.getElementById('platformUIModeMsg');
 
 let twoFactorEnabled = false;
+let meData = null;
+let platformConfig = {};
 
 function setText(el, value) {
   if (el) el.textContent = value ?? '—';
@@ -90,10 +96,17 @@ async function loadMe() {
   try {
     const res = await api('/api/auth/me');
     const data = res?.data || res;
+    meData = data || null;
     setText(meEmail, data?.user?.email || '—');
     setText(meRole, data?.org?.role || 'member');
     setText(meOrg, data?.org?.orgId || '—');
     setText(meSuper, data?.user?.is_superadmin ? 'yes' : 'no');
+    if (platformExperienceSection) {
+      platformExperienceSection.style.display = data?.user?.is_superadmin ? 'block' : 'none';
+    }
+    if (data?.user?.is_superadmin) {
+      await loadPlatformConfig();
+    }
     if (meEmailVerified) {
       const verified = data?.user?.email_verified !== false;
       meEmailVerified.textContent = verified ? 'Verified' : 'Not verified';
@@ -105,6 +118,38 @@ async function loadMe() {
   } catch (e) {
     setText(meEmail, '—');
     if (meEmailVerified) meEmailVerified.textContent = '—';
+  }
+}
+
+async function loadPlatformConfig() {
+  if (!meData?.user?.is_superadmin) return;
+  try {
+    const res = await api('/api/platform-config');
+    platformConfig = res?.data || res || {};
+    if (platformUIMode) {
+      platformUIMode.value = platformConfig.ui_mode === 'expert' ? 'expert' : 'beginner';
+    }
+  } catch (e) {
+    if (platformUIModeMsg) platformUIModeMsg.textContent = e?.message || 'Failed to load platform settings.';
+  }
+}
+
+async function savePlatformUIModeSetting() {
+  if (!meData?.user?.is_superadmin) return;
+  if (platformUIModeMsg) platformUIModeMsg.textContent = '';
+  if (savePlatformUIMode) savePlatformUIMode.disabled = true;
+  try {
+    const mode = platformUIMode ? platformUIMode.value : 'beginner';
+    await api('/api/platform-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ui_mode: mode }),
+    });
+    if (platformUIModeMsg) platformUIModeMsg.textContent = 'Admin experience updated.';
+  } catch (e) {
+    if (platformUIModeMsg) platformUIModeMsg.textContent = e?.message || 'Failed to save platform settings.';
+  } finally {
+    if (savePlatformUIMode) savePlatformUIMode.disabled = false;
   }
 }
 
@@ -393,6 +438,7 @@ ssoSaveBtn?.addEventListener('click', saveSsoSettings);
 twofaSetupBtn?.addEventListener('click', setupTwoFactor);
 twofaVerifyBtn?.addEventListener('click', verifyTwoFactor);
 twofaDisableBtn?.addEventListener('click', disableTwoFactor);
+savePlatformUIMode?.addEventListener('click', savePlatformUIModeSetting);
 privacyExportBtn?.addEventListener('click', () => {
   window.location.href = '/api/privacy/export';
 });

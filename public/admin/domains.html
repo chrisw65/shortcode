@@ -45,22 +45,79 @@
 
       <main class="admin-content">
         <div class="grid grid-2">
-          <div class="card">
-            <h2>Add custom domain</h2>
-            <div class="row" style="flex-direction:column;gap:10px;margin-top:6px">
-              <input id="domain" class="input" placeholder="yourdomain.tld" />
-              <div class="row">
-                <button id="addBtn" class="btn">Add</button>
-                <span id="addMsg" class="muted"></span>
+          <div class="card" id="domainWizardCard">
+            <div class="row-between">
+              <div>
+                <h2 class="m-0">Add custom domain</h2>
+                <p class="muted">Follow the guided steps to verify your DNS.</p>
+              </div>
+              <span class="pill" id="domainWizardBadge">Beginner mode</span>
+            </div>
+            <div class="wizard" id="domainWizard" data-step="1">
+              <div class="wizard-steps">
+                <button class="wizard-step" type="button" data-step="1">1. Domain</button>
+                <button class="wizard-step" type="button" data-step="2">2. DNS record</button>
+                <button class="wizard-step" type="button" data-step="3">3. Validate</button>
+              </div>
+              <div class="wizard-panels">
+                <div class="wizard-panel" data-step="1">
+                  <label class="muted">Domain name</label>
+                  <input id="domain" class="input" placeholder="yourdomain.tld" />
+                  <div class="row" style="margin-top:10px">
+                    <button id="addBtn" class="btn">Add domain</button>
+                    <span id="addMsg" class="muted"></span>
+                  </div>
+                </div>
+                <div class="wizard-panel" data-step="2">
+                  <div class="muted">Create this TXT record with your DNS provider.</div>
+                  <div class="grid grid-2" style="margin-top:10px">
+                    <div>
+                      <label class="muted">TXT host</label>
+                      <input id="domainTxtHost" class="input" readonly />
+                      <button id="copyTxtHost" class="btn ghost" type="button" style="margin-top:8px">Copy host</button>
+                    </div>
+                    <div>
+                      <label class="muted">TXT value</label>
+                      <input id="domainTxtValue" class="input" readonly />
+                      <button id="copyTxtValue" class="btn ghost" type="button" style="margin-top:8px">Copy value</button>
+                    </div>
+                  </div>
+                  <div class="muted small" id="dnsHint" style="margin-top:8px"></div>
+                </div>
+                <div class="wizard-panel" data-step="3">
+                  <div class="muted">DNS updates can take time to propagate.</div>
+                  <div class="row" style="margin-top:10px">
+                    <button id="validateBtn" class="btn" type="button">Validate DNS</button>
+                    <span id="validateMsg" class="muted"></span>
+                  </div>
+                  <div class="muted small" id="validateStatus" style="margin-top:8px"></div>
+                  <div class="muted small" id="validateCountdown" style="margin-top:6px"></div>
+                  <div class="card" style="margin-top:12px">
+                    <div class="muted small">Routing checks</div>
+                    <div class="grid" style="margin-top:8px;gap:6px">
+                      <div class="row-between"><span class="muted">TXT</span><span id="dnsCheckTxt" class="badge">—</span></div>
+                      <div class="row-between"><span class="muted">CNAME</span><span id="dnsCheckCname" class="badge">—</span></div>
+                      <div class="row-between"><span class="muted">A record</span><span id="dnsCheckA" class="badge">—</span></div>
+                      <div class="row-between"><span class="muted">AAAA record</span><span id="dnsCheckAAAA" class="badge">—</span></div>
+                    </div>
+                    <div class="muted small" id="dnsCheckHint" style="margin-top:8px"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="wizard-actions">
+                <button id="domainWizardPrev" class="btn ghost wizard-nav" type="button">Back</button>
+                <button id="domainWizardNext" class="btn wizard-nav" type="button">Next</button>
               </div>
             </div>
           </div>
 
           <div class="card">
-            <h2>Instructions</h2>
+            <h2>DNS checklist</h2>
             <div class="muted" id="hint">
-              Custom domains require a paid plan. Add a domain, then create this TXT record:<br/>
-              <span class="badge">_shortlink.yourdomain.tld -> &lt;token&gt;</span>
+              1) Add your domain and copy the TXT record.<br/>
+              2) Add the record to your DNS provider.<br/>
+              3) Click “Validate DNS” until it verifies.<br/>
+              <span class="badge" style="margin-top:8px">_shortlink.yourdomain.tld → verification token</span>
             </div>
           </div>
         </div>

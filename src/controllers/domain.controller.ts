@@ -326,6 +326,102 @@ export async function verifyDomain(req: AuthedRequest, res: Response) {
 }
 
 /**
+ * GET /api/domains/:id/check
+ */
+export async function checkDomainDns(req: AuthedRequest, res: Response) {
+  try {
+    const orgId = req.org.orgId;
+    const { id } = req.params;
+    const { rows } = await db.query(
+      `SELECT id, user_id, domain, verification_token, verified
+         FROM domains
+        WHERE id = $1 AND org_id = $2
+        LIMIT 1`,
+      [id, orgId],
+    );
+    if (!rows.length) {
+      return res.status(404).json({ success: false, error: 'Domain not found' });
+    }
+    const row = rows[0];
+    if (!row.verification_token) {
+      const tok = newVerificationToken();
+      const up = await db.query(
+        `UPDATE domains SET verification_token = $1 WHERE id = $2 RETURNING verification_token`,
+        [tok, row.id],
+      );
+      row.verification_token = up.rows[0].verification_token;
+    }
+
+    const token: string = row.verification_token;
+    const host = `_shortlink.${row.domain}`;
+    const cnameTarget = String(process.env.DNS_CNAME_TARGET || '').trim();
+    const output: any = {
+      domain: row.domain,
+      verified: !!row.verified,
+      txt: {
+        host,
+        value: token,
+        host_match: false,
+        root_match: false,
+        error: null,
+      },
+      cname: {
+        target: cnameTarget || null,
+        records: [],
+        matches: null,
+        error: null,
+      },
+      a_records: { records: [], error: null },
+      aaaa_records: { records: [], error: null },
+    };
+
+    try {
+      const rr = await dns.resolveTxt(host);
+      const flat = rr.flat().map((s) => s.trim());
+      output.txt.host_match = flat.includes(token);
+    } catch (e) {
+      output.txt.error = String(e);
+    }
+
+    try {
+      const rr2 = await dns.resolveTxt(row.domain);
+      const flat2 = rr2.flat().map((s) => s.trim());
+      output.txt.root_match = flat2.includes(`shortlink-verify=${token}`);
+    } catch (e) {
+      output.txt.error = output.txt.error || String(e);
+    }
+
+    try {
+      const rr3 = await dns.resolveCname(row.domain);
+      output.cname.records = rr3;
+      if (cnameTarget) {
+        const normalized = cnameTarget.replace(/\.$/, '');
+        output.cname.matches = rr3.some((r) => r.replace(/\.$/, '') === normalized);
+      }
+    } catch (e) {
+      output.cname.error = String(e);
+    }
+
+    try {
+      output.a_records.records = await dns.resolve4(row.domain);
+    } catch (e) {
+      output.a_records.error = String(e);
+    }
+
+    try {
+      output.aaaa_records.records = await dns.resolve6(row.domain);
+    } catch (e) {
+      output.aaaa_records.error = String(e);
+    }
+
+    return res.json({ success: true, data: output });
+  } catch (e) {
+    log('error', 'checkDomainDns error', { error: String(e) });
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+/**
  * POST /api/domains/:id/default
  */
 export async function setDefaultDomain(req: AuthedRequest, res: Response) {

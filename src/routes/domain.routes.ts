@@ -17,6 +17,7 @@ router.use(requireOrg);
 router.use(apiLimiter);
 
 router.get('/', requireApiScope('domains:read'), wrap(domainController.listDomains));
+router.get('/:id/check', requireApiScope('domains:read'), requireOrgRole(['admin', 'owner']), wrap(domainController.checkDomainDns));
 router.post('/', requireApiScope('domains:write'), requireOrgRole(['admin', 'owner']), wrap(domainController.createDomain));
 router.post('/:id/verify', requireApiScope('domains:write'), requireOrgRole(['admin', 'owner']), wrap(domainController.verifyDomain));
 router.post('/:id/default', requireApiScope('domains:write'), requireOrgRole(['admin', 'owner']), wrap(domainController.setDefaultDomain));

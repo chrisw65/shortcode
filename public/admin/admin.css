@@ -461,6 +461,57 @@ tbody tr:hover td{background:rgba(213,162,75,.06)}
   font-size:13px;
 }
 
+.wizard{
+  margin-top:12px;
+  display:grid;
+  gap:16px;
+}
+.wizard-steps{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.wizard-step{
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:6px 12px;
+  background:rgba(17,24,34,.7);
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.02em;
+  cursor:pointer;
+}
+.wizard-step.active{
+  border-color:rgba(213,162,75,.6);
+  color:#f2ddb7;
+  background:rgba(24,35,53,.8);
+}
+.wizard-panel{
+  display:none;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px;
+  background:rgba(12,18,28,.6);
+}
+.wizard-panel.active{
+  display:block;
+}
+.wizard-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+}
+.wizard-expert .wizard-steps{
+  display:none;
+}
+.wizard-expert .wizard-panel{
+  display:block;
+}
+.wizard-expert .wizard-actions .wizard-nav{
+  display:none;
+}
+
 .code-block{background:#0c141c;border:1px solid rgba(213,162,75,.2);border-radius:14px;padding:16px;color:#f1e8d4;overflow:auto}
 .diff-block{max-height:320px}
 .diff-line{font-family:"Newsreader",monospace;font-size:12px;line-height:1.4;padding:0 8px;white-space:pre}

@@ -4,6 +4,7 @@ import {
   getPlatformConfigRaw,
   mergePlatformConfig,
   normalizeRetentionDays,
+  normalizeUiMode,
 } from '../services/platformConfig';
 import { log } from '../utils/logger';
 
@@ -25,11 +26,16 @@ export async function updatePlatformConfig(req: Request, res: Response) {
     }
     const existing = await getPlatformConfigRaw();
     const retention = normalizeRetentionDays(payload.retention_default_days);
+    const uiMode = normalizeUiMode(payload.ui_mode);
     if (payload.retention_default_days !== undefined && payload.retention_default_days !== null && retention === null) {
       return res.status(400).json({ success: false, error: 'retention_default_days must be 1-3650 or null' });
     }
+    if (payload.ui_mode !== undefined && payload.ui_mode !== null && uiMode === null) {
+      return res.status(400).json({ success: false, error: 'ui_mode must be beginner or expert' });
+    }
     const merged = mergePlatformConfig(existing, {
       retention_default_days: payload.retention_default_days === null ? null : retention ?? existing.retention_default_days ?? null,
+      ui_mode: payload.ui_mode === null ? existing.ui_mode ?? 'beginner' : uiMode ?? existing.ui_mode ?? 'beginner',
     });
 
     await db.query(

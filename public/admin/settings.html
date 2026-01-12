@@ -130,6 +130,30 @@
           </div>
         </section>
 
+        <section class="card tab-panel" data-panel="account" id="platformExperienceSection" style="max-width:720px;margin-top:18px;display:none">
+          <h3>Admin experience</h3>
+          <p class="muted">Choose the default workflow style for global settings.</p>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Mode</label>
+              <select id="platformUIMode" class="input">
+                <option value="beginner">Beginner (guided wizards)</option>
+                <option value="expert">Expert (manual forms)</option>
+              </select>
+            </div>
+            <div>
+              <label class="muted">Notes</label>
+              <div class="muted small" style="margin-top:6px">
+                Beginner mode shows step-by-step setup wizards. Expert mode shows full manual forms.
+              </div>
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button id="savePlatformUIMode" class="btn">Save experience</button>
+            <span id="platformUIModeMsg" class="muted"></span>
+          </div>
+        </section>
+
         <section class="card tab-panel" data-panel="security" style="max-width:720px;margin-top:18px">
           <h3>Change password</h3>
           <label class="muted">Current password</label>

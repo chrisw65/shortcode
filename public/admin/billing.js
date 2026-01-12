@@ -45,6 +45,12 @@ const stripeSecretHint = document.getElementById('stripeSecretHint');
 const stripeWebhookHint = document.getElementById('stripeWebhookHint');
 const saveStripeConfig = document.getElementById('saveStripeConfig');
 const stripeConfigMsg = document.getElementById('stripeConfigMsg');
+const stripeWizard = document.getElementById('stripeWizard');
+const stripeWizardBadge = document.getElementById('stripeWizardBadge');
+const stripeWizardPrev = document.getElementById('stripeWizardPrev');
+const stripeWizardNext = document.getElementById('stripeWizardNext');
+const stripeWizardSteps = Array.from(document.querySelectorAll('.wizard-step'));
+const stripeWizardPanels = Array.from(document.querySelectorAll('.wizard-panel'));
 
 const planMappingSection = document.getElementById('planMappingSection');
 const planMapBody = document.getElementById('planMapBody');
@@ -62,6 +68,7 @@ let billingConfig = { prices: {}, stripe: {} };
 let platformConfig = {};
 let meData = null;
 let selectedEntitlementsPlan = '';
+let stripeWizardStep = 1;
 const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
 const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
 const entitlementsTabBtn = document.querySelector('.tab-btn[data-tab="entitlements"]');
@@ -176,6 +183,43 @@ const DEFAULT_ENTITLEMENTS = {
 
 function defaultEntitlementsForPlan(planId) {
   return DEFAULT_ENTITLEMENTS[planId] || DEFAULT_ENTITLEMENTS.free;
+}
+
+function setStripeWizardStep(step) {
+  if (!stripeWizard) return;
+  const maxStep = stripeWizardPanels.length || 1;
+  stripeWizardStep = Math.min(Math.max(step, 1), maxStep);
+  stripeWizard.dataset.step = String(stripeWizardStep);
+  stripeWizardSteps.forEach((btn) => {
+    const active = Number(btn.dataset.step) === stripeWizardStep;
+    btn.classList.toggle('active', active);
+  });
+  stripeWizardPanels.forEach((panel) => {
+    const active = Number(panel.dataset.step) === stripeWizardStep;
+    panel.classList.toggle('active', active);
+  });
+  if (stripeWizardPrev) stripeWizardPrev.disabled = stripeWizardStep <= 1;
+  if (stripeWizardNext) stripeWizardNext.disabled = stripeWizardStep >= maxStep;
+  if (saveStripeConfig) {
+    const expert = stripeWizard.classList.contains('wizard-expert');
+    saveStripeConfig.style.display = expert || stripeWizardStep === maxStep ? 'inline-flex' : 'none';
+  }
+}
+
+function setStripeWizardMode(mode) {
+  if (!stripeWizard) return;
+  const expert = mode === 'expert';
+  stripeWizard.classList.toggle('wizard-expert', expert);
+  if (stripeWizardBadge) stripeWizardBadge.textContent = expert ? 'Expert mode' : 'Beginner mode';
+  if (expert) {
+    stripeWizardPanels.forEach((panel) => panel.classList.add('active'));
+  } else {
+    stripeWizardPanels.forEach((panel) => panel.classList.remove('active'));
+    setStripeWizardStep(stripeWizardStep || 1);
+  }
+  if (saveStripeConfig) {
+    saveStripeConfig.style.display = expert ? 'inline-flex' : (stripeWizardStep === stripeWizardPanels.length ? 'inline-flex' : 'none');
+  }
 }
 
 function formatLimitLine(key, value) {
@@ -328,6 +372,7 @@ async function loadPlatformConfig() {
     if (platformRetentionDays) {
       platformRetentionDays.value = platformConfig.retention_default_days ? String(platformConfig.retention_default_days) : '';
     }
+    setStripeWizardMode(platformConfig.ui_mode === 'expert' ? 'expert' : 'beginner');
   } catch (err) {
     if (platformDefaultsMsg) platformDefaultsMsg.textContent = 'Failed to load platform defaults.';
   }
@@ -673,6 +718,11 @@ reloadPlanMapping?.addEventListener('click', () => {
   renderPlanMapping();
   renderPlanCards();
 });
+stripeWizardSteps.forEach((btn) => {
+  btn.addEventListener('click', () => setStripeWizardStep(Number(btn.dataset.step) || 1));
+});
+stripeWizardPrev?.addEventListener('click', () => setStripeWizardStep(stripeWizardStep - 1));
+stripeWizardNext?.addEventListener('click', () => setStripeWizardStep(stripeWizardStep + 1));
 saveStripeConfig?.addEventListener('click', async () => {
   stripeConfigMsg.textContent = '';
   saveStripeConfig.disabled = true;
@@ -740,6 +790,8 @@ savePlanMapping?.addEventListener('click', async () => {
 
 savePlatformDefaults?.addEventListener('click', savePlatformDefaultsHandler);
 
+setStripeWizardMode('beginner');
+setStripeWizardStep(1);
 await loadMe();
 await loadPricing();
 await loadBillingConfig();
