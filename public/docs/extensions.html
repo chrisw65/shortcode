@@ -12,7 +12,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/site.css" />
+  <link rel="stylesheet" href="/site.css?v=20260111-4" />
+  <style>
+    body[data-page="docs-extension"] .page-hero-grid { grid-template-columns: 1fr; gap: 24px; align-items: start; }
+    body[data-page="docs-extension"] .page-hero-card { margin-top: 12px; }
+  </style>
 </head>
 <body data-page="docs-extension">
   <header class="topbar">
@@ -46,7 +50,8 @@
           <h1 class="section-title">Browser extension</h1>
           <p class="section-sub">Shorten the current tab, copy the short URL, and keep moving without leaving your workflow.</p>
           <div class="hero-actions">
-            <a class="btn primary" href="/extension/okleaf-extension.zip">Download extension</a>
+            <a class="btn primary" id="installCta" href="/extension/okleaf-extension.zip">Install extension</a>
+            <a class="btn ghost" href="/docs/extensions.html#install">Install guide</a>
             <a class="btn ghost" href="https://github.com/chrisw65/shortcode/tree/master/extension" target="_blank" rel="noreferrer">View source</a>
           </div>
         </div>
@@ -63,15 +68,57 @@
 
     <section class="section">
       <div class="container reveal">
-        <h2 class="section-title">Install (developer mode)</h2>
-        <div class="doc-card">
-          <ol>
-            <li>Download the extension zip and unzip it.</li>
-            <li>Open <strong>chrome://extensions</strong> (or <strong>about:addons</strong> in Firefox).</li>
-            <li>Enable Developer Mode.</li>
-            <li>Click <strong>Load unpacked</strong> and select the unzipped folder.</li>
-            <li>Open the extension Options page and set your API key.</li>
-          </ol>
+        <h2 class="section-title" id="install">Install in under 2 minutes</h2>
+        <p class="section-sub">Pick your browser, download the zip, and load the unpacked extension.</p>
+        <div class="install-grid">
+          <a class="install-card" data-install-target="chrome" href="/extension/okleaf-extension.zip">
+            <div class="install-badge">Chrome</div>
+            <h3>Install for Chrome</h3>
+            <p>Best for Chrome + Brave.</p>
+          </a>
+          <a class="install-card" data-install-target="edge" href="/extension/okleaf-extension.zip">
+            <div class="install-badge">Edge</div>
+            <h3>Install for Edge</h3>
+            <p>Use Edge’s extensions page.</p>
+          </a>
+          <a class="install-card" data-install-target="firefox" href="/extension/okleaf-extension.zip">
+            <div class="install-badge">Firefox</div>
+            <h3>Install for Firefox</h3>
+            <p>Use about:addons → Load temporary add‑on.</p>
+          </a>
+        </div>
+
+        <div class="step-grid">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h4>Download & unzip</h4>
+            <p>Grab the zip and extract it to a folder you’ll keep.</p>
+            <div class="step-visual">ZIP</div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h4>Open extensions</h4>
+            <p>Go to chrome://extensions (or edge://extensions).</p>
+            <div class="step-visual">URL</div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h4>Enable developer mode</h4>
+            <p>Toggle Developer Mode to load the unpacked folder.</p>
+            <div class="step-visual">DEV</div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <h4>Load the folder</h4>
+            <p>Select the unzipped folder to install.</p>
+            <div class="step-visual">+</div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">5</div>
+            <h4>Add API key</h4>
+            <p>Open Options, paste your OkLeaf API key, save.</p>
+            <div class="step-visual">KEY</div>
+          </div>
         </div>
       </div>
     </section>
@@ -109,6 +156,22 @@
     </div>
   </footer>
 
-  <script src="/site.js?v=20260116"></script>
+  <script src="/site.js?v=20260116-2"></script>
+  <script>
+    (function () {
+      var ua = (navigator.userAgent || '').toLowerCase();
+      var target = 'chrome';
+      if (ua.includes('firefox')) target = 'firefox';
+      else if (ua.includes('edg/')) target = 'edge';
+      var cta = document.getElementById('installCta');
+      if (cta) cta.textContent = 'Install for ' + (target === 'edge' ? 'Edge' : target === 'firefox' ? 'Firefox' : 'Chrome');
+      var cards = document.querySelectorAll('[data-install-target]');
+      cards.forEach(function (card) {
+        if (card.getAttribute('data-install-target') === target) {
+          card.classList.add('install-highlight');
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

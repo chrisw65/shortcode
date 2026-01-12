@@ -447,6 +447,39 @@ body[data-page="docs"] .page-hero-card{
   border-radius:14px;padding:16px;color:#f1e8d4;overflow:auto
 }
 
+.install-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0 24px
+}
+.install-card{
+  border-radius:18px;padding:18px;border:1px solid var(--line);
+  background:rgba(21,27,36,.92);box-shadow:var(--glow);
+  display:flex;flex-direction:column;gap:8px;color:var(--text)
+}
+.install-card h3{margin:0;font-size:18px}
+.install-card p{margin:0;color:var(--muted)}
+.install-badge{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#f6e6c6;
+  border:1px solid rgba(213,162,75,.35);border-radius:999px;padding:4px 10px;width:max-content
+}
+.install-highlight{border-color:rgba(213,162,75,.6);box-shadow:0 24px 50px rgba(213,162,75,.18)}
+.step-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px
+}
+.step-card{
+  border-radius:18px;padding:18px;border:1px solid rgba(255,255,255,.08);
+  background:rgba(15,20,27,.85);display:grid;gap:8px
+}
+.step-card h4{margin:0}
+.step-card p{margin:0;color:var(--muted)}
+.step-num{
+  width:28px;height:28px;border-radius:999px;display:grid;place-items:center;
+  background:rgba(213,162,75,.2);border:1px solid rgba(213,162,75,.5);font-weight:600
+}
+.step-visual{
+  height:56px;border-radius:14px;border:1px dashed rgba(255,255,255,.12);
+  display:grid;place-items:center;color:var(--muted);letter-spacing:.2em;font-size:12px
+}
+
 .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .muted{color:var(--muted)}
 
@@ -464,6 +497,8 @@ body[data-page="docs"] .page-hero-card{
   .pricing-grid{grid-template-columns:1fr}
   .faqs{grid-template-columns:1fr}
   .doc-grid,.case-grid{grid-template-columns:1fr}
+  .install-grid{grid-template-columns:1fr}
+  .step-grid{grid-template-columns:1fr}
 }
 @media (max-width: 640px){
   .hero h1{font-size:38px}

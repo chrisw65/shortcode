@@ -213,7 +213,7 @@ function ensureAdminNavIncludesEcosystem() {
 async function ensureEmailVerificationBanner() {
   if (!hasSession()) return;
   const main = document.querySelector('.admin-main');
-  if (!main || main.querySelector('.admin-banner')) return;
+  if (!main || main.querySelector('[data-email-banner]')) return;
   try {
     const me = await apiFetch('/api/auth/me');
     const user = me?.data?.user || me?.user;
@@ -221,6 +221,7 @@ async function ensureEmailVerificationBanner() {
     const email = escapeHtml(user.email || '');
     const banner = document.createElement('div');
     banner.className = 'admin-banner';
+    banner.dataset.emailBanner = '1';
     banner.innerHTML = `
       <div>
         <div style="font-weight:600">Email not verified</div>
@@ -248,6 +249,37 @@ async function ensureEmailVerificationBanner() {
       } finally {
         setTimeout(() => { resendBtn.disabled = false; }, 1200);
       }
+    });
+  } catch {
+    // ignore banner failures
+  }
+}
+
+async function ensureExtensionInstallBanner() {
+  if (!hasSession()) return;
+  const main = document.querySelector('.admin-main');
+  if (!main || main.querySelector('[data-extension-banner]')) return;
+  try {
+    if (localStorage.getItem('extension_banner_dismissed') === '1') return;
+    const banner = document.createElement('div');
+    banner.className = 'admin-banner info';
+    banner.dataset.extensionBanner = '1';
+    banner.innerHTML = `
+      <div>
+        <div style="font-weight:600">Install the OkLeaf extension</div>
+        <div class="muted">Shorten any page from your toolbar without leaving your workflow.</div>
+      </div>
+      <div class="row" style="gap:10px">
+        <a class="btn ghost" href="/docs/extensions.html">Install guide</a>
+        <a class="btn" href="/extension/okleaf-extension.zip">Download zip</a>
+        <button class="btn ghost" type="button" data-action="dismiss-extension">Dismiss</button>
+      </div>
+    `;
+    main.insertBefore(banner, main.firstChild);
+    const dismissBtn = banner.querySelector('[data-action="dismiss-extension"]');
+    dismissBtn?.addEventListener('click', () => {
+      localStorage.setItem('extension_banner_dismissed', '1');
+      banner.remove();
     });
   } catch {
     // ignore banner failures
@@ -291,6 +323,7 @@ onReady(() => {
   applyAdminTheme();
   ensureAdminNavIncludesEcosystem();
   ensureEmailVerificationBanner();
+  ensureExtensionInstallBanner();
   ensureOrgSwitcher();
 });
 

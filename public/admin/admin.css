@@ -133,6 +133,10 @@ a{color:inherit;text-decoration:none}
   justify-content:space-between;
   gap:14px;
 }
+.admin-banner.info{
+  border-color:rgba(213,162,75,.45);
+  background:rgba(213,162,75,.12);
+}
 .admin-banner .muted{color:var(--muted)}
 .page-title{font-family:"Newsreader","Space Grotesk",serif;font-size:28px;margin:0}
 .page-sub{color:var(--muted);margin:6px 0 0}
