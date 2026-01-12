@@ -86,4 +86,28 @@ describe('analytics integration', () => {
     expect(res.body?.success).toBe(true);
     expect(res.body?.data?.sparkline?.length).toBe(1);
   });
+
+  it('exports link events', async () => {
+    (db.query as jest.Mock).mockImplementation((sql: string) => {
+      if (sql.includes('FROM org_memberships')) {
+        return Promise.resolve({ rows: [{ org_id: 'org-1', role: 'owner' }] });
+      }
+      if (sql.includes('SELECT id FROM links')) {
+        return Promise.resolve({ rows: [{ id: 'link-1' }] });
+      }
+      if (sql.includes('FROM click_events')) {
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .get('/api/analytics/links/abc/events?range=24h&limit=10')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body?.success).toBe(true);
+    expect(Array.isArray(res.body?.data)).toBe(true);
+  });
 });
