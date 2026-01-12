@@ -549,7 +549,14 @@ async function init() {
       }
       if (pageKey === 'docs') {
         const docsWrap = qs('[data-docs-html]');
-        if (docsWrap && page.html) docsWrap.innerHTML = sanitizeDocsHtml(page.html);
+        if (docsWrap && page.html) {
+          const html = sanitizeDocsHtml(page.html);
+          docsWrap.innerHTML = html
+            .replace('<section', '<section id="auth"')
+            .replace('Create a short link', '<span id="create-link">Create a short link</span>')
+            .replace('Analytics summary', '<span id="analytics">Analytics summary</span>')
+            .replace('Webhooks', '<span id="webhooks">Webhooks</span>');
+        }
       }
       if (pageKey === 'home') {
         const cardTitle = qs('[data-home-card-title]');

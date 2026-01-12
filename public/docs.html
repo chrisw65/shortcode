@@ -12,12 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/site.css?v=20260111-4" />
-  <style>
-    body[data-page="docs"] .page-hero-grid { grid-template-columns: 1fr !important; align-items: start; }
-    body[data-page="docs"] .page-hero-card { margin-top: 18px; }
-    body[data-page="docs"] .split-grid { grid-template-columns: 1fr !important; }
-  </style>
+  <link rel="stylesheet" href="/site.css?v=20260111-5" />
 </head>
 <body data-page="docs">
   <header class="topbar">
@@ -43,51 +38,57 @@
     </div>
   </header>
 
-  <main>
-    <section class="page-hero">
-      <div class="container page-hero-grid reveal">
-        <div>
+  <main class="docs-main">
+    <section class="docs-hero">
+      <div class="container">
+        <div class="docs-hero-inner">
           <div class="kicker">Docs</div>
-          <h1 class="section-title" data-page-title>Documentation</h1>
-          <p class="section-sub" data-page-subtitle>Quick-start guides and API references to help your team launch faster.</p>
+          <h1 class="docs-title" data-page-title>Documentation</h1>
+          <p class="docs-sub" data-page-subtitle>Quick-start guides and API references to help your team launch faster.</p>
           <div class="cta-actions">
             <a class="btn primary" href="/register.html">Get started</a>
             <a class="btn ghost" href="/contact.html">Ask a question</a>
           </div>
         </div>
-        <div class="page-hero-card">
-          <h3>Quickstart checklist</h3>
-          <div class="panel-list">
-            <div class="panel-item">
-              <strong>Create a workspace</strong>
-              Invite teammates and set baseline roles.
-            </div>
-            <div class="panel-item">
-              <strong>Verify domains</strong>
-              Add DNS records and validate branded redirects.
-            </div>
-            <div class="panel-item">
-              <strong>Ship tracking</strong>
-              Add UTMs, pixels, and shareable QR codes.
-            </div>
-          </div>
-        </div>
       </div>
     </section>
 
-    <section class="section">
-      <div class="container split-grid reveal">
-        <div class="stack-grid">
-          <div class="callout">
-            <strong>API-ready teams</strong>
-            Generate API keys, automate short links, and sync analytics in minutes.
+    <section class="docs-body">
+      <div class="container docs-layout">
+        <aside class="docs-aside">
+          <div class="docs-card">
+            <div class="docs-card-title">Quickstart checklist</div>
+            <div class="panel-list">
+              <div class="panel-item">
+                <strong>Create a workspace</strong>
+                Invite teammates and set baseline roles.
+              </div>
+              <div class="panel-item">
+                <strong>Verify domains</strong>
+                Add DNS records and validate branded redirects.
+              </div>
+              <div class="panel-item">
+                <strong>Ship tracking</strong>
+                Add UTMs, pixels, and shareable QR codes.
+              </div>
+            </div>
           </div>
-          <div class="quote-card">
-            <p class="quote">“Our team was live with branded domains on day one.”</p>
-            <div class="quote-meta">Marketing Ops, SaaS</div>
+
+          <div class="docs-card">
+            <div class="docs-card-title">API quick links</div>
+            <div class="docs-links">
+              <a href="/docs/extensions.html">Browser extension</a>
+              <a href="/docs.html#auth">Authentication</a>
+              <a href="/docs.html#create-link">Create a short link</a>
+              <a href="/docs.html#analytics">Analytics summary</a>
+              <a href="/docs.html#webhooks">Webhooks</a>
+            </div>
           </div>
-        </div>
-        <div class="doc-body" data-docs-html></div>
+        </aside>
+
+        <section class="docs-content">
+          <div class="doc-body" data-docs-html></div>
+        </section>
       </div>
     </section>
   </main>
