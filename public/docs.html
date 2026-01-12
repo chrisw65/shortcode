@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/site.css?v=20260111-5" />
+  <link rel="stylesheet" href="/site.css?v=20260112-1" />
 </head>
 <body data-page="docs">
   <header class="topbar">
@@ -40,24 +40,24 @@
 
   <main class="docs-main">
     <section class="docs-hero">
-      <div class="container">
-        <div class="docs-hero-inner">
+      <div class="container docs-hero-inner">
+        <div>
           <div class="kicker">Docs</div>
           <h1 class="docs-title" data-page-title>Documentation</h1>
           <p class="docs-sub" data-page-subtitle>Quick-start guides and API references to help your team launch faster.</p>
-          <div class="cta-actions">
-            <a class="btn primary" href="/register.html">Get started</a>
-            <a class="btn ghost" href="/contact.html">Ask a question</a>
-          </div>
+        </div>
+        <div class="cta-actions">
+          <a class="btn primary" href="/register.html">Get started</a>
+          <a class="btn ghost" href="/contact.html">Ask a question</a>
         </div>
       </div>
     </section>
 
-    <section class="docs-body">
-      <div class="container docs-layout">
-        <aside class="docs-aside">
+    <section class="docs-shell">
+      <div class="container docs-shell-inner">
+        <aside class="docs-sidebar">
           <div class="docs-card">
-            <div class="docs-card-title">Quickstart checklist</div>
+            <div class="docs-card-title">Quickstart</div>
             <div class="panel-list">
               <div class="panel-item">
                 <strong>Create a workspace</strong>
@@ -75,20 +75,28 @@
           </div>
 
           <div class="docs-card">
-            <div class="docs-card-title">API quick links</div>
-            <div class="docs-links">
+            <div class="docs-card-title">Jump to</div>
+            <nav class="docs-links">
               <a href="/docs/extensions.html">Browser extension</a>
               <a href="/docs.html#auth">Authentication</a>
               <a href="/docs.html#create-link">Create a short link</a>
               <a href="/docs.html#analytics">Analytics summary</a>
               <a href="/docs.html#webhooks">Webhooks</a>
+            </nav>
+          </div>
+
+          <div class="docs-card">
+            <div class="docs-card-title">Need help?</div>
+            <div class="muted">Chat with us for onboarding or API guidance.</div>
+            <div class="cta-actions" style="margin-top:12px">
+              <a class="btn ghost" href="/contact.html">Contact support</a>
             </div>
           </div>
         </aside>
 
-        <section class="docs-content">
+        <article class="docs-article">
           <div class="doc-body" data-docs-html></div>
-        </section>
+        </article>
       </div>
     </section>
   </main>

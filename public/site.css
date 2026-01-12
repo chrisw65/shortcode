@@ -225,23 +225,25 @@ a{color:inherit;text-decoration:none}
 .panel-item pre{margin:0}
 .docs-main{padding-bottom:40px}
 .docs-hero{
-  padding:86px 0 36px;
+  padding:80px 0 28px;
   background:
     radial-gradient(900px 480px at 10% -20%, rgba(213,162,75,.22), transparent 60%),
     radial-gradient(900px 540px at 92% -10%, rgba(47,183,164,.22), transparent 60%);
 }
-.docs-hero-inner{max-width:720px}
+.docs-hero-inner{
+  display:flex;flex-direction:column;gap:16px;
+}
 .docs-title{
   font-family:"Newsreader","Space Grotesk",serif;
-  font-size:40px;margin:0 0 12px
+  font-size:40px;margin:0 0 10px
 }
-.docs-sub{color:var(--muted);max-width:640px;margin:0 0 16px}
-.docs-body{padding:24px 0 60px}
-.docs-layout{
-  display:grid;grid-template-columns:320px 1fr;gap:28px;align-items:start
+.docs-sub{color:var(--muted);max-width:680px;margin:0}
+.docs-shell{padding:28px 0 60px}
+.docs-shell-inner{
+  display:grid;grid-template-columns:280px minmax(0,1fr);gap:28px;align-items:start
 }
-.docs-aside{display:grid;gap:18px}
-.docs-content{min-width:0}
+.docs-sidebar{display:grid;gap:18px;position:sticky;top:88px;height:fit-content}
+.docs-article{min-width:0}
 .docs-card{
   background:rgba(21,27,36,.92);border:1px solid var(--line);
   border-radius:18px;padding:18px;box-shadow:var(--glow)
@@ -526,7 +528,8 @@ body[data-page="docs"] .page-hero-card{
   .doc-grid,.case-grid{grid-template-columns:1fr}
   .install-grid{grid-template-columns:1fr}
   .step-grid{grid-template-columns:1fr}
-  .docs-layout{grid-template-columns:1fr}
+  .docs-shell-inner{grid-template-columns:1fr}
+  .docs-sidebar{position:static}
 }
 @media (max-width: 640px){
   .hero h1{font-size:38px}
