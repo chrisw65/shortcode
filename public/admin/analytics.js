@@ -25,6 +25,8 @@ const orgTotal = document.getElementById('orgTotal');
 const orgRange = document.getElementById('orgRange');
 const orgRangeLabel = document.getElementById('orgRangeLabel');
 const orgLast = document.getElementById('orgLast');
+const orgSpark = document.getElementById('orgSpark');
+const orgSparkLabel = document.getElementById('orgSparkLabel');
 const orgCountryBody = document.getElementById('orgCountryBody');
 const orgCityBody = document.getElementById('orgCityBody');
 const countryFilter = document.getElementById('countryFilter');
@@ -131,7 +133,7 @@ async function selectLink(short, meta) {
   if (currentCountry) evParams.set('country', currentCountry);
   try { events = (await api(`/api/analytics/links/${encodeURIComponent(short)}/events?${evParams.toString()}`)).data || []; } catch {}
   renderEvents(events);
-  drawSparkline(summary?.sparkline || [], events);
+  drawSparkline(sparkCanvas, summary?.sparkline || [], events);
 }
 
 function renderEvents(events){
@@ -149,10 +151,11 @@ function renderEvents(events){
   `).join('');
 }
 
-function drawSparkline(series, events){
-  const ctx=sparkCanvas.getContext('2d');
-  const W=sparkCanvas.clientWidth|0, H=sparkCanvas.clientHeight|0;
-  sparkCanvas.width=W*devicePixelRatio; sparkCanvas.height=H*devicePixelRatio; ctx.scale(devicePixelRatio,devicePixelRatio);
+function drawSparkline(canvas, series, events){
+  if (!canvas) return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.clientWidth|0, H=canvas.clientHeight|0;
+  canvas.width=W*devicePixelRatio; canvas.height=H*devicePixelRatio; ctx.scale(devicePixelRatio,devicePixelRatio);
   ctx.clearRect(0,0,W,H);
   let bins = [];
   if (Array.isArray(series) && series.length) {
@@ -342,6 +345,8 @@ async function loadOrgSummary(){
   if (orgRange) orgRange.textContent = summary?.clicks_range ?? '–';
   if (orgLast) orgLast.textContent = fmtDate(summary?.last_click_at);
   if (orgRangeLabel) orgRangeLabel.textContent = isCustomRangeActive() ? 'Clicks (custom)' : rangeLabel(currentRange);
+  if (orgSparkLabel) orgSparkLabel.textContent = isCustomRangeActive() ? 'Custom range' : rangeLabel(currentRange);
+  drawSparkline(orgSpark, summary?.sparkline || [], []);
 
   const countries = summary?.top_countries || [];
   if (orgCountryBody) {

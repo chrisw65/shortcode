@@ -65,37 +65,61 @@
                 Destination URL
                 <input id="inUrl" class="input" type="url" placeholder="https://example.com/page" autocomplete="off">
               </label>
-              <div class="grid grid-2">
-                <label>
-                  UTM source
-                  <input id="utmSource" class="input" type="text" placeholder="newsletter">
-                </label>
-                <label>
-                  UTM medium
-                  <input id="utmMedium" class="input" type="text" placeholder="email">
-                </label>
-              </div>
-              <div class="grid grid-2">
-                <label>
-                  UTM campaign
-                  <input id="utmCampaign" class="input" type="text" placeholder="launch">
-                </label>
-                <label>
-                  UTM term
-                  <input id="utmTerm" class="input" type="text" placeholder="keyword">
-                </label>
-              </div>
-              <div class="grid grid-2">
-                <label>
-                  UTM content
-                  <input id="utmContent" class="input" type="text" placeholder="cta-variant">
-                </label>
-                <div>
-                  <label class="muted">UTM preview</label>
-                  <div class="muted" id="utmPreview">No UTM parameters.</div>
-                  <div class="row" style="margin-top:8px">
-                    <button class="btn ghost" id="utmApply">Apply to URL</button>
-                    <button class="btn ghost" id="utmClear">Clear UTM</button>
+              <div class="card" id="utmWizardCard" style="grid-column: 1 / -1">
+                <div class="row-between">
+                  <div>
+                    <h4 class="m-0">UTM builder</h4>
+                    <div class="muted small">Build tracking parameters for this destination.</div>
+                  </div>
+                  <span class="pill" id="utmWizardBadge">Beginner mode</span>
+                </div>
+                <div class="wizard" id="utmWizard" data-step="1" style="margin-top:12px">
+                  <div class="wizard-steps">
+                    <button class="wizard-step" type="button" data-step="1">1. Source</button>
+                    <button class="wizard-step" type="button" data-step="2">2. Campaign</button>
+                    <button class="wizard-step" type="button" data-step="3">3. Preview</button>
+                  </div>
+                  <div class="wizard-panels">
+                    <div class="wizard-panel" data-step="1">
+                      <div class="grid grid-2">
+                        <label>
+                          UTM source
+                          <input id="utmSource" class="input" type="text" placeholder="newsletter">
+                        </label>
+                        <label>
+                          UTM medium
+                          <input id="utmMedium" class="input" type="text" placeholder="email">
+                        </label>
+                      </div>
+                    </div>
+                    <div class="wizard-panel" data-step="2">
+                      <div class="grid grid-2">
+                        <label>
+                          UTM campaign
+                          <input id="utmCampaign" class="input" type="text" placeholder="launch">
+                        </label>
+                        <label>
+                          UTM term
+                          <input id="utmTerm" class="input" type="text" placeholder="keyword">
+                        </label>
+                      </div>
+                      <label style="margin-top:12px">
+                        UTM content
+                        <input id="utmContent" class="input" type="text" placeholder="cta-variant">
+                      </label>
+                    </div>
+                    <div class="wizard-panel" data-step="3">
+                      <label class="muted">UTM preview</label>
+                      <div class="muted" id="utmPreview">No UTM parameters.</div>
+                      <div class="row" style="margin-top:8px">
+                        <button class="btn ghost" id="utmApply">Apply to URL</button>
+                        <button class="btn ghost" id="utmClear">Clear UTM</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="wizard-actions">
+                    <button id="utmWizardPrev" class="btn ghost wizard-nav" type="button">Back</button>
+                    <button id="utmWizardNext" class="btn wizard-nav" type="button">Next</button>
                   </div>
                 </div>
               </div>

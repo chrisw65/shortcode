@@ -7,6 +7,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
+import * as Sentry from '@sentry/node';
 
 // Routers
 import authRoutes from './routes/auth.routes';
@@ -56,6 +57,17 @@ const enableJobs = enableWorker || enableApi;
 const app = express();
 const LOG_FORMAT = String(process.env.LOG_FORMAT || 'json').toLowerCase();
 const CSRF_COOKIE = 'csrf_token';
+const sentryDsn = String(process.env.SENTRY_DSN || '').trim();
+const sentryEnabled = Boolean(sentryDsn);
+
+if (sentryEnabled) {
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || 'development',
+    tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || '0'),
+  });
+  app.use(Sentry.Handlers.requestHandler());
+}
 
 function isSecure(req: Request): boolean {
   if (req.secure) return true;
@@ -308,6 +320,9 @@ app.use((req: Request, res: Response) => {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const reqWithId = req as RequestWithId;
+  if (sentryEnabled) {
+    Sentry.captureException(err);
+  }
   log('error', 'unhandled_error', { error: String(err), request_id: reqWithId.id });
   if (res.headersSent) return;
   res.status(500).json({ success: false, error: 'Internal server error' });
@@ -348,12 +363,18 @@ if (require.main === module && (enableApi || enableRedirect || enableStatic)) {
     process.exit(0);
   };
 
-  process.on('unhandledRejection', (reason) => {
-    log('error', 'unhandled_rejection', { error: String(reason) });
-  });
-  process.on('uncaughtException', (err) => {
-    log('error', 'uncaught_exception', { error: String(err) });
-  });
+process.on('unhandledRejection', (reason) => {
+  if (sentryEnabled) {
+    Sentry.captureException(reason);
+  }
+  log('error', 'unhandled_rejection', { error: String(reason) });
+});
+process.on('uncaughtException', (err) => {
+  if (sentryEnabled) {
+    Sentry.captureException(err);
+  }
+  log('error', 'uncaught_exception', { error: String(err) });
+});
 
   ['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach((signal) => {
     process.on(signal, () => {

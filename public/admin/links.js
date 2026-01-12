@@ -58,6 +58,10 @@ const els = {
   utmPreview: document.getElementById('utmPreview'),
   utmApply:  document.getElementById('utmApply'),
   utmClear:  document.getElementById('utmClear'),
+  utmWizard: document.getElementById('utmWizard'),
+  utmWizardBadge: document.getElementById('utmWizardBadge'),
+  utmWizardPrev: document.getElementById('utmWizardPrev'),
+  utmWizardNext: document.getElementById('utmWizardNext'),
   btnCreate: document.getElementById('btnCreate'),
   codeStatus: document.getElementById('codeStatus'),
   codePreviewValue: document.getElementById('codePreviewValue'),
@@ -119,6 +123,9 @@ const els = {
   bulkDeleteMsg: document.getElementById('bulkDeleteMsg'),
 };
 
+const utmWizardSteps = els.utmWizard ? Array.from(els.utmWizard.querySelectorAll('.wizard-step')) : [];
+const utmWizardPanels = els.utmWizard ? Array.from(els.utmWizard.querySelectorAll('.wizard-panel')) : [];
+
 let allLinks = [];
 let sortKey = 'created_at';
 let sortDir = 'desc'; // 'asc'|'desc'
@@ -133,11 +140,43 @@ let groups = [];
 let selectedVariantCode = '';
 let selectedRouteCode = '';
 let selectedPasswordCode = '';
+let uiMode = 'beginner';
+let utmWizardStep = 1;
 
 function setCodeStatus(state, text) {
   if (!els.codeStatus) return;
   els.codeStatus.className = `status ${state || 'muted'}`;
   els.codeStatus.textContent = text || '';
+}
+
+function setUtmWizardStep(step) {
+  if (!els.utmWizard) return;
+  const maxStep = utmWizardPanels.length || 1;
+  utmWizardStep = Math.min(Math.max(step, 1), maxStep);
+  els.utmWizard.dataset.step = String(utmWizardStep);
+  utmWizardSteps.forEach((btn) => {
+    const active = Number(btn.dataset.step) === utmWizardStep;
+    btn.classList.toggle('active', active);
+  });
+  utmWizardPanels.forEach((panel) => {
+    const active = Number(panel.dataset.step) === utmWizardStep;
+    panel.classList.toggle('active', active);
+  });
+  if (els.utmWizardPrev) els.utmWizardPrev.disabled = utmWizardStep <= 1;
+  if (els.utmWizardNext) els.utmWizardNext.disabled = utmWizardStep >= maxStep;
+}
+
+function setUtmWizardMode(mode) {
+  if (!els.utmWizard) return;
+  const expert = mode === 'expert';
+  els.utmWizard.classList.toggle('wizard-expert', expert);
+  if (els.utmWizardBadge) els.utmWizardBadge.textContent = expert ? 'Expert mode' : 'Beginner mode';
+  if (expert) {
+    utmWizardPanels.forEach((panel) => panel.classList.add('active'));
+  } else {
+    utmWizardPanels.forEach((panel) => panel.classList.remove('active'));
+    setUtmWizardStep(utmWizardStep || 1);
+  }
 }
 
 function updateCodePreview(code) {
@@ -648,6 +687,16 @@ function updateUtmPreview() {
   const baseUrl = (els.inUrl.value || '').trim();
   const preview = baseUrl ? buildUtmUrl(baseUrl, params) : null;
   els.utmPreview.textContent = preview || 'Enter a valid URL to preview UTM.';
+}
+
+async function loadUiMode() {
+  try {
+    const res = await api('/api/platform-config');
+    uiMode = res?.data?.ui_mode === 'expert' ? 'expert' : 'beginner';
+  } catch (e) {
+    uiMode = 'beginner';
+  }
+  setUtmWizardMode(uiMode);
 }
 
 async function createLink() {
@@ -1286,6 +1335,11 @@ els.bulkDeleteBtn?.addEventListener('click', bulkDelete);
 els.bulkCsv?.addEventListener('change', bulkImportCsv);
 els.tagAdd?.addEventListener('click', createTag);
 els.groupAdd?.addEventListener('click', createGroup);
+utmWizardSteps.forEach((btn) => {
+  btn.addEventListener('click', () => setUtmWizardStep(Number(btn.dataset.step) || 1));
+});
+els.utmWizardPrev?.addEventListener('click', () => setUtmWizardStep(utmWizardStep - 1));
+els.utmWizardNext?.addEventListener('click', () => setUtmWizardStep(utmWizardStep + 1));
 els.utmApply?.addEventListener('click', () => {
   const params = readUtmParams();
   const hasUtm = Object.values(params).some(Boolean);
@@ -1309,6 +1363,9 @@ els.utmClear?.addEventListener('click', () => {
   const el = els[key];
   if (el) el.addEventListener('input', () => updateUtmPreview());
 });
+setUtmWizardMode('beginner');
+setUtmWizardStep(1);
+loadUiMode();
 els.qrClose?.addEventListener('click', closeQrModal);
 els.qrBackdrop?.addEventListener('click', closeQrModal);
 els.variantsClose?.addEventListener('click', closeVariantsModal);
