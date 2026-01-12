@@ -218,4 +218,115 @@ describe('links integration', () => {
     expect(res.status).toBe(200);
     expect(res.body?.success).toBe(true);
   });
+
+  it('creates a link', async () => {
+    (db.query as jest.Mock).mockImplementation((sql: string) => {
+      if (sql.includes('FROM org_memberships')) {
+        return Promise.resolve({ rows: [{ org_id: 'org-1', role: 'owner' }] });
+      }
+      if (sql.includes('SELECT COUNT(*)')) {
+        return Promise.resolve({ rows: [{ count: 0 }] });
+      }
+      if (sql.includes('SELECT domain')) {
+        return Promise.resolve({ rows: [] });
+      }
+      if (sql.includes('INSERT INTO links')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'link-2',
+            user_id: 'user-1',
+            short_code: 'new',
+            original_url: 'https://example.com',
+            title: 'New',
+            click_count: 0,
+            created_at: new Date().toISOString(),
+            expires_at: null,
+            active: true,
+            domain: null,
+            password_protected: false,
+            deep_link_url: null,
+            ios_fallback_url: null,
+            android_fallback_url: null,
+            deep_link_enabled: false,
+            tags: [],
+            groups: [],
+          }],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .post('/api/links')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ url: 'https://example.com', title: 'New' });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.success).toBe(true);
+    expect(res.body?.data?.short_code).toBe('new');
+  });
+
+  it('bulk deletes links', async () => {
+    (db.query as jest.Mock).mockImplementation((sql: string) => {
+      if (sql.includes('FROM org_memberships')) {
+        return Promise.resolve({ rows: [{ org_id: 'org-1', role: 'owner' }] });
+      }
+      if (sql.includes('SELECT id, short_code')) {
+        return Promise.resolve({ rows: [{ id: 'link-1', short_code: 'abc' }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .post('/api/links/bulk-delete')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ codes: ['abc'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.success).toBe(true);
+  });
+
+  it('bulk creates links', async () => {
+    (db.query as jest.Mock).mockImplementation((sql: string) => {
+      if (sql.includes('FROM org_memberships')) {
+        return Promise.resolve({ rows: [{ org_id: 'org-1', role: 'owner' }] });
+      }
+      if (sql.includes('SELECT COUNT(*)')) {
+        return Promise.resolve({ rows: [{ count: 0 }] });
+      }
+      if (sql.includes('INSERT INTO links')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'link-3',
+            user_id: 'user-1',
+            short_code: 'bulk1',
+            original_url: 'https://example.com',
+            title: 'Bulk',
+            click_count: 0,
+            created_at: new Date().toISOString(),
+            expires_at: null,
+            active: true,
+            domain: null,
+            password_protected: false,
+            deep_link_url: null,
+            ios_fallback_url: null,
+            android_fallback_url: null,
+            deep_link_enabled: false,
+          }],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .post('/api/links/bulk-create')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ items: [{ url: 'https://example.com', title: 'Bulk' }] });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.success).toBe(true);
+  });
 });

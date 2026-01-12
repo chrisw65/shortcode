@@ -206,4 +206,27 @@ describe('domains integration', () => {
     expect(res.body?.success).toBe(true);
     expect(res.body?.data?.domain).toBe('example.com');
   });
+
+  it('rejects domain creation when plan disallows', async () => {
+    (getPlanEntitlements as jest.Mock).mockResolvedValue({
+      features: { custom_domains: false },
+      limits: { domains: 0 },
+    });
+
+    (db.query as jest.Mock).mockImplementation((sql: string) => {
+      if (sql.includes('FROM org_memberships')) {
+        return Promise.resolve({ rows: [{ org_id: 'org-1', role: 'owner' }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const token = jwt.sign({ userId: 'user-1' }, process.env.JWT_SECRET as string);
+    const res = await request(app)
+      .post('/api/domains')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ domain: 'example.com', make_default: false });
+
+    expect(res.status).toBe(403);
+    expect(res.body?.success).toBe(false);
+  });
 });
