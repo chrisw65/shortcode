@@ -213,6 +213,9 @@ body.tabs-ready .admin-content [data-tab].is-active{display:block}
   border-radius:16px;padding:16px;border:1px solid rgba(255,255,255,.12);
   background:rgba(12,18,28,.85);box-shadow:0 16px 30px rgba(0,0,0,.35);
 }
+.integration-card .badge{margin-right:auto}
+.pulse{animation:pulse 1s ease}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(213,162,75,.35)}100%{box-shadow:0 0 0 16px rgba(213,162,75,0)}}
 .tool-grid{
   grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
 }
@@ -224,6 +227,32 @@ body.tabs-ready .admin-content [data-tab].is-active{display:block}
   font-size:12px;line-height:1.4;margin:0;background:#070b15;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px;
 }
 .card h2,.card h3{letter-spacing:.2px;margin-top:0}
+.scope-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:10px;
+}
+.scope-item{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  background:rgba(12,18,28,.7);
+  color:var(--muted);
+  font-size:13px;
+}
+.key-reveal{
+  border-color:rgba(213,162,75,.35);
+  background:rgba(213,162,75,.08);
+}
+.key-value{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+  font-size:13px;
+  margin-top:6px;
+  word-break:break-all;
+}
 
 .fold-card{
   margin-top:14px;

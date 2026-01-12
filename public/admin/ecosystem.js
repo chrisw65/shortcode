@@ -2,6 +2,46 @@ import { requireAuth, api, showToast, copyToClipboard } from '/admin/admin-commo
 
 let state = { config: null };
 
+function isValidUrl(value) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function validateIntegrationSettings(kind, settings) {
+  if (kind === 'zapier' || kind === 'slack') {
+    return isValidUrl(settings?.webhook_url || '');
+  }
+  if (kind === 'ga4') {
+    if (!settings?.enabled) return true;
+    const measurement = String(settings.measurement_id || '');
+    const secret = String(settings.api_secret || '');
+    return /^G-[A-Z0-9]+$/i.test(measurement) && secret.length >= 8;
+  }
+  return false;
+}
+
+function normalizeIntegrationKey(kind) {
+  if (kind === 'google-analytics') return 'ga4';
+  return kind;
+}
+
+function getIntegrationStatus(kind) {
+  const normalized = normalizeIntegrationKey(kind);
+  const settings = state.config?.integrationSettings || {};
+  if (normalized === 'ga4') {
+    const valid = validateIntegrationSettings('ga4', settings.ga4 || {});
+    if (!settings.ga4?.enabled) return { label: 'Disabled', tone: 'muted' };
+    return valid ? { label: 'Connected', tone: 'ok' } : { label: 'Needs attention', tone: 'warn' };
+  }
+  const valid = validateIntegrationSettings(normalized, settings[normalized] || {});
+  return valid ? { label: 'Connected', tone: 'ok' } : { label: 'Not configured', tone: 'warn' };
+}
+
 function renderHeroMetrics() {
   const metrics = {
     webhooks: state.config?.webhooks?.filter((w) => w.enabled).length || 0,
@@ -54,24 +94,31 @@ function renderIntegrations() {
     <div class="integration-card" data-integration-id="${integration.id}">
       <h3>${integration.name}</h3>
       <p class="muted small">${integration.description}</p>
-      <label>
-        Status
-        <select data-role="integration-status" data-id="${integration.id}">
-          <option value="enabled">Enabled</option>
-          <option value="beta">Beta</option>
-          <option value="preview">Preview</option>
-          <option value="coming-soon">Coming soon</option>
-          <option value="disabled">Disabled</option>
-        </select>
-      </label>
+      <div class="row-between" style="margin-top:12px">
+        <span class="badge" data-role="integration-pill" data-id="${integration.id}">Status</span>
+        <button class="btn ghost small" data-role="integration-config" data-id="${integration.id}">Configure</button>
+      </div>
     </div>
   `).join('');
   container.innerHTML = items || '<div class="muted">No integration catalog entries yet.</div>';
-  container.querySelectorAll('[data-role="integration-status"]').forEach((select) => {
-    const integration = state.config?.integrations?.find((item) => item.id === select.dataset.id);
-    if (integration && integration.status) {
-      select.value = integration.status;
-    }
+  container.querySelectorAll('[data-role="integration-pill"]').forEach((pill) => {
+    const id = pill.dataset.id;
+    const status = getIntegrationStatus(id);
+    pill.textContent = status.label;
+    if (status.tone === 'ok') pill.style.borderColor = 'rgba(120,224,143,.6)';
+    if (status.tone === 'warn') pill.style.borderColor = 'rgba(255,196,99,.6)';
+  });
+  container.querySelectorAll('[data-role="integration-config"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = normalizeIntegrationKey(btn.dataset.id);
+      const panel = document.getElementById('integrationSettings');
+      const target = panel?.querySelector(`[data-role="${id}-section"]`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        target.classList.add('pulse');
+        setTimeout(() => target.classList.remove('pulse'), 1200);
+      }
+    });
   });
 }
 
@@ -83,27 +130,69 @@ function renderIntegrationSettings() {
   const slack = settings.slack || {};
   const ga4 = settings.ga4 || {};
   container.innerHTML = `
-    <label class="muted small">
-      Zapier catch hook URL
-      <input class="input" data-role="zapier-webhook" value="${zapier.webhook_url || ''}" placeholder="https://hooks.zapier.com/...">
-    </label>
-    <label class="muted small">
-      Slack incoming webhook URL
-      <input class="input" data-role="slack-webhook" value="${slack.webhook_url || ''}" placeholder="https://hooks.slack.com/...">
-    </label>
-    <label class="muted small">
-      GA4 measurement ID
-      <input class="input" data-role="ga-measurement" value="${ga4.measurement_id || ''}" placeholder="G-XXXXXXXXXX">
-    </label>
-    <label class="muted small">
-      GA4 API secret
-      <input class="input" data-role="ga-secret" value="${ga4.api_secret || ''}" placeholder="Your GA4 API secret">
-    </label>
-    <label class="muted small">
-      Enable GA4 events
-      <input type="checkbox" data-role="ga-enabled" ${ga4.enabled ? 'checked' : ''}>
-    </label>
+    <div class="card" data-role="zapier-section">
+      <div class="row-between">
+        <h4 class="m-0">Zapier</h4>
+        <span class="badge" data-role="zapier-status">Not configured</span>
+      </div>
+      <label class="muted small">
+        Catch hook URL
+        <input class="input" data-role="zapier-webhook" value="${zapier.webhook_url || ''}" placeholder="https://hooks.zapier.com/...">
+      </label>
+      <button class="btn ghost small" type="button" data-role="zapier-validate">Validate</button>
+    </div>
+    <div class="card" data-role="slack-section" style="margin-top:14px">
+      <div class="row-between">
+        <h4 class="m-0">Slack</h4>
+        <span class="badge" data-role="slack-status">Not configured</span>
+      </div>
+      <label class="muted small">
+        Incoming webhook URL
+        <input class="input" data-role="slack-webhook" value="${slack.webhook_url || ''}" placeholder="https://hooks.slack.com/...">
+      </label>
+      <button class="btn ghost small" type="button" data-role="slack-validate">Validate</button>
+    </div>
+    <div class="card" data-role="ga4-section" style="margin-top:14px">
+      <div class="row-between">
+        <h4 class="m-0">Google Analytics 4</h4>
+        <span class="badge" data-role="ga4-status">Disabled</span>
+      </div>
+      <label class="muted small">
+        Measurement ID
+        <input class="input" data-role="ga-measurement" value="${ga4.measurement_id || ''}" placeholder="G-XXXXXXXXXX">
+      </label>
+      <label class="muted small">
+        API secret
+        <input class="input" data-role="ga-secret" value="${ga4.api_secret || ''}" placeholder="Your GA4 API secret">
+      </label>
+      <label class="muted small">
+        Enable GA4 events
+        <input type="checkbox" data-role="ga-enabled" ${ga4.enabled ? 'checked' : ''}>
+      </label>
+      <button class="btn ghost small" type="button" data-role="ga4-validate">Validate</button>
+    </div>
   `;
+  container.querySelector('[data-role="zapier-validate"]')?.addEventListener('click', () => {
+    const ok = validateIntegrationSettings('zapier', gatherIntegrationSettings().zapier);
+    showToast(ok ? 'Zapier looks good.' : 'Zapier webhook URL is invalid.', ok ? 'ok' : 'error');
+  });
+  container.querySelector('[data-role="slack-validate"]')?.addEventListener('click', () => {
+    const ok = validateIntegrationSettings('slack', gatherIntegrationSettings().slack);
+    showToast(ok ? 'Slack looks good.' : 'Slack webhook URL is invalid.', ok ? 'ok' : 'error');
+  });
+  container.querySelector('[data-role="ga4-validate"]')?.addEventListener('click', () => {
+    const ok = validateIntegrationSettings('ga4', gatherIntegrationSettings().ga4);
+    showToast(ok ? 'GA4 looks good.' : 'GA4 settings are incomplete.', ok ? 'ok' : 'error');
+  });
+  const zapierStatus = container.querySelector('[data-role="zapier-status"]');
+  const slackStatus = container.querySelector('[data-role="slack-status"]');
+  const ga4Status = container.querySelector('[data-role="ga4-status"]');
+  const zapierOk = validateIntegrationSettings('zapier', zapier);
+  const slackOk = validateIntegrationSettings('slack', slack);
+  const ga4Ok = validateIntegrationSettings('ga4', ga4);
+  if (zapierStatus) zapierStatus.textContent = zapierOk ? 'Connected' : 'Not configured';
+  if (slackStatus) slackStatus.textContent = slackOk ? 'Connected' : 'Not configured';
+  if (ga4Status) ga4Status.textContent = ga4.enabled ? (ga4Ok ? 'Connected' : 'Needs attention') : 'Disabled';
 }
 
 function renderDomainHealth() {
@@ -188,14 +277,7 @@ function gatherWebhooks() {
 }
 
 function gatherIntegrations() {
-  const container = document.getElementById('integrationList');
-  if (!container) return [];
-  const selects = Array.from(container.querySelectorAll('[data-role="integration-status"]'));
-  return selects.map((select) => {
-    const id = select.dataset.id;
-    const base = state.config?.integrations?.find((item) => item.id === id) || {};
-    return { ...base, id, status: select.value };
-  });
+  return (state.config?.integrations || []).map((item) => ({ ...item }));
 }
 
 function gatherIntegrationSettings() {
@@ -219,11 +301,27 @@ function gatherIntegrationSettings() {
 
 async function saveConfig() {
   if (!state.config) return;
+  const settings = gatherIntegrationSettings();
+  const zapierOk = validateIntegrationSettings('zapier', settings.zapier);
+  const slackOk = validateIntegrationSettings('slack', settings.slack);
+  const ga4Ok = validateIntegrationSettings('ga4', settings.ga4);
+  if (settings.ga4?.enabled && !ga4Ok) {
+    showToast('GA4 settings need a valid Measurement ID and API secret.', 'error');
+    return;
+  }
+  if (settings.zapier?.webhook_url && !zapierOk) {
+    showToast('Zapier webhook URL is invalid.', 'error');
+    return;
+  }
+  if (settings.slack?.webhook_url && !slackOk) {
+    showToast('Slack webhook URL is invalid.', 'error');
+    return;
+  }
   const payload = {
     ...state.config,
     webhooks: gatherWebhooks(),
     integrations: gatherIntegrations(),
-    integrationSettings: gatherIntegrationSettings(),
+    integrationSettings: settings,
     domainHealth: {
       ...(state.config.domainHealth || {}),
       nextCheck: document.getElementById('domainNextCheck')?.value || '',

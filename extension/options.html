@@ -9,11 +9,21 @@
 <body>
   <h1>OkLeaf Extension Settings</h1>
   <div class="card">
-    <label for="apiBaseUrl">API base URL</label>
-    <input id="apiBaseUrl" type="url" placeholder="https://okleaf.link" />
+    <label for="configPreset">Configuration</label>
+    <select id="configPreset">
+      <option value="prod">OkLeaf (okleaf.link)</option>
+      <option value="staging">Staging</option>
+      <option value="custom">Custom URL</option>
+    </select>
+
+    <div id="customBaseWrap">
+      <label for="customBaseUrl">Custom API base URL</label>
+      <input id="customBaseUrl" type="url" placeholder="https://okleaf.link" />
+    </div>
 
     <label for="apiKey">API key</label>
     <input id="apiKey" type="text" placeholder="sk_live_..." />
+    <div class="hint">Paste a key from Admin → API Keys. Keep it private.</div>
 
     <div class="row">
       <button id="saveBtn">Save</button>

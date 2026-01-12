@@ -1,12 +1,45 @@
-import { requireAuth, api, apiPost, htmlesc } from '/admin/admin-common.js?v=20260120';
+import { requireAuth, api, apiPost, htmlesc, showToast, copyToClipboard } from '/admin/admin-common.js?v=20260120';
 
 requireAuth();
 
 const keysBody = document.getElementById('keysBody');
 const keyName = document.getElementById('keyName');
-const keyScopes = document.getElementById('keyScopes');
 const btnCreate = document.getElementById('btnCreate');
 const keyMsg = document.getElementById('keyMsg');
+const customScopes = document.getElementById('customScopes');
+const keyReveal = document.getElementById('keyReveal');
+const keyValue = document.getElementById('keyValue');
+const copyKeyBtn = document.getElementById('copyKeyBtn');
+
+const scopeGrid = document.getElementById('scopeGrid');
+
+function getSelectedScopes() {
+  const custom = (customScopes?.value || '').trim();
+  if (custom) {
+    return custom.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  const selected = Array.from(scopeGrid?.querySelectorAll('input[type="checkbox"]') || [])
+    .filter((input) => input.checked)
+    .map((input) => input.dataset.scope)
+    .filter(Boolean);
+  if (selected.includes('*')) return ['*'];
+  return selected;
+}
+
+function syncScopeUI() {
+  const custom = (customScopes?.value || '').trim();
+  const inputs = Array.from(scopeGrid?.querySelectorAll('input[type="checkbox"]') || []);
+  if (custom) {
+    inputs.forEach((input) => { input.checked = false; });
+    return;
+  }
+  const full = scopeGrid?.querySelector('input[data-scope="*"]');
+  if (full?.checked) {
+    inputs.forEach((input) => {
+      if (input.dataset.scope !== '*') input.checked = false;
+    });
+  }
+}
 
 async function loadKeys() {
   try {
@@ -51,11 +84,14 @@ async function loadKeys() {
 
 async function createKey() {
   const name = (keyName.value || '').trim();
-  const scopesRaw = (keyScopes?.value || '').trim();
-  const scopes = scopesRaw ? scopesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const scopes = getSelectedScopes();
   keyMsg.textContent = '';
   if (!name) {
     keyMsg.textContent = 'Name is required.';
+    return;
+  }
+  if (!scopes.length) {
+    keyMsg.textContent = 'Select at least one scope.';
     return;
   }
   btnCreate.disabled = true;
@@ -63,12 +99,15 @@ async function createKey() {
     const res = await apiPost('/api/api-keys', { name, scopes });
     const data = res?.data || res;
     if (data?.api_key) {
-      keyMsg.textContent = `New API key (copy now): ${data.api_key}`;
+      if (keyValue) keyValue.textContent = data.api_key;
+      if (keyReveal) keyReveal.style.display = 'block';
+      keyMsg.textContent = '';
+      showToast('API key generated. Copy it now.');
     } else {
       keyMsg.textContent = 'Key created.';
     }
     keyName.value = '';
-    if (keyScopes) keyScopes.value = '';
+    if (customScopes) customScopes.value = '';
     await loadKeys();
   } catch (err) {
     keyMsg.textContent = err?.message || 'Failed to create key.';
@@ -78,4 +117,18 @@ async function createKey() {
 }
 
 btnCreate?.addEventListener('click', createKey);
+copyKeyBtn?.addEventListener('click', () => {
+  const value = keyValue?.textContent || '';
+  if (!value) return;
+  copyToClipboard(value);
+});
+customScopes?.addEventListener('input', syncScopeUI);
+scopeGrid?.addEventListener('change', (e) => {
+  if (e.target?.dataset?.scope === '*') {
+    syncScopeUI();
+    return;
+  }
+  const full = scopeGrid.querySelector('input[data-scope="*"]');
+  if (full) full.checked = false;
+});
 loadKeys();

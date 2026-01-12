@@ -50,14 +50,42 @@
               <label class="muted">Key name</label>
               <input id="keyName" class="input" type="text" placeholder="Production automation" />
             </div>
-            <div style="flex:1">
-              <label class="muted">Scopes (comma separated)</label>
-              <input id="keyScopes" class="input" type="text" placeholder="links:read,links:write,analytics:read" />
-            </div>
             <button id="btnCreate" class="btn">Create</button>
           </div>
+          <div class="scope-grid" id="scopeGrid" style="margin-top:12px">
+            <label class="scope-item"><input type="checkbox" data-scope="*"> Full access</label>
+            <label class="scope-item"><input type="checkbox" data-scope="links:read" checked> Links read</label>
+            <label class="scope-item"><input type="checkbox" data-scope="links:write"> Links write</label>
+            <label class="scope-item"><input type="checkbox" data-scope="domains:read"> Domains read</label>
+            <label class="scope-item"><input type="checkbox" data-scope="domains:write"> Domains write</label>
+            <label class="scope-item"><input type="checkbox" data-scope="analytics:read" checked> Analytics read</label>
+            <label class="scope-item"><input type="checkbox" data-scope="org:read"> Org read</label>
+            <label class="scope-item"><input type="checkbox" data-scope="org:write"> Org write</label>
+            <label class="scope-item"><input type="checkbox" data-scope="tags:read"> Tags read</label>
+            <label class="scope-item"><input type="checkbox" data-scope="tags:write"> Tags write</label>
+            <label class="scope-item"><input type="checkbox" data-scope="groups:read"> Groups read</label>
+            <label class="scope-item"><input type="checkbox" data-scope="groups:write"> Groups write</label>
+            <label class="scope-item"><input type="checkbox" data-scope="audit:read"> Audit read</label>
+            <label class="scope-item"><input type="checkbox" data-scope="api-keys:read"> API keys read</label>
+            <label class="scope-item"><input type="checkbox" data-scope="api-keys:write"> API keys write</label>
+            <label class="scope-item"><input type="checkbox" data-scope="invites:read"> Invites read</label>
+            <label class="scope-item"><input type="checkbox" data-scope="invites:write"> Invites write</label>
+          </div>
+          <div style="margin-top:10px">
+            <label class="muted">Custom scopes (comma separated)</label>
+            <input id="customScopes" class="input" type="text" placeholder="links:read,links:write,analytics:read" />
+            <div class="muted small">If provided, custom scopes override the checkboxes.</div>
+          </div>
           <div id="keyMsg" class="muted" style="margin-top:8px"></div>
-          <div id="keyReveal" class="card" style="margin-top:12px;display:none"></div>
+          <div id="keyReveal" class="card key-reveal" style="margin-top:12px;display:none">
+            <div class="row-between">
+              <div>
+                <div class="muted small">New API key (copy now)</div>
+                <div class="key-value" id="keyValue"></div>
+              </div>
+              <button class="btn ghost" id="copyKeyBtn" type="button">Copy</button>
+            </div>
+          </div>
         </section>
 
         <section class="card" style="margin-top:18px">

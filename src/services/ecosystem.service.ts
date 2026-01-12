@@ -32,19 +32,19 @@ export const DEFAULT_ECOSYSTEM_CONFIG = {
       id: 'zapier',
       name: 'Zapier',
       description: 'Send link events to any Zapier catch hook.',
-      status: 'beta',
+      status: 'available',
     },
     {
       id: 'slack',
       name: 'Slack',
       description: 'Post link events to a Slack channel via incoming webhook.',
-      status: 'preview',
+      status: 'available',
     },
     {
       id: 'google-analytics',
       name: 'Google Analytics',
       description: 'Stream link events into GA4 via Measurement Protocol.',
-      status: 'coming-soon',
+      status: 'available',
     },
   ],
   integrationSettings: {
