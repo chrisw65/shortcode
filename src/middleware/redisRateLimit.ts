@@ -9,7 +9,8 @@ import type { OrgRequest } from './org';
 function ipv6SafeKey(req: Request): string {
   const cfip = (req.headers['cf-connecting-ip'] as string | undefined)?.trim();
   const xfwd = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
-  return cfip || xfwd || req.ip || 'unknown';
+  const socketIp = (req.socket?.remoteAddress || '').trim();
+  return cfip || xfwd || req.ip || socketIp || 'unknown';
 }
 
 function authKey(req: Request): string {
@@ -62,6 +63,14 @@ function makeMiddleware(
       const remaining = meta.remainingPoints ?? 0;
       const msBeforeNext = meta.msBeforeNext ?? Math.ceil(duration * 1000);
       setRateHeaders(res, remaining, msBeforeNext);
+      if (prefix === 'rl:ip:redirect') {
+        const reqHost = req.headers.host || '';
+        const path = req.originalUrl || req.url || '';
+        const cfip = (req.headers['cf-connecting-ip'] as string | undefined)?.trim();
+        const xfwd = (req.headers['x-forwarded-for'] as string | undefined)?.trim();
+        const socketIp = (req.socket?.remoteAddress || '').trim();
+        console.warn('[rate-limit] redirect', { key, host: reqHost, path, cfip, xfwd, reqIp: req.ip, socketIp });
+      }
       if (mode === 'json') {
         return res.status(429).json({ success: false, error: 'Too many requests' });
       }
