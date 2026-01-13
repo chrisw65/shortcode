@@ -862,6 +862,24 @@ async function publishConfig() {
   }
 }
 
+async function syncDefaults() {
+  try {
+    const ok = window.confirm('Sync the latest default capabilities into both the draft and live site? This will replace the Features, Docs, and Ecosystem sections.');
+    if (!ok) return;
+    await apiFetch('/api/site-config/sync-defaults', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: 'both' }),
+    });
+    showToast('Defaults synced to draft + published');
+    const res = await loadConfig();
+    applyConfig(res.draft || {});
+    await loadHistory();
+  } catch (err) {
+    showError(err, 'Failed to sync defaults');
+  }
+}
+
 async function loadHistory() {
   const res = await apiFetch('/api/site-config/history');
   const entries = res.data || [];
@@ -1710,6 +1728,7 @@ async function init() {
 
   qs('#saveBtn').addEventListener('click', saveConfig);
   qs('#publishBtn').addEventListener('click', publishConfig);
+  qs('#syncDefaultsBtn').addEventListener('click', syncDefaults);
   qs('#refreshHistoryBtn').addEventListener('click', loadHistory);
   qs('#exportHistoryBtn').addEventListener('click', exportHistory);
   qs('#closeDiffBtn').addEventListener('click', () => {

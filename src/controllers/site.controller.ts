@@ -2,7 +2,7 @@
 import type { Request, Response } from 'express';
 import db from '../config/database';
 import redisClient from '../config/redis';
-import { DEFAULT_SITE_CONFIG, getSiteSetting, mergeConfig } from '../services/siteConfig';
+import { DEFAULT_SITE_CONFIG, getSiteSetting, mergeConfig, syncMarketingDefaults } from '../services/siteConfig';
 import { sendMail } from '../services/mailer';
 import type { AuthenticatedRequest } from '../middleware/auth';
 import { log } from '../utils/logger';
@@ -113,6 +113,47 @@ export async function publishSiteConfig(req: AuthenticatedRequest, res: Response
     return res.json({ success: true, data: draft });
   } catch (err) {
     log('error', 'site.publishSiteConfig.error', { error: String(err) });
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+export async function syncSiteConfigDefaults(req: AuthenticatedRequest, res: Response) {
+  try {
+    const userId = req.user?.userId ?? null;
+    const target = String(req.body?.target || 'published').toLowerCase();
+    const syncDraft = target === 'draft' || target === 'both';
+    const syncPublished = target === 'published' || target === 'both';
+    const draftRaw = await getSiteSetting('marketing_draft');
+    const publishedRaw = await getSiteSetting('marketing_published');
+
+    const updates: Record<string, any> = {};
+    if (syncDraft) {
+      updates.marketing_draft = syncMarketingDefaults(draftRaw || {});
+    }
+    if (syncPublished) {
+      updates.marketing_published = syncMarketingDefaults(publishedRaw || {});
+    }
+
+    const keys = Object.keys(updates);
+    if (!keys.length) {
+      return res.status(400).json({ success: false, error: 'Invalid target' });
+    }
+
+    for (const key of keys) {
+      await db.query(
+        `INSERT INTO site_settings (key, value, updated_at)
+         VALUES ($1, $2::jsonb, NOW())
+         ON CONFLICT (key)
+         DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+        [key, JSON.stringify(updates[key])]
+      );
+    }
+
+    await insertHistory('sync_defaults', updates, userId);
+    await invalidatePublicConfigCache();
+    return res.json({ success: true, data: updates });
+  } catch (err) {
+    log('error', 'site.syncSiteConfigDefaults.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

@@ -2,6 +2,7 @@
 import db from '../config/database';
 
 export const DEFAULT_SITE_CONFIG = {
+  version: 3,
   brand: {
     name: 'OkLeaf',
     tagline: 'Short links for serious teams.',
@@ -666,5 +667,39 @@ export function mergeConfig(base: any, override: any) {
       merged[key] = overrideVal ?? baseVal;
     }
   });
+  return merged;
+}
+
+function getByPath(obj: any, path: string[]) {
+  return path.reduce((acc, key) => (acc && typeof acc === 'object' ? acc[key] : undefined), obj);
+}
+
+function setByPath(obj: any, path: string[], value: any) {
+  let cursor = obj;
+  for (let i = 0; i < path.length - 1; i += 1) {
+    const key = path[i];
+    if (!cursor[key] || typeof cursor[key] !== 'object') {
+      cursor[key] = {};
+    }
+    cursor = cursor[key];
+  }
+  cursor[path[path.length - 1]] = value;
+}
+
+export function syncMarketingDefaults(current: any) {
+  const merged = mergeConfig(DEFAULT_SITE_CONFIG, current || {});
+  const sectionsToRefresh = [
+    ['features'],
+    ['pages', 'features'],
+    ['pages', 'docs'],
+    ['pages', 'ecosystem'],
+  ];
+  sectionsToRefresh.forEach((path) => {
+    const fresh = getByPath(DEFAULT_SITE_CONFIG, path);
+    if (fresh !== undefined) {
+      setByPath(merged, path, fresh);
+    }
+  });
+  merged.version = DEFAULT_SITE_CONFIG.version;
   return merged;
 }
