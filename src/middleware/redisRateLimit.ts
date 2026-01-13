@@ -59,10 +59,28 @@ function makeMiddleware(
       setRateHeaders(res, result.remainingPoints ?? 0, result.msBeforeNext ?? 0);
       return next();
     } catch (err) {
-      const meta = err && typeof err === 'object' ? (err as { remainingPoints?: number; msBeforeNext?: number }) : {};
-      const remaining = meta.remainingPoints ?? 0;
-      const msBeforeNext = meta.msBeforeNext ?? Math.ceil(duration * 1000);
-      setRateHeaders(res, remaining, msBeforeNext);
+      const meta = err && typeof err === 'object'
+        ? (err as { remainingPoints?: number; msBeforeNext?: number })
+        : {};
+      const hasWindow = typeof meta.msBeforeNext === 'number';
+      if (useRedis && !hasWindow) {
+        try {
+          const fallback = await limiter.memory.consume(key);
+          setRateHeaders(res, fallback.remainingPoints ?? 0, fallback.msBeforeNext ?? 0);
+          return next();
+        } catch (memErr) {
+          const memMeta = memErr && typeof memErr === 'object'
+            ? (memErr as { remainingPoints?: number; msBeforeNext?: number })
+            : {};
+          const remaining = memMeta.remainingPoints ?? 0;
+          const msBeforeNext = memMeta.msBeforeNext ?? Math.ceil(duration * 1000);
+          setRateHeaders(res, remaining, msBeforeNext);
+        }
+      } else {
+        const remaining = meta.remainingPoints ?? 0;
+        const msBeforeNext = meta.msBeforeNext ?? Math.ceil(duration * 1000);
+        setRateHeaders(res, remaining, msBeforeNext);
+      }
       if (prefix === 'rl:ip:redirect') {
         const reqHost = req.headers.host || '';
         const path = req.originalUrl || req.url || '';
