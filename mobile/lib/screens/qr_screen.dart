@@ -225,7 +225,47 @@ class _QrScreenState extends State<QrScreen> {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: Image.network(url, height: 260, fit: BoxFit.contain),
+              child: Image.network(
+                url,
+                height: 260,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return SizedBox(
+                    height: 260,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        value: progress.expectedTotalBytes != null
+                            ? progress.cumulativeBytesLoaded / (progress.expectedTotalBytes ?? 1)
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return SizedBox(
+                    height: 260,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Unable to load QR code',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Check the short code and try again.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ),
       ],
