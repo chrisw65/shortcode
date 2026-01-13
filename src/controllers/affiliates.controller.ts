@@ -57,6 +57,14 @@ export async function createAffiliate(req: Request, res: Response) {
         await sendMail({
           to: email,
           subject: 'Your OkLeaf affiliate login',
+          text: [
+            `Hello ${name || 'there'},`,
+            '',
+            'Your affiliate account is ready. Use this temporary password to sign in:',
+            tempPassword,
+            '',
+            'Please change it after your first login.',
+          ].join('\n'),
           html: `<p>Hello ${name || 'there'},</p>
                  <p>Your affiliate account is ready. Use this temporary password to sign in:</p>
                  <p><strong>${tempPassword}</strong></p>
