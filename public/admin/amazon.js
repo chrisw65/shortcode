@@ -21,10 +21,11 @@ const els = {
   asin: document.getElementById('amazonAsin'),
   destination: document.getElementById('amazonDestination'),
   previewMarket: document.getElementById('amazonPreviewMarket'),
-  previewFrame: document.getElementById('amazonPreviewFrame'),
   previewUrl: document.getElementById('amazonPreviewUrl'),
   previewLink: document.getElementById('amazonPreviewLink'),
   previewNotice: document.getElementById('amazonPreviewNotice'),
+  previewMarketLabel: document.getElementById('amazonPreviewMarketLabel'),
+  previewDestinationLabel: document.getElementById('amazonPreviewDestinationLabel'),
   applyRoutes: document.getElementById('applyRoutes'),
   replaceExisting: document.getElementById('replaceExisting'),
   routesMsg: document.getElementById('amazonRoutesMsg'),
@@ -148,14 +149,24 @@ function updatePreview() {
   const destination = els.destination?.value || 'product';
   const market = els.previewMarket?.value || 'US';
   const url = buildAmazonUrl(asin, destination, market);
+  const marketMeta = AMAZON_MARKETS.find((m) => m.code === market);
+  const destinationLabel = {
+    product: 'Product page',
+    reviews: 'Public reviews',
+    'write-review': 'Write a review',
+    'purchases-review': 'Review your purchases',
+  }[destination] || 'Product page';
+  if (els.previewMarketLabel) {
+    els.previewMarketLabel.textContent = marketMeta ? `${marketMeta.code} — ${marketMeta.label}` : market;
+  }
+  if (els.previewDestinationLabel) {
+    els.previewDestinationLabel.textContent = destinationLabel;
+  }
   if (els.previewUrl) els.previewUrl.textContent = url || 'Enter an ASIN to preview.';
   if (els.previewLink) els.previewLink.href = url || '#';
-  if (els.previewFrame) els.previewFrame.src = url || 'about:blank';
-  if (els.previewNotice) els.previewNotice.style.display = 'none';
-  if (previewTimer) clearTimeout(previewTimer);
-  previewTimer = setTimeout(() => {
-    if (els.previewNotice) els.previewNotice.style.display = url ? 'block' : 'none';
-  }, 1500);
+  if (els.previewNotice) {
+    els.previewNotice.style.display = url ? 'block' : 'none';
+  }
 }
 
 function initPreviewMarkets() {
