@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OkLeaf Shortlink",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shorten the current page and copy the short URL.",
   "homepage_url": "https://okleaf.link/docs/extensions.html",
   "action": {
