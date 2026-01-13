@@ -294,17 +294,29 @@ async function createLink() {
   const shortCode = (els.shortCode?.value || '').trim();
   const title = (els.title?.value || '').trim() || `Amazon ASIN ${asin}`;
   const domain = selectedDomain();
-  if (els.linkMsg) els.linkMsg.textContent = '';
+  if (els.linkMsg) els.linkMsg.textContent = 'Creating link...';
   if (els.createLink) els.createLink.disabled = true;
+  showToast('Creating link...');
   try {
     const body = { url, title };
     if (shortCode) body.short_code = shortCode;
     if (domain.id) body.domain_id = domain.id;
-    const res = await api('/api/links', {
+    const post = async () => api('/api/links', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    let res;
+    try {
+      res = await post();
+    } catch (err) {
+      if (String(err?.message || '').includes('Invalid CSRF')) {
+        await api('/api/auth/me');
+        res = await post();
+      } else {
+        throw err;
+      }
+    }
     const created = res?.data;
     if (created?.short_code) {
       links = [created, ...links];
@@ -315,13 +327,16 @@ async function createLink() {
       setLinkDetails(created);
       await loadRoutesForLink(created.short_code);
       if (els.linkMsg) els.linkMsg.textContent = `Created ${created.short_code}.`;
+      showToast(`Created ${created.short_code}`);
       setLinkMode('existing');
       return created.short_code;
     }
     if (els.linkMsg) els.linkMsg.textContent = 'Link created, but response was missing a short code.';
     return null;
   } catch (err) {
-    if (els.linkMsg) els.linkMsg.textContent = err.message || 'Failed to create link.';
+    const msg = err.message || 'Failed to create link.';
+    if (els.linkMsg) els.linkMsg.textContent = msg;
+    showToast(msg, 'error');
     return null;
   } finally {
     if (els.createLink) els.createLink.disabled = false;
