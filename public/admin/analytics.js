@@ -40,6 +40,7 @@ let currentRange = rangeSelect ? rangeSelect.value : '7d';
 let currentStartDate = '';
 let currentEndDate = '';
 let currentCountry = '';
+let lastGeoPoints = [];
 
 function rangeLabel(range){
   if (range === '24h') return 'Clicks (24h)';
@@ -126,7 +127,8 @@ async function selectLink(short, meta) {
   renderTable(deviceBody, uaDetail.devices, 'name');
 
   populateCountryFilter(countries);
-  plotGeoPoints(summary?.geo_points || []);
+  lastGeoPoints = summary?.geo_points || [];
+  plotGeoPoints(lastGeoPoints);
 
   let events = [];
   const evParams = applyDateParams(new URLSearchParams({ limit: '500', range: currentRange }));
@@ -209,6 +211,10 @@ function plotGeoPoints(points){
   const rect = worldDots.getBoundingClientRect();
   const width = rect.width || 1;
   const height = rect.height || 1;
+  if ((width < 10 || height < 10) && points.length) {
+    setTimeout(() => plotGeoPoints(points), 120);
+    return;
+  }
 
   const max = Math.max(...points.map(p => p.count || 1), 1);
   points.forEach(p => {
@@ -269,6 +275,9 @@ function initAnalyticsTabs() {
       panel.classList.toggle('active', panel.dataset.panel === tab);
     });
     sessionStorage.setItem('analytics_active_tab', tab);
+    if (tab === 'geo' && lastGeoPoints.length) {
+      setTimeout(() => plotGeoPoints(lastGeoPoints), 60);
+    }
   };
   const saved = sessionStorage.getItem('analytics_active_tab') || 'summary';
   setTab(saved);
@@ -356,7 +365,8 @@ async function loadOrgSummary(){
   if (orgCityBody) {
     orgCityBody.innerHTML = cities.length ? cities.map(c=>`<tr><td>${htmlesc(c.city || 'Unknown')} ${c.country ? `<span class="muted">(${htmlesc(c.country)})</span>` : ''}</td><td>${c.count ?? 0}</td></tr>`).join('') : '<tr><td colspan="2" class="empty">No data.</td></tr>';
   }
-  plotGeoPoints(summary?.geo_points || []);
+  lastGeoPoints = summary?.geo_points || [];
+  plotGeoPoints(lastGeoPoints);
 }
 
 initAnalyticsTabs();
