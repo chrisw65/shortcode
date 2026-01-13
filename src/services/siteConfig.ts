@@ -60,9 +60,11 @@ export const DEFAULT_SITE_CONFIG = {
   ],
   features: [
     { title: 'Branded domains', text: 'Launch campaigns on custom domains with verified redirects and org-level control.' },
+    { title: 'Smart routing + variants', text: 'Route by country, device, or platform and run weighted variants at scale.' },
     { title: 'Analytics you can act on', text: 'Track clicks, devices, referrers, and geo trends by domain and team.' },
-    { title: 'Access at scale', text: 'Invite teams, assign roles, and manage API keys with audit trails.' },
-    { title: 'Performance built-in', text: 'Fast redirects, global cache, and resilient infrastructure.' },
+    { title: 'Webhooks with delivery logs', text: 'Signed payloads, retries, and per-org endpoints with test events.' },
+    { title: 'Affiliate tracking', text: 'Manage affiliate payouts, coupon codes, and attribution from one dashboard.' },
+    { title: 'Security + performance', text: 'Fast redirects, audit trails, and plan-based access controls.' },
   ],
   pricing: {
     currency: 'USD',
@@ -445,6 +447,7 @@ export const DEFAULT_SITE_CONFIG = {
         '    <p><strong>Retries</strong>: 5 attempts with exponential backoff (respects <code>Retry-After</code>)</p>',
         '    <p><strong>Headers</strong>: <code>X-Okleaf-Id</code>, <code>X-Okleaf-Timestamp</code>, <code>X-Okleaf-Signature</code>, <code>X-Okleaf-Signature-Version</code></p>',
         '    <p><strong>Replay window</strong>: reject timestamps older than 5 minutes</p>',
+        '    <p><strong>Testing</strong>: use the admin webhook tester to queue a signed test event.</p>',
         '  </div>',
         '  <pre class="code-block"><code>{',
         '  \"id\": \"b3f9d7f2-...\",',
@@ -585,13 +588,13 @@ export const DEFAULT_SITE_CONFIG = {
         secondaryCta: { label: 'Contact sales', href: '/contact.html' },
       },
       features: [
-        { title: 'Reliable webhooks', text: 'Link and click events push to your endpoints with retries and signatures.' },
-        { title: 'Integrations roadmap', text: 'Zapier, Slack, and GA4 are on deck as native integrations.' },
+        { title: 'Durable webhooks', text: 'Per-org endpoints with signed payloads, retries, and delivery logs.' },
+        { title: 'Test + replay ready', text: 'Send test events, track attempts, and inspect delivery status.' },
         { title: 'Tools & extensions', text: 'Browser extension, bookmarklet, and QR tools keep teams productive on any device.' },
       ],
       insights: [
-        { label: 'Domains monitored', value: '12', detail: 'Automated TXT/SSL checks every 90 minutes.' },
         { label: 'Webhook events', value: '3', detail: 'link.created, link.deleted, click.recorded.' },
+        { label: 'Deliveries logged', value: 'Live', detail: 'Every attempt captured with status + latency.' },
         { label: 'Integrations planned', value: '3', detail: 'Zapier, Slack, GA4 in development.' },
       ],
       toolsList: [
