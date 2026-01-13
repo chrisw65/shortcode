@@ -164,7 +164,9 @@ class _CreateLinkScreenState extends State<CreateLinkScreen> {
                 children: [
                   Icon(
                     _lastShortUrl == null ? Icons.info_outline : Icons.check_circle,
-                    color: _lastShortUrl == null ? Colors.black54 : Colors.green,
+                    color: _lastShortUrl == null
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : Theme.of(context).colorScheme.secondary,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -177,7 +179,9 @@ class _CreateLinkScreenState extends State<CreateLinkScreen> {
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
                               _lastShortUrl!,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
                       ],

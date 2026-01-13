@@ -126,16 +126,15 @@ class _LinksScreenState extends State<LinksScreen> {
                         const SizedBox(height: 4),
                         Text(
                           destination,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ],
                       const SizedBox(height: 10),
                       Row(
                         children: [
-                          Chip(
-                            label: Text('$clicks clicks'),
-                            backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.12),
-                          ),
+                          Chip(label: Text('$clicks clicks')),
                           const Spacer(),
                           IconButton(
                             onPressed: shortUrl.isNotEmpty ? () => _copy(shortUrl) : null,

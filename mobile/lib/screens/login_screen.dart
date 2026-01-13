@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF6F2EA), Color(0xFFE9DDCC)],
+            colors: [Color(0xFF0A0D12), Color(0xFF10151D)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -85,10 +85,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         Row(
                           children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
-                              child: const Icon(Icons.link_rounded),
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFD5A24B), Color(0xFF2FB7A4)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                              child: const Icon(Icons.link_rounded, color: Color(0xFF141414)),
                             ),
                             const SizedBox(width: 12),
                             Text(

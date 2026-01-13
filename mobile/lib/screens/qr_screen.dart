@@ -115,7 +115,7 @@ class _QrScreenState extends State<QrScreen> {
                         decoration: BoxDecoration(
                           color: _parseColor(_colorCtrl.text),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.black12),
+                          border: Border.all(color: Theme.of(context).dividerColor),
                         ),
                       ),
                     ],
@@ -144,7 +144,7 @@ class _QrScreenState extends State<QrScreen> {
                         decoration: BoxDecoration(
                           color: _parseColor(_bgCtrl.text),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.black12),
+                          border: Border.all(color: Theme.of(context).dividerColor),
                         ),
                       ),
                     ],

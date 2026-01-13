@@ -20,7 +20,7 @@ class OaklinkApp extends StatelessWidget {
     return MaterialApp(
       title: 'Oaklink Mobile',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
+      theme: AppTheme.dark(),
       home: const SessionGate(),
       routes: {
         LoginScreen.routeName: (_) => const LoginScreen(),

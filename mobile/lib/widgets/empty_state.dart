@@ -23,7 +23,7 @@ class EmptyState extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.15),
+            backgroundColor: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
             child: Icon(icon, size: 28),
           ),
           const SizedBox(height: 16),
