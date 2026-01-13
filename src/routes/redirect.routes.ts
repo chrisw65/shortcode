@@ -1,12 +1,17 @@
 // src/routes/redirect.routes.ts
 import { Router } from 'express';
 import { RedirectController } from '../controllers/redirect.controller';
-import { perIp600rpmRedis } from '../middleware/redisRateLimit';
+import { perIpRedirectRpmRedis } from '../middleware/redisRateLimit';
 
 const router = Router();
 const redirectController = new RedirectController();
 
-router.get('/:shortCode', perIp600rpmRedis, redirectController.redirect);
-router.post('/:shortCode', perIp600rpmRedis, redirectController.redirect);
+const noLimit = (_req: any, _res: any, next: any) => next();
+const redirectLimiter = process.env.RATE_LIMIT_REDIRECT_DISABLED === '1'
+  ? noLimit
+  : perIpRedirectRpmRedis;
+
+router.get('/:shortCode', redirectLimiter, redirectController.redirect);
+router.post('/:shortCode', redirectLimiter, redirectController.redirect);
 
 export default router;

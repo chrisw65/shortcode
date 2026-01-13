@@ -74,7 +74,17 @@ const testFactor = Number(process.env.RATE_LIMIT_TEST_FACTOR || '1');
 const safeFactor = Number.isFinite(testFactor) && testFactor > 0 ? testFactor : 1;
 const scaled = (points: number) => Math.max(1, Math.round(points * safeFactor));
 
+const redirectRpm = Number(process.env.RATE_LIMIT_REDIRECT_RPM || '6000');
+const safeRedirectRpm = Number.isFinite(redirectRpm) && redirectRpm > 0 ? redirectRpm : 6000;
+
 export const perIp600rpmRedis = makeMiddleware(scaled(600), 60, 'rl:ip:600', (req) => ipv6SafeKey(req), 'text');
+export const perIpRedirectRpmRedis = makeMiddleware(
+  scaled(safeRedirectRpm),
+  60,
+  'rl:ip:redirect',
+  (req) => ipv6SafeKey(req),
+  'text'
+);
 
 export const perIp60rpmRedis = makeMiddleware(scaled(60), 60, 'rl:ip:60', (req) => ipv6SafeKey(req), 'json');
 
