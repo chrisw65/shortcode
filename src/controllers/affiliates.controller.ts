@@ -3,6 +3,8 @@ import type { Request, Response } from 'express';
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcrypt';
 import db from '../config/database';
+import { hasSmtpConfig, sendMail } from '../services/mailer';
+import { getAffiliateConfig, updateAffiliateConfig } from '../services/affiliateConfig';
 import { log } from '../utils/logger';
 
 function makeCode() {
@@ -28,8 +30,9 @@ export async function createAffiliate(req: Request, res: Response) {
     const name = String(req.body?.name || '');
     const email = String(req.body?.email || '').trim().toLowerCase();
     const company = req.body?.company ? String(req.body.company) : null;
-    const payoutType = String(req.body?.payout_type || 'percent');
-    const payoutRate = Number(req.body?.payout_rate || 30);
+    const config = await getAffiliateConfig();
+    const payoutType = String(req.body?.payout_type || config.default_payout_type || 'percent');
+    const payoutRate = Number(req.body?.payout_rate || config.default_payout_rate || 30);
 
     if (!name || !email) {
       return res.status(400).json({ success: false, error: 'name and email are required' });
@@ -48,9 +51,51 @@ export async function createAffiliate(req: Request, res: Response) {
       [name, email, company, code, payoutType, payoutRate, passwordHash]
     );
 
-    return res.status(201).json({ success: true, data: { ...rows[0], temp_password: tempPassword } });
+    const smtpReady = await hasSmtpConfig();
+    if (smtpReady) {
+      try {
+        await sendMail({
+          to: email,
+          subject: 'Your OkLeaf affiliate login',
+          html: `<p>Hello ${name || 'there'},</p>
+                 <p>Your affiliate account is ready. Use this temporary password to sign in:</p>
+                 <p><strong>${tempPassword}</strong></p>
+                 <p>Please change it after your first login.</p>`,
+        });
+      } catch (err) {
+        log('warn', 'affiliates.createAffiliate.email_failed', { error: String(err) });
+      }
+    }
+
+    const payload: Record<string, unknown> = { ...rows[0] };
+    if (!smtpReady) payload.temp_password = tempPassword;
+    return res.status(201).json({ success: true, data: payload });
   } catch (err) {
     log('error', 'affiliates.createAffiliate error', { error: String(err) });
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+export async function getAffiliateConfigAdmin(_req: Request, res: Response) {
+  try {
+    const config = await getAffiliateConfig();
+    return res.json({ success: true, data: config });
+  } catch (err) {
+    log('error', 'affiliates.getAffiliateConfig.error', { error: String(err) });
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+}
+
+export async function updateAffiliateConfigAdmin(req: Request, res: Response) {
+  try {
+    const payload = req.body ?? {};
+    if (typeof payload !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid payload' });
+    }
+    const updated = await updateAffiliateConfig(payload);
+    return res.json({ success: true, data: updated });
+  } catch (err) {
+    log('error', 'affiliates.updateAffiliateConfig.error', { error: String(err) });
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

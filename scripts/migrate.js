@@ -257,6 +257,9 @@ CREATE TABLE IF NOT EXISTS affiliates (
   last_login_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS affiliate_id UUID REFERENCES affiliates(id) ON DELETE SET NULL;
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS affiliate_funded BOOLEAN DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_coupons_affiliate_id ON coupons(affiliate_id);
 
 CREATE TABLE IF NOT EXISTS affiliate_conversions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -264,6 +267,21 @@ CREATE TABLE IF NOT EXISTS affiliate_conversions (
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   org_id UUID REFERENCES orgs(id) ON DELETE SET NULL,
   amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  event_type VARCHAR(20) NOT NULL DEFAULT 'signup',
+  plan_id VARCHAR(50),
+  currency VARCHAR(10),
+  gross_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  discount_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  net_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  payout_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  payout_rate NUMERIC(10,2) NOT NULL DEFAULT 0,
+  coupon_code VARCHAR(64),
+  affiliate_coupon BOOLEAN DEFAULT false,
+  coupon_percent_off NUMERIC(10,2) NOT NULL DEFAULT 0,
+  points INTEGER NOT NULL DEFAULT 0,
+  points_expires_at TIMESTAMP NULL,
+  invoice_id VARCHAR(255),
+  eligible_at TIMESTAMP NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending, approved, paid, rejected
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

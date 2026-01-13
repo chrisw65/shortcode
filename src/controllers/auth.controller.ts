@@ -9,6 +9,7 @@ import qrcode from 'qrcode';
 import db from '../config/database';
 import { getEffectivePlan } from '../services/plan';
 import { getPlanEntitlements } from '../services/entitlements';
+import { getAffiliateConfig } from '../services/affiliateConfig';
 import { recordConsent } from '../services/consent';
 import { getRetentionDefaultDays } from '../services/platformConfig';
 import { defaultScopes, discoverIssuer, normalizeIssuer } from '../services/oidc';
@@ -454,6 +455,12 @@ async function registerImpl(req: Request, res: Response) {
       );
     }
 
+    let affiliateCoupon = false;
+    let affiliateCouponCode: string | null = null;
+    let affiliateCouponPercent = 0;
+    let couponPlanId: string | null = null;
+    let couponAffiliateId: string | null = null;
+
     if (couponCode) {
       const { rows: couponRows } = await db.query(
         `SELECT *
@@ -493,11 +500,17 @@ async function registerImpl(req: Request, res: Response) {
          VALUES ('user', $1, $2, NOW() + ($3 || ' months')::interval, $4, $5)`,
         [user.id, coupon.plan, coupon.duration_months, `coupon:${coupon.code}`, user.id]
       );
+
+      couponPlanId = coupon.plan;
+      affiliateCoupon = Boolean(coupon.affiliate_funded && coupon.affiliate_id);
+      affiliateCouponCode = coupon.code;
+      affiliateCouponPercent = Number(coupon.percent_off || 0);
+      couponAffiliateId = coupon.affiliate_id || null;
     }
 
     if (affiliateCode) {
       const { rows: affRows } = await db.query(
-        `SELECT id
+        `SELECT id, payout_type, payout_rate
            FROM affiliates
           WHERE code = $1 AND status = 'active'
           LIMIT 1`,
@@ -508,10 +521,40 @@ async function registerImpl(req: Request, res: Response) {
         await db.query('ROLLBACK');
         return res.status(400).json({ success: false, error: 'Invalid affiliate code' });
       }
+      const affConfig = await getAffiliateConfig();
+      const points = Math.max(0, Number(affConfig.free_signup_points || 0));
+      const expiresDays = Math.max(0, Number(affConfig.free_signup_points_expiry_days || 0));
+      const pointsExpiresAt = expiresDays ? `NOW() + INTERVAL '${expiresDays} days'` : 'NULL';
+      const planId = couponPlanId || 'free';
+      const isAffiliateCoupon = affiliateCoupon && couponAffiliateId === affiliate.id;
+
       await db.query(
-        `INSERT INTO affiliate_conversions (affiliate_id, user_id, org_id, amount, status)
-         VALUES ($1, $2, $3, 0, 'pending')`,
-        [affiliate.id, user.id, orgId]
+        `INSERT INTO affiliate_conversions (
+          affiliate_id,
+          user_id,
+          org_id,
+          amount,
+          event_type,
+          plan_id,
+          coupon_code,
+          affiliate_coupon,
+          coupon_percent_off,
+          points,
+          points_expires_at,
+          payout_rate,
+          status
+        ) VALUES ($1, $2, $3, 0, 'signup', $4, $5, $6, $7, $8, ${pointsExpiresAt}, $9, 'pending')`,
+        [
+          affiliate.id,
+          user.id,
+          orgId,
+          planId,
+          isAffiliateCoupon ? affiliateCouponCode : null,
+          isAffiliateCoupon,
+          isAffiliateCoupon ? affiliateCouponPercent : 0,
+          points,
+          affiliate.payout_rate || 0,
+        ]
       );
     }
 

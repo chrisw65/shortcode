@@ -50,8 +50,16 @@
               <span>Total earned</span>
             </div>
             <div class="metric-card">
+              <strong id="affTotalPayout">-</strong>
+              <span>Total payout</span>
+            </div>
+            <div class="metric-card">
               <strong id="affPending">-</strong>
               <span>Pending payout</span>
+            </div>
+            <div class="metric-card">
+              <strong id="affPoints">-</strong>
+              <span>Active points</span>
             </div>
             <div class="metric-card">
               <strong id="affStatus">-</strong>
@@ -90,6 +98,60 @@
               </thead>
               <tbody id="affPayouts">
                 <tr><td colspan="3">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container split-grid reveal">
+        <div class="stack-grid">
+          <h2 class="section-title">Affiliate coupons</h2>
+          <div class="doc-card">
+            <div class="grid grid-2" style="gap:16px">
+              <div>
+                <label class="muted">Plan</label>
+                <input id="couponPlan" class="input" placeholder="pro">
+              </div>
+              <div>
+                <label class="muted">Percent off</label>
+                <input id="couponPercent" class="input" type="number" value="10">
+              </div>
+              <div>
+                <label class="muted">Duration (months)</label>
+                <input id="couponDuration" class="input" type="number" value="1">
+              </div>
+              <div>
+                <label class="muted">Max redemptions</label>
+                <input id="couponMaxRedemptions" class="input" type="number" value="100">
+              </div>
+              <div>
+                <label class="muted">Custom code (optional)</label>
+                <input id="couponCode" class="input" placeholder="AFF-TEAM10">
+              </div>
+              <div class="row" style="align-items:flex-end">
+                <button id="couponCreate" class="btn">Create coupon</button>
+              </div>
+            </div>
+            <div id="couponMsg" class="muted" style="margin-top:8px"></div>
+          </div>
+        </div>
+        <div class="stack-grid">
+          <h2 class="section-title">Your coupon codes</h2>
+          <div class="doc-card">
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th align="left">Code</th>
+                  <th align="left">Plan</th>
+                  <th align="left">Percent</th>
+                  <th align="left">Duration</th>
+                </tr>
+              </thead>
+              <tbody id="couponTable">
+                <tr><td colspan="4">Loading...</td></tr>
               </tbody>
             </table>
           </div>
