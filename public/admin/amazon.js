@@ -3,11 +3,21 @@ import { requireAuth, api, showToast } from '/admin/admin-common.js?v=20260120';
 requireAuth();
 
 const els = {
+  linkModeInputs: Array.from(document.querySelectorAll('input[name="amazonLinkMode"]')),
+  existingWrap: document.getElementById('amazonExistingWrap'),
+  createWrap: document.getElementById('amazonCreateWrap'),
   linkFilter: document.getElementById('linkFilter'),
   linkSelect: document.getElementById('amazonLinkSelect'),
   linkDetails: document.getElementById('linkDetails'),
   refreshLinks: document.getElementById('refreshLinks'),
   refreshRoutes: document.getElementById('refreshRoutes'),
+  shortCode: document.getElementById('amazonShortCode'),
+  title: document.getElementById('amazonTitle'),
+  domainSelect: document.getElementById('amazonDomainSelect'),
+  codeStatus: document.getElementById('amazonCodeStatus'),
+  codePreview: document.getElementById('amazonCodePreview'),
+  createLink: document.getElementById('amazonCreateLink'),
+  linkMsg: document.getElementById('amazonLinkMsg'),
   asin: document.getElementById('amazonAsin'),
   destination: document.getElementById('amazonDestination'),
   previewMarket: document.getElementById('amazonPreviewMarket'),
@@ -46,9 +56,64 @@ const AMAZON_MARKETS = [
 let links = [];
 let currentRoutes = [];
 let previewTimer = null;
+let availabilityTimer = null;
+let coreHost = 'https://okleaf.link';
+let effectivePlan = 'free';
+let domains = [];
+let linkMode = 'existing';
+
+function htmlesc(str) {
+  return String(str || '').replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[m]));
+}
 
 function normalizeAsin(value) {
   return String(value || '').trim().toUpperCase();
+}
+
+function setCodeStatus(state, text) {
+  if (!els.codeStatus) return;
+  els.codeStatus.className = `status ${state || 'warn'}`;
+  els.codeStatus.textContent = text || '';
+}
+
+function selectedDomain() {
+  const value = (els.domainSelect?.value || '').trim();
+  if (!value) return { id: '', host: coreHost.replace(/^https?:\/\//, '') };
+  const hit = domains.find((d) => d.id === value);
+  return { id: value, host: (hit?.domain || coreHost).replace(/^https?:\/\//, '') };
+}
+
+function updateCodePreview() {
+  if (!els.codePreview) return;
+  const code = (els.shortCode?.value || '').trim();
+  const host = selectedDomain().host;
+  const shown = code || 'your-code';
+  els.codePreview.innerHTML = `Short URL: https://${htmlesc(host)}/${htmlesc(shown)}`;
+  if (!code) {
+    setCodeStatus('warn', `Auto-generate on ${host}.`);
+  }
+}
+
+function renderDomainSelect() {
+  if (!els.domainSelect) return;
+  const options = [];
+  const coreLabel = coreHost.replace(/^https?:\/\//, '');
+  options.push(`<option value="">${htmlesc(coreLabel)} (core)</option>`);
+  const available = domains.filter((d) => d.verified && d.is_active);
+  if (String(effectivePlan || '').toLowerCase() !== 'free') {
+    available.forEach((d) => {
+      options.push(`<option value="${htmlesc(d.id)}">${htmlesc(d.domain)}</option>`);
+    });
+  }
+  els.domainSelect.innerHTML = options.join('');
+  els.domainSelect.disabled = String(effectivePlan || '').toLowerCase() === 'free';
+  updateCodePreview();
 }
 
 function resolveAmazonDomain(marketCode) {
@@ -160,6 +225,27 @@ async function loadLinks() {
   }
 }
 
+async function loadContext() {
+  try {
+    const [coreRes, meRes, domainRes] = await Promise.all([
+      api('/api/links/core-domain'),
+      api('/api/auth/me'),
+      api('/api/domains'),
+    ]);
+    const core = coreRes?.data || {};
+    if (core.base_url) coreHost = core.base_url;
+    const me = meRes?.data || {};
+    effectivePlan = me.effective_plan || me.user?.plan || 'free';
+    const list = domainRes?.data || [];
+    domains = Array.isArray(list) ? list : [];
+  } catch (err) {
+    console.warn('Failed to load context', err);
+  } finally {
+    renderDomainSelect();
+    updateCodePreview();
+  }
+}
+
 async function loadRoutesForLink(shortCode) {
   if (!shortCode) {
     currentRoutes = [];
@@ -192,8 +278,61 @@ function renderRoutesTable() {
   }).join('');
 }
 
+async function createLink() {
+  const asin = normalizeAsin(els.asin?.value);
+  if (!asin) {
+    if (els.linkMsg) els.linkMsg.textContent = 'Enter an ASIN before creating the link.';
+    return null;
+  }
+  const destination = els.destination?.value || 'product';
+  const market = els.previewMarket?.value || getSelectedMarkets()[0] || 'US';
+  const url = buildAmazonUrl(asin, destination, market);
+  if (!url) {
+    if (els.linkMsg) els.linkMsg.textContent = 'Unable to build the Amazon URL.';
+    return null;
+  }
+  const shortCode = (els.shortCode?.value || '').trim();
+  const title = (els.title?.value || '').trim() || `Amazon ASIN ${asin}`;
+  const domain = selectedDomain();
+  if (els.linkMsg) els.linkMsg.textContent = '';
+  if (els.createLink) els.createLink.disabled = true;
+  try {
+    const body = { url, title };
+    if (shortCode) body.short_code = shortCode;
+    if (domain.id) body.domain_id = domain.id;
+    const res = await api('/api/links', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const created = res?.data;
+    if (created?.short_code) {
+      links = [created, ...links];
+      renderLinkOptions(filterLinks(els.linkFilter?.value || ''));
+      if (els.linkSelect) {
+        els.linkSelect.value = created.short_code;
+      }
+      setLinkDetails(created);
+      await loadRoutesForLink(created.short_code);
+      if (els.linkMsg) els.linkMsg.textContent = `Created ${created.short_code}.`;
+      setLinkMode('existing');
+      return created.short_code;
+    }
+    if (els.linkMsg) els.linkMsg.textContent = 'Link created, but response was missing a short code.';
+    return null;
+  } catch (err) {
+    if (els.linkMsg) els.linkMsg.textContent = err.message || 'Failed to create link.';
+    return null;
+  } finally {
+    if (els.createLink) els.createLink.disabled = false;
+  }
+}
+
 async function applyRoutes() {
-  const shortCode = els.linkSelect?.value;
+  let shortCode = els.linkSelect?.value;
+  if (linkMode === 'new') {
+    shortCode = await createLink();
+  }
   if (!shortCode) return;
   const asin = normalizeAsin(els.asin?.value);
   if (!asin) {
@@ -250,6 +389,35 @@ async function applyRoutes() {
   }
 }
 
+function setLinkMode(mode) {
+  linkMode = mode;
+  if (els.existingWrap) els.existingWrap.style.display = mode === 'existing' ? '' : 'none';
+  if (els.createWrap) els.createWrap.style.display = mode === 'new' ? '' : 'none';
+  if (els.linkSelect) els.linkSelect.disabled = mode !== 'existing';
+  if (els.linkFilter) els.linkFilter.disabled = mode !== 'existing';
+}
+
+async function checkAvailability() {
+  const code = (els.shortCode?.value || '').trim();
+  updateCodePreview();
+  if (!code) return;
+  if (availabilityTimer) clearTimeout(availabilityTimer);
+  availabilityTimer = setTimeout(async () => {
+    setCodeStatus('pending', 'Checking availability...');
+    try {
+      const res = await api(`/api/links/availability/${encodeURIComponent(code)}`);
+      const result = res?.data || {};
+      if (result.available) {
+        setCodeStatus('ok', `${code} is available.`);
+      } else {
+        setCodeStatus('bad', result.reason || 'Code unavailable.');
+      }
+    } catch (err) {
+      setCodeStatus('bad', 'Availability check failed.');
+    }
+  }, 350);
+}
+
 els.linkFilter?.addEventListener('input', () => {
   renderLinkOptions(filterLinks(els.linkFilter.value || ''));
 });
@@ -261,13 +429,22 @@ els.linkSelect?.addEventListener('change', async () => {
 els.refreshLinks?.addEventListener('click', loadLinks);
 els.refreshRoutes?.addEventListener('click', () => loadRoutesForLink(els.linkSelect?.value));
 els.applyRoutes?.addEventListener('click', applyRoutes);
+els.createLink?.addEventListener('click', createLink);
 els.asin?.addEventListener('input', updatePreview);
 els.destination?.addEventListener('change', updatePreview);
 els.previewMarket?.addEventListener('change', updatePreview);
+els.shortCode?.addEventListener('input', checkAvailability);
+els.domainSelect?.addEventListener('change', updateCodePreview);
+els.linkModeInputs.forEach((input) => {
+  input.addEventListener('change', () => setLinkMode(input.value));
+});
 Array.from(document.querySelectorAll('.amazon-market')).forEach((input) => {
   input.addEventListener('change', updatePreview);
 });
 
 initPreviewMarkets();
 updatePreview();
+const initialMode = els.linkModeInputs.find((input) => input.checked)?.value || 'existing';
+setLinkMode(initialMode);
+loadContext();
 loadLinks();
