@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:oaklink_mobile/services/api_client.dart';
+import 'package:oaklink_mobile/widgets/app_snackbar.dart';
 import 'package:oaklink_mobile/widgets/empty_state.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -17,6 +18,7 @@ class _BioScreenState extends State<BioScreen> {
   final _titleCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _busy = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -25,9 +27,15 @@ class _BioScreenState extends State<BioScreen> {
   }
 
   Future<List<dynamic>> _load() async {
-    final res = await ApiClient.instance.get('/api/bio');
-    final data = res.data as Map<String, dynamic>;
-    return (data['data'] as List<dynamic>? ?? []);
+    try {
+      final res = await ApiClient.instance.get('/api/bio');
+      final data = res.data as Map<String, dynamic>;
+      _errorMessage = null;
+      return (data['data'] as List<dynamic>? ?? []);
+    } catch (err) {
+      _errorMessage = ApiClient.errorMessage(err);
+      rethrow;
+    }
   }
 
   Future<void> _refresh() async {
@@ -53,11 +61,9 @@ class _BioScreenState extends State<BioScreen> {
       _slugCtrl.clear();
       _titleCtrl.clear();
       await _refresh();
-    } catch (_) {
+    } catch (err) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to create page')),
-        );
+        showError(context, ApiClient.errorMessage(err));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -149,7 +155,7 @@ class _BioScreenState extends State<BioScreen> {
                 return EmptyState(
                   icon: Icons.warning_amber_rounded,
                   title: 'Unable to load pages',
-                  subtitle: 'Pull down to refresh.',
+                  subtitle: _errorMessage ?? 'Pull down to refresh.',
                 );
               }
               final items = snapshot.data ?? [];

@@ -50,8 +50,8 @@
           <h1 class="section-title">Browser extension</h1>
           <p class="section-sub">Shorten the current tab, copy the short URL, and keep moving without leaving your workflow.</p>
           <div class="hero-actions">
-            <a class="btn primary" id="installCta" href="/extension/okleaf-extension.zip">Install extension</a>
-            <a class="btn ghost" href="/docs/extensions.html#install">Install guide</a>
+            <a class="btn primary" id="installCta" href="#store">Get from the store</a>
+            <a class="btn ghost" href="/extension/okleaf-extension.zip">Download zip</a>
             <a class="btn ghost" href="https://github.com/chrisw65/shortcode/tree/master/extension" target="_blank" rel="noreferrer">View source</a>
           </div>
         </div>
@@ -66,10 +66,34 @@
       </div>
     </section>
 
+    <section class="section" id="store">
+      <div class="container reveal">
+        <h2 class="section-title">Official stores (recommended)</h2>
+        <p class="section-sub">Install from your browser’s store for automatic updates and trusted distribution.</p>
+        <div class="install-grid">
+          <a class="install-card" href="https://chrome.google.com/webstore" target="_blank" rel="noreferrer">
+            <div class="install-badge">Chrome Web Store</div>
+            <h3>Chrome / Brave / Opera</h3>
+            <p>Review in progress. Store install eliminates developer mode warnings.</p>
+          </a>
+          <a class="install-card" href="https://addons.mozilla.org/developers/" target="_blank" rel="noreferrer">
+            <div class="install-badge">Firefox Add-ons</div>
+            <h3>Firefox</h3>
+            <p>Review in progress. Automatic updates once approved.</p>
+          </a>
+          <a class="install-card" href="https://partner.microsoft.com/en-us/dashboard/microsoftedge/overview" target="_blank" rel="noreferrer">
+            <div class="install-badge">Edge Add-ons</div>
+            <h3>Microsoft Edge</h3>
+            <p>Review in progress. Uses the same Manifest V3 build.</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
     <section class="section">
       <div class="container reveal">
         <h2 class="section-title" id="install">Install in under 2 minutes</h2>
-        <p class="section-sub">Pick your browser, download the zip, and load the unpacked extension.</p>
+        <p class="section-sub">Prefer manual install? Download the zip and load the unpacked extension.</p>
         <div class="install-grid">
           <a class="install-card" data-install-target="chrome" href="/extension/okleaf-extension.zip">
             <div class="install-badge">Chrome</div>
@@ -131,6 +155,18 @@
   -H "X-API-Key: &lt;YOUR_API_KEY&gt;" \
   -H "Content-Type: application/json" \
   -d '{"url":"https://example.com"}'</code></pre>
+        <p class="section-sub" style="margin-top:16px">Privacy policy: <a href="/docs/extension-privacy.html">https://okleaf.link/docs/extension-privacy.html</a></p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container reveal">
+        <h2 class="section-title">Enterprise auto-update</h2>
+        <p class="section-sub">For private deployments, use the self-hosted manifest and update feed.</p>
+        <pre class="code-block"><code>{
+  "update_url": "https://okleaf.link/extension/updates.xml"
+}</code></pre>
+        <p class="section-sub">Use <code>extension/manifest.selfhosted.json</code> when loading the unpacked extension.</p>
       </div>
     </section>
   </main>
@@ -164,7 +200,7 @@
       if (ua.includes('firefox')) target = 'firefox';
       else if (ua.includes('edg/')) target = 'edge';
       var cta = document.getElementById('installCta');
-      if (cta) cta.textContent = 'Install for ' + (target === 'edge' ? 'Edge' : target === 'firefox' ? 'Firefox' : 'Chrome');
+      if (cta) cta.textContent = 'Get for ' + (target === 'edge' ? 'Edge' : target === 'firefox' ? 'Firefox' : 'Chrome');
       var cards = document.querySelectorAll('[data-install-target]');
       cards.forEach(function (card) {
         if (card.getAttribute('data-install-target') === target) {

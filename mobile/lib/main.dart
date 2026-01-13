@@ -4,10 +4,12 @@ import 'package:oaklink_mobile/screens/login_screen.dart';
 import 'package:oaklink_mobile/screens/two_factor_screen.dart';
 import 'package:oaklink_mobile/services/api_client.dart';
 import 'package:oaklink_mobile/services/auth_service.dart';
+import 'package:oaklink_mobile/services/session_manager.dart';
 import 'package:oaklink_mobile/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SessionManager.configure(loginRoute: LoginScreen.routeName);
   await ApiClient.init();
   runApp(const OaklinkApp());
 }
@@ -21,6 +23,7 @@ class OaklinkApp extends StatelessWidget {
       title: 'Oaklink Mobile',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
+      navigatorKey: SessionManager.navigatorKey,
       home: const SessionGate(),
       routes: {
         LoginScreen.routeName: (_) => const LoginScreen(),

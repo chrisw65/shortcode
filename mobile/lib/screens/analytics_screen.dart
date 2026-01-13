@@ -12,6 +12,7 @@ class AnalyticsScreen extends StatefulWidget {
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Future<Map<String, dynamic>>? _future;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -20,9 +21,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Future<Map<String, dynamic>> _load() async {
-    final res = await ApiClient.instance.get('/api/analytics/summary');
-    final data = res.data as Map<String, dynamic>;
-    return data['data'] as Map<String, dynamic>? ?? {};
+    try {
+      final res = await ApiClient.instance.get('/api/analytics/summary');
+      final data = res.data as Map<String, dynamic>;
+      _errorMessage = null;
+      return data['data'] as Map<String, dynamic>? ?? {};
+    } catch (err) {
+      _errorMessage = ApiClient.errorMessage(err);
+      rethrow;
+    }
   }
 
   Future<void> _refresh() async {
@@ -47,7 +54,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 EmptyState(
                   icon: Icons.bar_chart,
                   title: 'Analytics unavailable',
-                  subtitle: 'Pull to refresh or try again in a moment.',
+                  subtitle: _errorMessage ?? 'Pull to refresh or try again in a moment.',
                   action: FilledButton(
                     onPressed: _refresh,
                     child: const Text('Retry'),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:oaklink_mobile/services/api_client.dart';
+import 'package:oaklink_mobile/widgets/app_snackbar.dart';
 
 class CreateLinkScreen extends StatefulWidget {
   const CreateLinkScreen({super.key});
@@ -64,10 +65,14 @@ class _CreateLinkScreenState extends State<CreateLinkScreen> {
         _titleCtrl.clear();
         _codeCtrl.clear();
       } else {
-        setState(() => _message = data['error']?.toString() ?? 'Failed to create');
+        final msg = data['error']?.toString() ?? 'Failed to create';
+        setState(() => _message = msg);
+        showError(context, msg);
       }
     } catch (err) {
-      setState(() => _message = 'Failed to create');
+      final msg = ApiClient.errorMessage(err);
+      setState(() => _message = msg);
+      showError(context, msg);
     } finally {
       setState(() => _busy = false);
     }

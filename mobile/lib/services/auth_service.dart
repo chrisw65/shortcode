@@ -38,9 +38,9 @@ class AuthService {
       }
       return AuthResult(success: true);
     } on DioException catch (err) {
-      return AuthResult(success: false, error: err.response?.data?['error']?.toString() ?? err.message);
+      return AuthResult(success: false, error: ApiClient.errorMessage(err));
     } catch (err) {
-      return AuthResult(success: false, error: err.toString());
+      return AuthResult(success: false, error: ApiClient.errorMessage(err));
     }
   }
 
@@ -57,9 +57,9 @@ class AuthService {
       }
       return AuthResult(success: true);
     } on DioException catch (err) {
-      return AuthResult(success: false, error: err.response?.data?['error']?.toString() ?? err.message);
+      return AuthResult(success: false, error: ApiClient.errorMessage(err));
     } catch (err) {
-      return AuthResult(success: false, error: err.toString());
+      return AuthResult(success: false, error: ApiClient.errorMessage(err));
     }
   }
 
@@ -74,7 +74,11 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    await _api.ensureCsrf();
-    await _api.post('/api/auth/logout');
+    try {
+      await _api.ensureCsrf();
+      await _api.post('/api/auth/logout');
+    } catch (_) {
+      // Allow local sign-out even if network fails.
+    }
   }
 }

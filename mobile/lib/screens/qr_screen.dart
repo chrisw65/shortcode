@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:oaklink_mobile/services/api_client.dart';
+import 'package:oaklink_mobile/widgets/app_snackbar.dart';
 import 'package:oaklink_mobile/widgets/empty_state.dart';
 
 class QrScreen extends StatefulWidget {
@@ -57,8 +58,11 @@ class _QrScreenState extends State<QrScreen> {
     try {
       await ApiClient.instance.put('/api/links/$code/qr-settings', data: payload);
       setState(() => _message = 'Saved QR settings');
-    } catch (_) {
-      setState(() => _message = 'Failed to save QR settings');
+      if (mounted) showSuccess(context, 'QR settings saved');
+    } catch (err) {
+      final msg = ApiClient.errorMessage(err);
+      setState(() => _message = msg);
+      if (mounted) showError(context, msg);
     }
   }
 

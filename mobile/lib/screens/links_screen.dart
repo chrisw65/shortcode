@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:oaklink_mobile/services/api_client.dart';
+import 'package:oaklink_mobile/widgets/app_snackbar.dart';
 import 'package:oaklink_mobile/widgets/empty_state.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -13,6 +14,7 @@ class LinksScreen extends StatefulWidget {
 
 class _LinksScreenState extends State<LinksScreen> {
   Future<List<dynamic>>? _future;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -21,9 +23,15 @@ class _LinksScreenState extends State<LinksScreen> {
   }
 
   Future<List<dynamic>> _load() async {
-    final res = await ApiClient.instance.get('/api/links');
-    final data = res.data as Map<String, dynamic>;
-    return (data['data'] as List<dynamic>? ?? []);
+    try {
+      final res = await ApiClient.instance.get('/api/links');
+      final data = res.data as Map<String, dynamic>;
+      _errorMessage = null;
+      return (data['data'] as List<dynamic>? ?? []);
+    } catch (err) {
+      _errorMessage = ApiClient.errorMessage(err);
+      rethrow;
+    }
   }
 
   Future<void> _refresh() async {
@@ -34,17 +42,13 @@ class _LinksScreenState extends State<LinksScreen> {
   Future<void> _open(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to open link')),
-      );
+      showError(context, 'Unable to open link');
     }
   }
 
   void _copy(String value) {
     Clipboard.setData(ClipboardData(text: value));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Copied to clipboard')),
-    );
+    showSuccess(context, 'Copied to clipboard');
   }
 
   @override
@@ -64,7 +68,7 @@ class _LinksScreenState extends State<LinksScreen> {
                 EmptyState(
                   icon: Icons.warning_amber_rounded,
                   title: 'Unable to load links',
-                  subtitle: 'Check your connection and try again.',
+                  subtitle: _errorMessage ?? 'Check your connection and try again.',
                   action: FilledButton(
                     onPressed: _refresh,
                     child: const Text('Retry'),
