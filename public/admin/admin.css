@@ -399,6 +399,12 @@ tbody tr:hover td{background:rgba(213,162,75,.06)}
 .modal-body{display:flex;align-items:center;justify-content:center;padding:18px}
 .modal-body img{max-width:100%;height:auto;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#fff;padding:10px}
 
+.modal-card.modal-wide{width:min(980px,92vw)}
+.modal-card.modal-scroll{max-height:86vh;display:flex;flex-direction:column}
+.modal-card.modal-scroll .modal-body{flex:1;overflow:auto;align-items:stretch;justify-content:flex-start}
+.modal-head,.modal-foot{display:flex;align-items:center;justify-content:space-between}
+.modal-foot{justify-content:flex-end;gap:8px}
+
 .world-map{
   position:relative;
   width:100%;
