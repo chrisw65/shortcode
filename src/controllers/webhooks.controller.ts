@@ -103,7 +103,8 @@ export async function updateWebhook(req: OrgRequest, res: Response) {
     const name = req.body?.name ? String(req.body.name).trim() : null;
     const url = req.body?.url ? String(req.body.url).trim() : null;
     const enabled = req.body?.enabled;
-    const eventTypes = normalizeEvents(req.body?.event_types);
+    const eventTypesProvided = Object.prototype.hasOwnProperty.call(req.body || {}, 'event_types');
+    const eventTypes = eventTypesProvided ? normalizeEvents(req.body?.event_types) : undefined;
     const rotateSecret = req.body?.rotate_secret === true;
 
     if (!id) return res.status(400).json({ success: false, error: 'Invalid webhook id' });
