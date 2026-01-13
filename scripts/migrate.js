@@ -299,6 +299,42 @@ CREATE TABLE IF NOT EXISTS affiliate_payouts (
 );
 CREATE INDEX IF NOT EXISTS idx_affiliate_payouts_affiliate ON affiliate_payouts(affiliate_id);
 
+-- Webhooks
+CREATE TABLE IF NOT EXISTS webhook_endpoints (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  name VARCHAR(120) NOT NULL,
+  url TEXT NOT NULL,
+  enabled BOOLEAN DEFAULT true,
+  secret VARCHAR(255),
+  event_types TEXT[],
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_org ON webhook_endpoints(org_id);
+
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  endpoint_id UUID REFERENCES webhook_endpoints(id) ON DELETE CASCADE,
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  event_type VARCHAR(64) NOT NULL,
+  payload JSONB NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending, delivering, success, failed
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  max_attempts INTEGER NOT NULL DEFAULT 5,
+  next_attempt_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_attempt_at TIMESTAMP NULL,
+  last_error TEXT NULL,
+  response_status INTEGER NULL,
+  response_body TEXT NULL,
+  duration_ms INTEGER NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status, next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_org ON webhook_deliveries(org_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_endpoint ON webhook_deliveries(endpoint_id);
+
 -- Billing (Stripe)
 CREATE TABLE IF NOT EXISTS billing_customers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
