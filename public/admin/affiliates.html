@@ -18,6 +18,7 @@
       <nav class="side-nav">
         <a href="/admin/dashboard.html">Dashboard</a>
         <a href="/admin/links.html">Links</a>
+        <a href="/admin/amazon.html">Amazon</a>
         <a href="/admin/domains.html">Domains</a>
         <a href="/admin/analytics.html">Analytics</a>
         <a href="/admin/audit.html">Audit</a>
@@ -43,6 +44,61 @@
       </header>
 
       <main class="admin-content">
+        <section class="card">
+          <div class="row-between">
+            <div>
+              <h3 class="m-0">Affiliate defaults</h3>
+              <p class="muted">Control payouts, coupon limits, and point bonuses.</p>
+            </div>
+            <button id="saveAffiliateConfig" class="btn" type="button">Save defaults</button>
+          </div>
+          <div class="grid grid-3" style="margin-top:12px">
+            <div>
+              <label class="muted">Default payout type</label>
+              <select id="affiliateDefaultPayoutType" class="input">
+                <option value="percent">Percent</option>
+                <option value="flat">Flat</option>
+              </select>
+            </div>
+            <div>
+              <label class="muted">Default payout rate</label>
+              <input id="affiliateDefaultPayoutRate" class="input" type="number" value="30">
+            </div>
+            <div>
+              <label class="muted">Hold days before payout</label>
+              <input id="affiliateHoldDays" class="input" type="number" value="14">
+            </div>
+            <div>
+              <label class="muted">Free signup points</label>
+              <input id="affiliateSignupPoints" class="input" type="number" value="1">
+            </div>
+            <div>
+              <label class="muted">Points expiry (days)</label>
+              <input id="affiliatePointsExpiry" class="input" type="number" value="180">
+            </div>
+            <div>
+              <label class="muted">Affiliate coupons enabled</label>
+              <select id="affiliateCouponsEnabled" class="input">
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+            </div>
+            <div>
+              <label class="muted">Coupon max percent off</label>
+              <input id="affiliateCouponMaxPercent" class="input" type="number" value="30">
+            </div>
+            <div>
+              <label class="muted">Coupon max duration (months)</label>
+              <input id="affiliateCouponMaxDuration" class="input" type="number" value="3">
+            </div>
+            <div>
+              <label class="muted">Default max redemptions</label>
+              <input id="affiliateCouponMaxRedemptions" class="input" type="number" value="100">
+            </div>
+          </div>
+          <div id="affiliateConfigMsg" class="muted" style="margin-top:8px"></div>
+        </section>
+
         <section class="card">
           <h3>Create affiliate</h3>
           <div class="grid grid-2" style="margin-top:10px">

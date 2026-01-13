@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import Stripe from 'stripe';
 import db from '../config/database';
 import type { OrgRequest } from '../middleware/org';
+import { getAffiliateConfig } from '../services/affiliateConfig';
 import { log } from '../utils/logger';
 
 type BillingConfig = {
@@ -153,6 +154,94 @@ async function syncStripePlanGrant(params: {
       [params.orgId, params.planId, params.endsAt, params.reason],
     );
   }
+}
+
+async function recordAffiliateInvoice(params: {
+  orgId: string;
+  planId: string | null;
+  invoice: Stripe.Invoice;
+}) {
+  const affiliateConfig = await getAffiliateConfig();
+  const { rows } = await db.query(
+    `SELECT ac.affiliate_id, ac.user_id, ac.coupon_code, ac.affiliate_coupon, ac.coupon_percent_off,
+            a.status, a.payout_type, a.payout_rate
+       FROM affiliate_conversions ac
+       JOIN affiliates a ON a.id = ac.affiliate_id
+      WHERE ac.org_id = $1 AND ac.event_type = 'signup'
+      ORDER BY ac.created_at ASC
+      LIMIT 1`,
+    [params.orgId],
+  );
+  const affiliate = rows[0];
+  if (!affiliate || affiliate.status !== 'active') return;
+
+  const invoiceId = params.invoice.id;
+  if (invoiceId) {
+    const { rows: existingInvoice } = await db.query(
+      `SELECT 1 FROM affiliate_conversions WHERE invoice_id = $1 LIMIT 1`,
+      [invoiceId],
+    );
+    if (existingInvoice.length) return;
+  }
+
+  const { rows: existingPaid } = await db.query(
+    `SELECT 1 FROM affiliate_conversions WHERE org_id = $1 AND event_type = 'paid' LIMIT 1`,
+    [params.orgId],
+  );
+  if (existingPaid.length) return;
+
+  const gross = Math.max(0, Number(params.invoice.amount_paid || 0) / 100);
+  const couponPercent = affiliate.affiliate_coupon ? Number(affiliate.coupon_percent_off || 0) : 0;
+  const discountAmount = Math.max(0, gross * (couponPercent / 100));
+  const netAmount = Math.max(0, gross - discountAmount);
+  const payoutRate = Number(affiliate.payout_rate || affiliateConfig.default_payout_rate || 0);
+  const payoutType = String(affiliate.payout_type || affiliateConfig.default_payout_type || 'percent');
+  const payoutAmount = payoutType === 'flat'
+    ? Math.max(0, payoutRate - discountAmount)
+    : Math.max(0, netAmount * (payoutRate / 100));
+  const currency = params.invoice.currency ? String(params.invoice.currency).toUpperCase() : null;
+  const holdDays = Math.max(0, Number(affiliateConfig.payout_hold_days || 0));
+  const eligibleAt = holdDays ? `NOW() + INTERVAL '${holdDays} days'` : 'NOW()';
+
+  await db.query(
+    `INSERT INTO affiliate_conversions (
+      affiliate_id,
+      user_id,
+      org_id,
+      amount,
+      event_type,
+      plan_id,
+      currency,
+      gross_amount,
+      discount_amount,
+      net_amount,
+      payout_amount,
+      payout_rate,
+      coupon_code,
+      affiliate_coupon,
+      coupon_percent_off,
+      invoice_id,
+      eligible_at,
+      status
+    ) VALUES ($1, $2, $3, $4, 'paid', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, ${eligibleAt}, 'pending')`,
+    [
+      affiliate.affiliate_id,
+      affiliate.user_id,
+      params.orgId,
+      netAmount,
+      params.planId,
+      currency,
+      gross,
+      discountAmount,
+      netAmount,
+      payoutAmount,
+      payoutRate,
+      affiliate.coupon_code,
+      affiliate.affiliate_coupon,
+      couponPercent,
+      invoiceId,
+    ],
+  );
 }
 
 export async function getBillingConfig(req: Request, res: Response) {
@@ -377,6 +466,7 @@ export async function stripeWebhook(req: Request, res: Response) {
             reason: `stripe:${sub.id}`,
             active: true,
           });
+          await recordAffiliateInvoice({ orgId, planId, invoice });
         }
       }
     }

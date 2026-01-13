@@ -356,6 +356,9 @@ CREATE TABLE IF NOT EXISTS affiliates (
   last_login_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS affiliate_id UUID REFERENCES affiliates(id) ON DELETE SET NULL;
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS affiliate_funded BOOLEAN DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_coupons_affiliate_id ON coupons(affiliate_id);
 
 ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
 ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP NULL;
@@ -369,6 +372,21 @@ CREATE TABLE IF NOT EXISTS affiliate_conversions (
   status VARCHAR(20) NOT NULL DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS event_type VARCHAR(20) NOT NULL DEFAULT 'signup';
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS plan_id VARCHAR(50);
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS currency VARCHAR(10);
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS gross_amount NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS net_amount NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS payout_amount NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS payout_rate NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(64);
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS affiliate_coupon BOOLEAN DEFAULT false;
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS coupon_percent_off NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS points INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS points_expires_at TIMESTAMP NULL;
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS invoice_id VARCHAR(255);
+ALTER TABLE affiliate_conversions ADD COLUMN IF NOT EXISTS eligible_at TIMESTAMP NULL;
 CREATE INDEX IF NOT EXISTS idx_affiliate_conversions_affiliate ON affiliate_conversions(affiliate_id);
 
 CREATE TABLE IF NOT EXISTS affiliate_payouts (
@@ -382,6 +400,41 @@ CREATE TABLE IF NOT EXISTS affiliate_payouts (
   paid_at TIMESTAMP NULL
 );
 CREATE INDEX IF NOT EXISTS idx_affiliate_payouts_affiliate ON affiliate_payouts(affiliate_id);
+
+CREATE TABLE IF NOT EXISTS webhook_endpoints (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  name VARCHAR(120) NOT NULL,
+  url TEXT NOT NULL,
+  enabled BOOLEAN DEFAULT true,
+  secret VARCHAR(255),
+  event_types TEXT[],
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_org ON webhook_endpoints(org_id);
+
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  endpoint_id UUID REFERENCES webhook_endpoints(id) ON DELETE CASCADE,
+  org_id UUID REFERENCES orgs(id) ON DELETE CASCADE,
+  event_type VARCHAR(64) NOT NULL,
+  payload JSONB NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  max_attempts INTEGER NOT NULL DEFAULT 5,
+  next_attempt_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_attempt_at TIMESTAMP NULL,
+  last_error TEXT NULL,
+  response_status INTEGER NULL,
+  response_body TEXT NULL,
+  duration_ms INTEGER NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status, next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_org ON webhook_deliveries(org_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_endpoint ON webhook_deliveries(endpoint_id);
 
 CREATE TABLE IF NOT EXISTS billing_customers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

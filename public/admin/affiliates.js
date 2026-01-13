@@ -14,6 +14,40 @@ const affiliatesBody = document.getElementById('affiliatesBody');
 const payoutsBody = document.getElementById('payoutsBody');
 const payoutRefresh = document.getElementById('payoutRefresh');
 const exportPayouts = document.getElementById('exportPayouts');
+const saveAffiliateConfig = document.getElementById('saveAffiliateConfig');
+const affiliateConfigMsg = document.getElementById('affiliateConfigMsg');
+const affiliateDefaultPayoutType = document.getElementById('affiliateDefaultPayoutType');
+const affiliateDefaultPayoutRate = document.getElementById('affiliateDefaultPayoutRate');
+const affiliateHoldDays = document.getElementById('affiliateHoldDays');
+const affiliateSignupPoints = document.getElementById('affiliateSignupPoints');
+const affiliatePointsExpiry = document.getElementById('affiliatePointsExpiry');
+const affiliateCouponsEnabled = document.getElementById('affiliateCouponsEnabled');
+const affiliateCouponMaxPercent = document.getElementById('affiliateCouponMaxPercent');
+const affiliateCouponMaxDuration = document.getElementById('affiliateCouponMaxDuration');
+const affiliateCouponMaxRedemptions = document.getElementById('affiliateCouponMaxRedemptions');
+
+let affiliateDefaults = null;
+
+async function loadAffiliateConfig() {
+  try {
+    const res = await apiFetch('/api/affiliates/config');
+    affiliateDefaults = res.data || {};
+    if (!affiliateDefaults) return;
+    affiliateDefaultPayoutType.value = affiliateDefaults.default_payout_type || 'percent';
+    affiliateDefaultPayoutRate.value = affiliateDefaults.default_payout_rate ?? 30;
+    affiliateHoldDays.value = affiliateDefaults.payout_hold_days ?? 14;
+    affiliateSignupPoints.value = affiliateDefaults.free_signup_points ?? 1;
+    affiliatePointsExpiry.value = affiliateDefaults.free_signup_points_expiry_days ?? 180;
+    affiliateCouponsEnabled.value = affiliateDefaults.allow_affiliate_coupons ? 'true' : 'false';
+    affiliateCouponMaxPercent.value = affiliateDefaults.coupon_max_percent_off ?? 30;
+    affiliateCouponMaxDuration.value = affiliateDefaults.coupon_max_duration_months ?? 3;
+    affiliateCouponMaxRedemptions.value = affiliateDefaults.coupon_default_max_redemptions ?? 100;
+    affPayoutType.value = affiliateDefaults.default_payout_type || 'percent';
+    affPayoutRate.value = affiliateDefaults.default_payout_rate ?? 30;
+  } catch (err) {
+    affiliateConfigMsg.textContent = 'Failed to load defaults.';
+  }
+}
 
 async function loadAffiliates() {
   try {
@@ -96,15 +130,16 @@ async function createAffiliate() {
       body: JSON.stringify(payload),
     });
     const tempPassword = res?.data?.temp_password;
-    if (tempPassword) {
-      affMsg.textContent = `Temporary password: ${tempPassword}`;
-    } else {
-      showToast('Affiliate created');
-    }
+    affMsg.textContent = tempPassword
+      ? `Temporary password: ${tempPassword}`
+      : 'Affiliate created. Login email sent if SMTP is configured.';
     affName.value = '';
     affEmail.value = '';
     affCompany.value = '';
-    affPayoutRate.value = '30';
+    if (affiliateDefaults) {
+      affPayoutType.value = affiliateDefaults.default_payout_type || 'percent';
+      affPayoutRate.value = affiliateDefaults.default_payout_rate ?? 30;
+    }
     await loadAffiliates();
   } catch (err) {
     showError(err, 'Failed to create affiliate');
@@ -150,6 +185,33 @@ exportPayouts?.addEventListener('click', async () => {
   }
 });
 
+saveAffiliateConfig?.addEventListener('click', async () => {
+  affiliateConfigMsg.textContent = '';
+  const payload = {
+    default_payout_type: affiliateDefaultPayoutType.value,
+    default_payout_rate: Number(affiliateDefaultPayoutRate.value || 0),
+    payout_hold_days: Number(affiliateHoldDays.value || 0),
+    free_signup_points: Number(affiliateSignupPoints.value || 0),
+    free_signup_points_expiry_days: Number(affiliatePointsExpiry.value || 0),
+    allow_affiliate_coupons: affiliateCouponsEnabled.value === 'true',
+    coupon_max_percent_off: Number(affiliateCouponMaxPercent.value || 0),
+    coupon_max_duration_months: Number(affiliateCouponMaxDuration.value || 0),
+    coupon_default_max_redemptions: Number(affiliateCouponMaxRedemptions.value || 0),
+  };
+  try {
+    const res = await apiFetch('/api/affiliates/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    affiliateDefaults = res.data || payload;
+    affiliateConfigMsg.textContent = 'Affiliate defaults saved.';
+  } catch (err) {
+    affiliateConfigMsg.textContent = 'Failed to save defaults.';
+    showError(err, 'Failed to save affiliate defaults');
+  }
+});
+
 affiliatesBody?.addEventListener('click', (event) => {
   const btn = event.target.closest('button[data-action]');
   if (!btn) return;
@@ -175,6 +237,7 @@ payoutsBody?.addEventListener('click', async (event) => {
   await loadPayouts();
 });
 
+loadAffiliateConfig();
 loadAffiliates();
 loadPayouts();
 

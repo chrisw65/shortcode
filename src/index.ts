@@ -35,9 +35,11 @@ import platformRoutes from './routes/platform.routes';
 import ecosystemRoutes from './routes/ecosystem.routes';
 import bioRoutes from './routes/bio.routes';
 import mobileAppsRoutes from './routes/mobileApps.routes';
+import webhooksRoutes from './routes/webhooks.routes';
 import { stripeWebhook } from './controllers/billing.controller';
 import { getPublicBioPage, getPublicBioPageJson, redirectBioLink } from './controllers/bio.controller';
 import redisClient from './config/redis';
+import { startWebhookWorker } from './services/webhooks';
 import { startClickWorker } from './services/clickQueue';
 import { scheduleRetentionCleanup } from './services/retention';
 import { log } from './utils/logger';
@@ -304,6 +306,7 @@ if (enableApi) {
     app.use(`${base}/affiliate`, affiliateAuthRoutes);
     app.use(`${base}/billing`, billingRoutes);
     app.use(`${base}/phase4/ecosystem`, ecosystemRoutes);
+    app.use(`${base}/webhooks`, webhooksRoutes);
     app.use(`${base}/platform-config`, platformRoutes);
     app.use(`${base}/bio`, bioRoutes);
     app.use(`${base}/mobile-apps`, mobileAppsRoutes);
@@ -350,6 +353,8 @@ if (require.main === module && (enableApi || enableRedirect || enableStatic)) {
       mode: modeRaw,
     });
   });
+
+  startWebhookWorker();
 
   let shuttingDown = false;
   const shutdown = async (signal: string) => {

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Shortlink Admin - Amazon Router</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/admin/admin.css?v=20260113" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
+      </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/links.html">Links</a>
+        <a class="active" href="/admin/amazon.html">Amazon</a>
+        <a href="/admin/domains.html">Domains</a>
+        <a href="/admin/analytics.html">Analytics</a>
+        <a href="/admin/audit.html">Audit</a>
+        <a href="/admin/team.html">Team</a>
+        <a href="/admin/api-keys.html">API Keys</a>
+        <a href="/admin/site-settings.html">Site</a>
+        <a href="/admin/billing.html">Billing</a>
+        <a href="/admin/ecosystem.html">Ecosystem</a>
+        <a href="/admin/affiliates.html">Affiliates</a>
+        <a href="/admin/settings.html">Settings</a>
+      </nav>
+      <div class="side-footer">
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Amazon router</h1>
+          <p class="page-sub">Create smart regional routes from a single ASIN with previews.</p>
+        </div>
+      </header>
+
+      <main class="admin-content">
+        <section class="card">
+          <div class="row-between">
+            <div>
+              <h3 class="m-0">Select a link</h3>
+              <p class="muted">Routes will be applied to the selected short link.</p>
+            </div>
+            <button class="btn ghost" id="refreshLinks" type="button">Refresh</button>
+          </div>
+          <div class="grid grid-2" style="margin-top:12px">
+            <div>
+              <label class="muted">Filter</label>
+              <input id="linkFilter" class="input" placeholder="Search by code or title">
+            </div>
+            <div>
+              <label class="muted">Short link</label>
+              <select id="amazonLinkSelect" class="input"></select>
+            </div>
+          </div>
+          <div class="muted small" id="linkDetails" style="margin-top:8px"></div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between" style="align-items:flex-start">
+            <div>
+              <h3 class="m-0">ASIN routing</h3>
+              <p class="muted">Choose destinations and generate country rules.</p>
+            </div>
+            <button class="btn" id="applyRoutes" type="button">Apply routes</button>
+          </div>
+          <div class="grid grid-3" style="margin-top:12px">
+            <div>
+              <label class="muted">ASIN</label>
+              <input id="amazonAsin" class="input" placeholder="B0DVQ1FPVT">
+            </div>
+            <div>
+              <label class="muted">Destination</label>
+              <select id="amazonDestination" class="input">
+                <option value="product">Product page</option>
+                <option value="reviews">Public reviews</option>
+                <option value="write-review">Write a review</option>
+                <option value="purchases-review">Review your purchases</option>
+              </select>
+            </div>
+            <div>
+              <label class="muted">Preview market</label>
+              <select id="amazonPreviewMarket" class="input"></select>
+            </div>
+          </div>
+          <div class="row" style="gap:14px;margin-top:12px;flex-wrap:wrap">
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="US" checked> US</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="GB" checked> UK</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="DE"> DE</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="FR"> FR</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="IT"> IT</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="ES"> ES</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="CA"> CA</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="AU"> AU</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="JP"> JP</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="IN"> IN</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="BR"> BR</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="MX"> MX</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="NL"> NL</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="SG"> SG</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="AE"> AE</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="SA"> SA</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="SE"> SE</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="PL"> PL</label>
+            <label class="muted small"><input type="checkbox" class="amazon-market" data-market="TR"> TR</label>
+          </div>
+          <div class="row" style="gap:12px;margin-top:12px;align-items:center">
+            <label class="row" style="gap:6px">
+              <input type="checkbox" id="replaceExisting" checked>
+              <span class="muted small">Replace existing country routes for selected markets</span>
+            </label>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="row-between">
+              <div class="muted small">Preview (Amazon may block iframe embeds)</div>
+              <a id="amazonPreviewLink" class="small-link" href="#" target="_blank" rel="noreferrer">Open in new tab</a>
+            </div>
+            <div class="muted small" id="amazonPreviewUrl" style="margin-top:6px"></div>
+            <div id="amazonPreviewNotice" class="muted small" style="margin-top:6px;display:none">Preview blocked by Amazon. Use “Open in new tab”.</div>
+            <iframe id="amazonPreviewFrame" title="Amazon preview" style="width:100%;height:280px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);margin-top:10px"></iframe>
+          </div>
+          <div id="amazonRoutesMsg" class="muted" style="margin-top:8px"></div>
+        </section>
+
+        <section class="card" style="margin-top:18px">
+          <div class="row-between">
+            <h3 class="m-0">Current country routes</h3>
+            <button class="btn ghost small" id="refreshRoutes" type="button">Refresh</button>
+          </div>
+          <table style="width:100%;margin-top:10px">
+            <thead>
+              <tr>
+                <th>Market</th>
+                <th>Destination</th>
+                <th>Active</th>
+              </tr>
+            </thead>
+            <tbody id="amazonRoutesTable">
+              <tr><td colspan="3" class="muted">Select a link to view routes.</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/admin-common.js?v=20260120"></script>
+  <script type="module" src="/admin/amazon.js"></script>
+</body>
+</html>

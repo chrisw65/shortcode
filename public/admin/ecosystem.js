@@ -1,6 +1,6 @@
 import { requireAuth, api, showToast, copyToClipboard } from '/admin/admin-common.js?v=20260120';
 
-let state = { config: null };
+let state = { config: null, webhooks: [], deliveries: [] };
 
 function isValidUrl(value) {
   if (!value) return false;
@@ -30,6 +30,22 @@ function normalizeIntegrationKey(kind) {
   return kind;
 }
 
+function collectEventTypesFromRow(row) {
+  const events = [];
+  if (row.querySelector('[data-role="event-link-created"]')?.checked) events.push('link.created');
+  if (row.querySelector('[data-role="event-link-deleted"]')?.checked) events.push('link.deleted');
+  if (row.querySelector('[data-role="event-click-recorded"]')?.checked) events.push('click.recorded');
+  return events;
+}
+
+function collectEventTypesFromCreate() {
+  const events = [];
+  if (document.getElementById('eventLinkCreated')?.checked) events.push('link.created');
+  if (document.getElementById('eventLinkDeleted')?.checked) events.push('link.deleted');
+  if (document.getElementById('eventClickRecorded')?.checked) events.push('click.recorded');
+  return events;
+}
+
 function getIntegrationStatus(kind) {
   const normalized = normalizeIntegrationKey(kind);
   const settings = state.config?.integrationSettings || {};
@@ -44,7 +60,7 @@ function getIntegrationStatus(kind) {
 
 function renderHeroMetrics() {
   const metrics = {
-    webhooks: state.config?.webhooks?.filter((w) => w.enabled).length || 0,
+    webhooks: state.webhooks?.filter((w) => w.enabled).length || 0,
     integrations: state.config?.integrations?.length || 0,
     insights: state.config?.domainHealth?.insights?.length || 0,
   };
@@ -59,32 +75,201 @@ function renderHeroMetrics() {
 function renderWebhooks() {
   const container = document.getElementById('webhooksList');
   if (!container) return;
-  const rows = (state.config?.webhooks || []).map((hook) => `
+  if (!state.webhooks.length) {
+    container.innerHTML = '<div class="muted">No webhooks configured.</div>';
+    return;
+  }
+  container.innerHTML = state.webhooks.map((hook) => {
+    const events = hook.event_types && hook.event_types.length
+      ? hook.event_types
+      : ['link.created', 'link.deleted', 'click.recorded'];
+    return `
     <div class="webhook-row" data-webhook-id="${hook.id}">
       <div>
-        <strong>${hook.label}</strong>
-        <div class="muted small">${hook.description}</div>
+        <strong>${hook.name || 'Webhook'}</strong>
+        <div class="muted small">${hook.url || ''}</div>
+        <div class="row" style="gap:12px;margin-top:8px;flex-wrap:wrap">
+          <label class="muted small"><input type="checkbox" data-role="event-link-created" ${events.includes('link.created') ? 'checked' : ''}> link.created</label>
+          <label class="muted small"><input type="checkbox" data-role="event-link-deleted" ${events.includes('link.deleted') ? 'checked' : ''}> link.deleted</label>
+          <label class="muted small"><input type="checkbox" data-role="event-click-recorded" ${events.includes('click.recorded') ? 'checked' : ''}> click.recorded</label>
+        </div>
       </div>
-      <div class="row" style="gap:12px;align-items:center">
-        <label class="muted small">
-          Endpoint URL
-          <input class="input" data-role="webhook-url" data-id="${hook.id}" value="${hook.url || ''}">
-        </label>
+      <div class="row" style="gap:10px;align-items:center;flex-wrap:wrap">
+        <input class="input" style="min-width:260px" data-role="webhook-name" value="${hook.name || ''}" placeholder="Name">
+        <input class="input" style="min-width:320px" data-role="webhook-url" value="${hook.url || ''}" placeholder="https://">
         <label class="muted small">
           Enabled
-          <input type="checkbox" data-role="webhook-enabled" data-id="${hook.id}" ${hook.enabled ? 'checked' : ''}>
+          <input type="checkbox" data-role="webhook-enabled" ${hook.enabled ? 'checked' : ''}>
         </label>
+        <button type="button" class="btn ghost small" data-role="webhook-save" data-id="${hook.id}">Save</button>
         <button type="button" class="btn ghost small" data-role="webhook-test" data-id="${hook.id}">Test</button>
+        <button type="button" class="btn ghost small" data-role="webhook-rotate" data-id="${hook.id}">Rotate secret</button>
+        <button type="button" class="btn danger small" data-role="webhook-delete" data-id="${hook.id}">Delete</button>
       </div>
     </div>
-  `).join('');
-  container.innerHTML = rows || '<div class="muted">No webhooks configured.</div>';
+    `;
+  }).join('');
+
   container.querySelectorAll('[data-role="webhook-test"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const hookId = btn.dataset.id;
-      showToast(`Webhook ${hookId} test triggered (simulation).`);
+      await testWebhook(hookId);
     });
   });
+  container.querySelectorAll('[data-role="webhook-save"]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('[data-webhook-id]');
+      const hookId = btn.dataset.id;
+      if (!row || !hookId) return;
+      await updateWebhook(hookId, row);
+    });
+  });
+  container.querySelectorAll('[data-role="webhook-rotate"]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const hookId = btn.dataset.id;
+      if (!hookId) return;
+      await rotateWebhookSecret(hookId);
+    });
+  });
+  container.querySelectorAll('[data-role="webhook-delete"]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const hookId = btn.dataset.id;
+      if (!hookId) return;
+      await deleteWebhook(hookId);
+    });
+  });
+}
+
+function renderDeliveries() {
+  const body = document.getElementById('webhookDeliveries');
+  if (!body) return;
+  if (!state.deliveries.length) {
+    body.innerHTML = '<tr><td colspan="5" class="muted">No deliveries yet.</td></tr>';
+    return;
+  }
+  body.innerHTML = state.deliveries.map((d) => {
+    const when = d.last_attempt_at ? new Date(d.last_attempt_at).toLocaleString() : '-';
+    const response = d.response_status ? String(d.response_status) : '-';
+    return `
+      <tr>
+        <td>${d.event_type}</td>
+        <td>${d.status}</td>
+        <td>${d.attempt_count}/${d.max_attempts}</td>
+        <td>${when}</td>
+        <td>${response}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function loadWebhooks() {
+  try {
+    const res = await api('/api/webhooks');
+    state.webhooks = res.data || [];
+    renderWebhooks();
+    renderHeroMetrics();
+  } catch (err) {
+    const container = document.getElementById('webhooksList');
+    if (container) container.innerHTML = '<div class="danger">Failed to load webhooks.</div>';
+    showToast('Unable to fetch webhooks', 'error');
+  }
+}
+
+async function loadDeliveries() {
+  try {
+    const res = await api('/api/webhooks/deliveries?limit=50');
+    state.deliveries = res.data || [];
+    renderDeliveries();
+  } catch (err) {
+    const body = document.getElementById('webhookDeliveries');
+    if (body) body.innerHTML = '<tr><td colspan="5" class="muted">Failed to load deliveries.</td></tr>';
+  }
+}
+
+async function createWebhook() {
+  const name = document.getElementById('webhookName')?.value.trim();
+  const url = document.getElementById('webhookUrl')?.value.trim();
+  const enabled = document.getElementById('webhookEnabled')?.value === 'true';
+  const events = collectEventTypesFromCreate();
+  const msg = document.getElementById('webhookCreateMsg');
+  if (msg) msg.textContent = '';
+  if (!name || !url) {
+    if (msg) msg.textContent = 'Name and URL are required.';
+    return;
+  }
+  try {
+    const res = await api('/api/webhooks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, url, enabled, event_types: events }),
+    });
+    if (res?.data?.secret) {
+      copyToClipboard(res.data.secret);
+      if (msg) msg.textContent = 'Webhook created. Secret copied to clipboard.';
+    } else if (msg) {
+      msg.textContent = 'Webhook created.';
+    }
+    await loadWebhooks();
+  } catch (err) {
+    if (msg) msg.textContent = err.message || 'Failed to create webhook.';
+  }
+}
+
+async function updateWebhook(id, row) {
+  const name = row.querySelector('[data-role="webhook-name"]')?.value.trim();
+  const url = row.querySelector('[data-role="webhook-url"]')?.value.trim();
+  const enabled = Boolean(row.querySelector('[data-role="webhook-enabled"]')?.checked);
+  const events = collectEventTypesFromRow(row);
+  try {
+    await api(`/api/webhooks/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, url, enabled, event_types: events }),
+    });
+    showToast('Webhook updated.');
+    await loadWebhooks();
+  } catch (err) {
+    showToast(err.message || 'Failed to update webhook.', 'error');
+  }
+}
+
+async function rotateWebhookSecret(id) {
+  try {
+    const res = await api(`/api/webhooks/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rotate_secret: true }),
+    });
+    if (res?.data?.secret) {
+      copyToClipboard(res.data.secret);
+      showToast('Secret rotated and copied.');
+    } else {
+      showToast('Secret rotated.');
+    }
+  } catch (err) {
+    showToast(err.message || 'Failed to rotate secret.', 'error');
+  }
+}
+
+async function deleteWebhook(id) {
+  if (!confirm('Delete this webhook?')) return;
+  try {
+    await api(`/api/webhooks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    showToast('Webhook deleted.');
+    await loadWebhooks();
+  } catch (err) {
+    showToast(err.message || 'Failed to delete webhook.', 'error');
+  }
+}
+
+async function testWebhook(id) {
+  try {
+    await api(`/api/webhooks/${encodeURIComponent(id)}/test`, { method: 'POST' });
+    showToast('Webhook test queued.');
+    await loadDeliveries();
+  } catch (err) {
+    showToast(err.message || 'Failed to send test.', 'error');
+  }
 }
 
 function renderIntegrations() {
@@ -263,19 +448,6 @@ function initTabs() {
   setActiveTab(saved);
 }
 
-function gatherWebhooks() {
-  const container = document.getElementById('webhooksList');
-  if (!container) return [];
-  const rows = Array.from(container.querySelectorAll('[data-webhook-id]'));
-  return rows.map((row) => {
-    const id = row.getAttribute('data-webhook-id');
-    const url = row.querySelector('[data-role="webhook-url"]')?.value.trim() || '';
-    const enabled = Boolean(row.querySelector('[data-role="webhook-enabled"]')?.checked);
-    const base = state.config?.webhooks?.find((hook) => hook.id === id) || {};
-    return { ...base, id, url, enabled };
-  });
-}
-
 function gatherIntegrations() {
   return (state.config?.integrations || []).map((item) => ({ ...item }));
 }
@@ -319,7 +491,6 @@ async function saveConfig() {
   }
   const payload = {
     ...state.config,
-    webhooks: gatherWebhooks(),
     integrations: gatherIntegrations(),
     integrationSettings: settings,
     domainHealth: {
@@ -344,6 +515,7 @@ async function saveConfig() {
 function render() {
   renderHeroMetrics();
   renderWebhooks();
+  renderDeliveries();
   renderIntegrations();
   renderIntegrationSettings();
   renderDomainHealth();
@@ -366,7 +538,11 @@ async function loadConfig() {
 document.addEventListener('DOMContentLoaded', () => {
   requireAuth();
   loadConfig();
+  loadWebhooks();
+  loadDeliveries();
   document.getElementById('saveConfig')?.addEventListener('click', saveConfig);
   document.getElementById('resetConfig')?.addEventListener('click', loadConfig);
+  document.getElementById('createWebhookBtn')?.addEventListener('click', createWebhook);
+  document.getElementById('refreshDeliveries')?.addEventListener('click', loadDeliveries);
   initTabs();
 });
