@@ -443,11 +443,26 @@
         </div>
         <button class="btn ghost" id="routesClose" type="button">Close</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body routes-body">
         <div class="muted small" style="margin-bottom:10px">
           First match wins. Country uses ISO codes (US, GB). Device values: mobile, tablet, desktop. Platform: ios, android.
         </div>
-        <div id="routesList" class="grid" style="gap:12px"></div>
+        <div class="tabs routes-tabs" id="routesTabs">
+          <button class="tab-btn active" type="button" data-route-tab="country">Country</button>
+          <button class="tab-btn" type="button" data-route-tab="device">Device</button>
+          <button class="tab-btn" type="button" data-route-tab="platform">Platform</button>
+        </div>
+        <div class="routes-panels">
+          <div class="routes-panel active" data-route-panel="country">
+            <div id="routesListCountry" class="grid" data-route-list="country" style="gap:12px"></div>
+          </div>
+          <div class="routes-panel" data-route-panel="device">
+            <div id="routesListDevice" class="grid" data-route-list="device" style="gap:12px"></div>
+          </div>
+          <div class="routes-panel" data-route-panel="platform">
+            <div id="routesListPlatform" class="grid" data-route-list="platform" style="gap:12px"></div>
+          </div>
+        </div>
         <div class="row" style="margin-top:12px">
           <button class="btn ghost" id="routeAdd" type="button">Add rule</button>
           <span class="muted small" id="routesMsg"></span>

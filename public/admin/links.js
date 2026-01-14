@@ -135,7 +135,10 @@ const els = {
   routesModal: document.getElementById('routesModal'),
   routesBackdrop: document.getElementById('routesBackdrop'),
   routesClose: document.getElementById('routesClose'),
-  routesList: document.getElementById('routesList'),
+  routesTabs: document.getElementById('routesTabs'),
+  routesListCountry: document.getElementById('routesListCountry'),
+  routesListDevice: document.getElementById('routesListDevice'),
+  routesListPlatform: document.getElementById('routesListPlatform'),
   routesMsg: document.getElementById('routesMsg'),
   routeAdd: document.getElementById('routeAdd'),
   routesSave: document.getElementById('routesSave'),
@@ -197,6 +200,9 @@ let selectedPasswordCode = '';
 let selectedScheduleCode = '';
 let uiMode = 'beginner';
 let utmWizardStep = 1;
+let activeRouteTab = 'country';
+
+const ROUTE_TABS = ['country', 'device', 'platform'];
 
 function setCodeStatus(state, text) {
   if (!els.codeStatus) return;
@@ -1265,28 +1271,27 @@ function closeVariantsModal() {
 }
 
 function renderRouteRow(route = {}) {
+  const type = String(route.rule_type || activeRouteTab || 'country').toLowerCase();
+  const label = type === 'device' ? 'Device' : type === 'platform' ? 'Platform' : 'Country';
   const row = document.createElement('div');
   row.className = 'card';
   row.setAttribute('data-route-row', 'true');
   row.innerHTML = `
-    <div class="grid grid-3">
+    <div class="grid grid-2">
       <label>
         <span class="muted">Type</span>
-        <select class="input route-type">
-          <option value="country">Country</option>
-          <option value="device">Device</option>
-          <option value="platform">Platform</option>
-        </select>
+        <div class="pill">${htmlesc(label)}</div>
+        <input class="route-type" type="hidden" value="${htmlesc(type)}">
       </label>
       <label>
         <span class="muted">Match</span>
         <input class="input route-value" placeholder="US, GB or mobile" value="${htmlesc(route.rule_value || '')}">
       </label>
-      <label>
-        <span class="muted">Destination</span>
-        <input class="input route-url" type="url" placeholder="https://example.com/geo" value="${htmlesc(route.destination_url || '')}">
-      </label>
     </div>
+    <label style="margin-top:10px">
+      <span class="muted">Destination</span>
+      <input class="input route-url" type="url" placeholder="https://example.com/geo" value="${htmlesc(route.destination_url || '')}">
+    </label>
     <div class="row" style="margin-top:8px;gap:12px;flex-wrap:wrap">
       <label class="row" style="gap:6px">
         <span class="muted">Priority</span>
@@ -1299,17 +1304,14 @@ function renderRouteRow(route = {}) {
       <button class="btn danger route-remove" type="button">Remove</button>
     </div>
   `;
-  const typeSelect = row.querySelector('.route-type');
-  if (typeSelect && route.rule_type) {
-    typeSelect.value = String(route.rule_type).toLowerCase();
-  }
   row.querySelector('.route-remove').addEventListener('click', () => row.remove());
   return row;
 }
 
 function collectRoutesFromDom() {
-  if (!els.routesList) return [];
-  const rows = Array.from(els.routesList.querySelectorAll('[data-route-row]'));
+  const lists = [els.routesListCountry, els.routesListDevice, els.routesListPlatform].filter(Boolean);
+  if (!lists.length) return [];
+  const rows = lists.flatMap((list) => Array.from(list.querySelectorAll('[data-route-row]')));
   return rows.map((row) => ({
     type: row.querySelector('.route-type')?.value || '',
     value: row.querySelector('.route-value')?.value || '',
@@ -1321,22 +1323,41 @@ function collectRoutesFromDom() {
 
 async function openRoutesModal(code) {
   selectedRouteCode = code;
-  if (!els.routesModal || !els.routesList) return;
-  els.routesList.innerHTML = '';
+  if (!els.routesModal) return;
+  [els.routesListCountry, els.routesListDevice, els.routesListPlatform].forEach((list) => {
+    if (list) list.innerHTML = '';
+  });
   if (els.routesMsg) els.routesMsg.textContent = '';
   try {
     const res = unwrap(await api(`/api/links/${encodeURIComponent(code)}/routes`));
     const list = Array.isArray(res) ? res : [];
     if (!list.length) {
-      els.routesList.appendChild(renderRouteRow({}));
+      const listEl = els.routesListCountry;
+      if (listEl) listEl.appendChild(renderRouteRow({ rule_type: 'country' }));
     } else {
-      list.forEach((r) => els.routesList.appendChild(renderRouteRow(r)));
+      list.forEach((r) => {
+        const type = String(r.rule_type || 'country').toLowerCase();
+        const target = type === 'device'
+          ? els.routesListDevice
+          : type === 'platform'
+            ? els.routesListPlatform
+            : els.routesListCountry;
+        if (target) target.appendChild(renderRouteRow(r));
+      });
     }
   } catch (err) {
-    els.routesList.appendChild(renderRouteRow({}));
+    const listEl = els.routesListCountry;
+    if (listEl) listEl.appendChild(renderRouteRow({ rule_type: 'country' }));
   }
   els.routesModal.classList.add('open');
   els.routesModal.setAttribute('aria-hidden', 'false');
+  const counts = {
+    country: els.routesListCountry?.children.length || 0,
+    device: els.routesListDevice?.children.length || 0,
+    platform: els.routesListPlatform?.children.length || 0,
+  };
+  const firstWithItems = ROUTE_TABS.find((tab) => counts[tab] > 0) || activeRouteTab;
+  setRoutesTab(firstWithItems);
 }
 
 function closeRoutesModal() {
@@ -1344,6 +1365,21 @@ function closeRoutesModal() {
   els.routesModal.classList.remove('open');
   els.routesModal.setAttribute('aria-hidden', 'true');
   selectedRouteCode = '';
+}
+
+function setRoutesTab(tab) {
+  activeRouteTab = ROUTE_TABS.includes(tab) ? tab : 'country';
+  if (els.routesTabs) {
+    Array.from(els.routesTabs.querySelectorAll('[data-route-tab]')).forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.routeTab === activeRouteTab);
+    });
+  }
+  const panels = els.routesModal
+    ? Array.from(els.routesModal.querySelectorAll('[data-route-panel]'))
+    : [];
+  panels.forEach((panel) => {
+    panel.classList.toggle('active', panel.dataset.routePanel === activeRouteTab);
+  });
 }
 
 async function saveRoutes() {
@@ -1673,9 +1709,17 @@ els.variantsNormalize?.addEventListener('click', normalizeVariants);
 els.routesClose?.addEventListener('click', closeRoutesModal);
 els.routesBackdrop?.addEventListener('click', closeRoutesModal);
 els.routeAdd?.addEventListener('click', () => {
-  if (els.routesList) els.routesList.appendChild(renderRouteRow({}));
+  const target = activeRouteTab === 'device'
+    ? els.routesListDevice
+    : activeRouteTab === 'platform'
+      ? els.routesListPlatform
+      : els.routesListCountry;
+  if (target) target.appendChild(renderRouteRow({ rule_type: activeRouteTab }));
 });
 els.routesSave?.addEventListener('click', saveRoutes);
+els.routesTabs?.querySelectorAll('[data-route-tab]').forEach((btn) => {
+  btn.addEventListener('click', () => setRoutesTab(btn.dataset.routeTab || 'country'));
+});
 els.passwordClose?.addEventListener('click', closePasswordModal);
 els.passwordBackdrop?.addEventListener('click', closePasswordModal);
 els.passwordSave?.addEventListener('click', savePassword);

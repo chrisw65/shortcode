@@ -398,6 +398,10 @@ tbody tr:hover td{background:rgba(213,162,75,.06)}
 .modal-card{position:relative;z-index:1;width:min(520px,92vw);background:#111824;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
 .modal-body{display:flex;align-items:center;justify-content:center;padding:18px}
 .modal-body img{max-width:100%;height:auto;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#fff;padding:10px}
+.routes-body{align-items:stretch;justify-content:flex-start;flex-direction:column;gap:12px}
+.routes-tabs{padding:0;margin:0 0 4px}
+.routes-panel{display:none}
+.routes-panel.active{display:block}
 
 .modal-card.modal-wide{width:min(980px,92vw)}
 .modal-card.modal-scroll{max-height:86vh;display:flex;flex-direction:column}
