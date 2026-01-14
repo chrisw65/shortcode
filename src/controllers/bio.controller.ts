@@ -428,7 +428,11 @@ export async function getPublicBioPage(req: Request, res: Response) {
     const theme = normalizeTheme(page.theme || {});
     const title = escapeHtml(page.title || 'Links');
     const description = escapeHtml(page.description || '');
+    const descriptionRaw = String(page.description || '').trim();
     const avatar = page.avatar_url ? escapeHtml(page.avatar_url) : '';
+    const baseUrl = process.env.PUBLIC_HOST || process.env.BASE_URL || '';
+    const publicUrl = `${baseUrl}/b/${escapeHtml(page.slug)}`;
+    const ogImage = avatar || `${baseUrl}/favicon.ico`;
     const ctaLabel = page.cta_label ? escapeHtml(page.cta_label) : '';
     const ctaUrl = page.cta_url ? escapeHtml(page.cta_url) : '';
     const items = linksRes.rows.map((link: any) => {
@@ -450,6 +454,15 @@ export async function getPublicBioPage(req: Request, res: Response) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title}</title>
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="${title}">
+  ${descriptionRaw ? `<meta property="og:description" content="${escapeHtml(descriptionRaw)}">` : ''}
+  <meta property="og:url" content="${publicUrl}">
+  <meta property="og:image" content="${ogImage}">
+  <meta name="twitter:card" content="${avatar ? 'summary_large_image' : 'summary'}">
+  <meta name="twitter:title" content="${title}">
+  ${descriptionRaw ? `<meta name="twitter:description" content="${escapeHtml(descriptionRaw)}">` : ''}
+  <meta name="twitter:image" content="${ogImage}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
