@@ -9,6 +9,10 @@ const els = {
   bioTitle: document.getElementById('bioTitle'),
   bioDescription: document.getElementById('bioDescription'),
   bioAvatar: document.getElementById('bioAvatar'),
+  bioAvatarFile: document.getElementById('bioAvatarFile'),
+  bioAvatarUpload: document.getElementById('bioAvatarUpload'),
+  bioAvatarMsg: document.getElementById('bioAvatarMsg'),
+  bioAvatarPreview: document.getElementById('bioAvatarPreview'),
   bioCtaLabel: document.getElementById('bioCtaLabel'),
   bioCtaUrl: document.getElementById('bioCtaUrl'),
   bioThemeBg: document.getElementById('bioThemeBg'),
@@ -30,6 +34,43 @@ const els = {
 
 let pages = [];
 let currentPage = null;
+
+function setAvatarPreview(url) {
+  if (!els.bioAvatarPreview) return;
+  if (!url) {
+    els.bioAvatarPreview.style.display = 'none';
+    els.bioAvatarPreview.removeAttribute('src');
+    return;
+  }
+  els.bioAvatarPreview.src = url;
+  els.bioAvatarPreview.style.display = 'block';
+}
+
+function cropSquareDataUrl(img, size = 256) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const srcSize = Math.min(img.width, img.height);
+  const sx = Math.max(0, (img.width - srcSize) / 2);
+  const sy = Math.max(0, (img.height - srcSize) / 2);
+  ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
+  return canvas.toDataURL('image/jpeg', 0.9);
+}
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Invalid image'));
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 function readTheme() {
   return {
@@ -57,6 +98,9 @@ function clearEditor() {
   if (els.bioTitle) els.bioTitle.value = '';
   if (els.bioDescription) els.bioDescription.value = '';
   if (els.bioAvatar) els.bioAvatar.value = '';
+  if (els.bioAvatarFile) els.bioAvatarFile.value = '';
+  if (els.bioAvatarMsg) els.bioAvatarMsg.textContent = '';
+  setAvatarPreview('');
   if (els.bioCtaLabel) els.bioCtaLabel.value = '';
   if (els.bioCtaUrl) els.bioCtaUrl.value = '';
   if (els.bioActive) els.bioActive.checked = true;
@@ -150,6 +194,7 @@ async function loadPage(id) {
     if (els.bioTitle) els.bioTitle.value = page.title || '';
     if (els.bioDescription) els.bioDescription.value = page.description || '';
     if (els.bioAvatar) els.bioAvatar.value = page.avatar_url || '';
+    setAvatarPreview(page.avatar_url || '');
     if (els.bioCtaLabel) els.bioCtaLabel.value = page.cta_label || '';
     if (els.bioCtaUrl) els.bioCtaUrl.value = page.cta_url || '';
     if (els.bioActive) els.bioActive.checked = page.is_active !== false;
@@ -157,6 +202,41 @@ async function loadPage(id) {
     renderLinks(page.links || []);
   } catch (err) {
     showError(err, 'Failed to load page');
+  }
+}
+
+async function uploadAvatar() {
+  if (!els.bioAvatarFile?.files?.length) {
+    if (els.bioAvatarMsg) els.bioAvatarMsg.textContent = 'Choose an image first.';
+    return;
+  }
+  if (els.bioAvatarMsg) els.bioAvatarMsg.textContent = '';
+  const file = els.bioAvatarFile.files[0];
+  if (!file.type.startsWith('image/')) {
+    if (els.bioAvatarMsg) els.bioAvatarMsg.textContent = 'Please choose an image file.';
+    return;
+  }
+  if (els.bioAvatarUpload) els.bioAvatarUpload.disabled = true;
+  try {
+    const img = await loadImageFromFile(file);
+    const dataUrl = cropSquareDataUrl(img, 256);
+    setAvatarPreview(dataUrl);
+    const res = await apiFetch('/api/bio/avatar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data_url: dataUrl }),
+    });
+    const url = res?.data?.url || '';
+    if (url && els.bioAvatar) {
+      els.bioAvatar.value = url;
+      setAvatarPreview(`${url}?v=${Date.now()}`);
+    }
+    showToast('Avatar uploaded');
+  } catch (err) {
+    if (els.bioAvatarMsg) els.bioAvatarMsg.textContent = 'Failed to upload avatar.';
+    showError(err, 'Failed to upload avatar');
+  } finally {
+    if (els.bioAvatarUpload) els.bioAvatarUpload.disabled = false;
   }
 }
 
@@ -307,6 +387,9 @@ els.bioSave?.addEventListener('click', savePage);
 els.bioDelete?.addEventListener('click', deletePage);
 els.bioAddLink?.addEventListener('click', addLink);
 els.bioReorder?.addEventListener('click', saveOrder);
+els.bioAvatarUpload?.addEventListener('click', uploadAvatar);
+els.bioAvatar?.addEventListener('change', () => setAvatarPreview(els.bioAvatar.value.trim()));
+els.bioAvatarPreview?.addEventListener('error', () => setAvatarPreview(''));
 
 loadPages();
 clearEditor();

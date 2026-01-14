@@ -1,4 +1,7 @@
 import type { Request, Response } from 'express';
+import { promises as fs } from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 import db from '../config/database';
 import type { OrgRequest } from '../middleware/org';
 import { log } from '../utils/logger';
@@ -52,11 +55,48 @@ function normalizeTheme(input: any) {
   };
 }
 
+function parseImageDataUrl(value: string) {
+  const match = value.match(/^data:(image\/(png|jpeg|webp));base64,([a-z0-9+/=\s]+)$/i);
+  if (!match) return null;
+  const mime = match[1].toLowerCase();
+  const ext = match[2].toLowerCase() === 'jpeg' ? 'jpg' : match[2].toLowerCase();
+  const base64 = match[3].replace(/\s+/g, '');
+  return { mime, ext, base64 };
+}
+
 async function requireBioEntitlement(req: OrgRequest) {
   const orgId = req.org!.orgId;
   const plan = await getEffectivePlan(req.user?.userId || '', orgId);
   const entitlements = await getPlanEntitlements(plan);
   return isFeatureEnabled(entitlements, 'link_in_bio');
+}
+
+export async function uploadBioAvatar(req: OrgRequest, res: Response) {
+  try {
+    if (!(await requireBioEntitlement(req))) {
+      return res.status(403).json({ success: false, error: 'Link-in-bio requires an upgraded plan' });
+    }
+    const payload = String(req.body?.data_url || '');
+    const parsed = parseImageDataUrl(payload);
+    if (!parsed) {
+      return res.status(400).json({ success: false, error: 'Invalid image payload' });
+    }
+    const buffer = Buffer.from(parsed.base64, 'base64');
+    if (!buffer.length) {
+      return res.status(400).json({ success: false, error: 'Empty image payload' });
+    }
+    if (buffer.length > 400 * 1024) {
+      return res.status(400).json({ success: false, error: 'Image too large' });
+    }
+    const fileName = `bio_${req.org!.orgId}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${parsed.ext}`;
+    const dir = path.join(__dirname, '..', '..', 'public', 'uploads', 'bio');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, fileName), buffer);
+    return res.json({ success: true, data: { url: `/uploads/bio/${fileName}` } });
+  } catch (err) {
+    log('error', 'bio.avatar upload error', { error: String(err) });
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
 }
 
 export async function listBioPages(req: OrgRequest, res: Response) {

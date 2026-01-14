@@ -70,6 +70,7 @@ REMOTE_ENV_FILE="${REMOTE_ENV_FILE}"
 DOCR_ENV_FILE="${DOCR_ENV_FILE}"
 HOST_PORT="${HOST_PORT}"
 CONTAINER_PORT="${CONTAINER_PORT}"
+UPLOADS_DIR="${UPLOADS_DIR:-/etc/shortlink/uploads}"
 
 # Load DOCR creds (works under systemd and manual runs)
 if [[ -f "\${DOCR_ENV_FILE}" ]]; then
@@ -89,9 +90,12 @@ docker pull "\${IMAGE_FQN}"
 docker stop "\${CONTAINER_NAME}" 2>/dev/null || true
 docker rm "\${CONTAINER_NAME}" 2>/dev/null || true
 
+mkdir -p "\${UPLOADS_DIR}"
+
 docker run -d --name "\${CONTAINER_NAME}" \\
   --restart=always \\
   --env-file "\${REMOTE_ENV_FILE}" \\
+  -v "\${UPLOADS_DIR}:/app/public/uploads" \\
   -p "\${HOST_PORT}:\${CONTAINER_PORT}" \\
   "\${IMAGE_FQN}"
 
@@ -166,4 +170,3 @@ scp "${SCP_BASE[@]}" "${SYSTEMD_UNIT_LOCAL}" "${DROPLET_SSH_USER}@${DROPLET_HOST
 ssh "${SSH_BASE[@]}" "${DROPLET_SSH_USER}@${DROPLET_HOST}" "chmod +x /root/remote-deploy.sh && systemctl daemon-reload && systemctl enable shortlink.service"
 
 echo "==> Provisioning complete on ${DROPLET_HOST}"
-

@@ -5,6 +5,7 @@ import { perOrgApiRpmRedis } from '../middleware/redisRateLimit';
 import { requireApiScope } from '../middleware/apiScope';
 import {
   listBioPages,
+  uploadBioAvatar,
   getBioPage,
   createBioPage,
   updateBioPage,
@@ -26,6 +27,7 @@ router.use(requireOrg);
 router.use(apiLimiter);
 
 router.get('/', requireApiScope('bio:read'), wrap(listBioPages));
+router.post('/avatar', requireApiScope('bio:write'), wrap(uploadBioAvatar));
 router.post('/', requireApiScope('bio:write'), wrap(createBioPage));
 router.get('/:id', requireApiScope('bio:read'), wrap(getBioPage));
 router.put('/:id', requireApiScope('bio:write'), wrap(updateBioPage));
