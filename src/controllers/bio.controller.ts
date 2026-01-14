@@ -432,7 +432,7 @@ export async function getPublicBioPage(req: Request, res: Response) {
     const avatar = page.avatar_url ? escapeHtml(page.avatar_url) : '';
     const baseUrl = process.env.PUBLIC_HOST || process.env.BASE_URL || '';
     const publicUrl = `${baseUrl}/b/${escapeHtml(page.slug)}`;
-    const ogImage = avatar || `${baseUrl}/favicon.ico`;
+    const ogImage = avatar || `${baseUrl}/og-default.png`;
     const ctaLabel = page.cta_label ? escapeHtml(page.cta_label) : '';
     const ctaUrl = page.cta_url ? escapeHtml(page.cta_url) : '';
     const items = linksRes.rows.map((link: any) => {
@@ -459,7 +459,7 @@ export async function getPublicBioPage(req: Request, res: Response) {
   ${descriptionRaw ? `<meta property="og:description" content="${escapeHtml(descriptionRaw)}">` : ''}
   <meta property="og:url" content="${publicUrl}">
   <meta property="og:image" content="${ogImage}">
-  <meta name="twitter:card" content="${avatar ? 'summary_large_image' : 'summary'}">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${title}">
   ${descriptionRaw ? `<meta name="twitter:description" content="${escapeHtml(descriptionRaw)}">` : ''}
   <meta name="twitter:image" content="${ogImage}">
