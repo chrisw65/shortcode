@@ -122,7 +122,9 @@ function renderPages() {
         <div class="muted small">${page.is_active ? 'Active' : 'Inactive'} · ${page.link_count || 0} links</div>
         <div class="row" style="gap:8px">
           <a class="btn ghost" target="_blank" href="/b/${htmlesc(page.slug)}">View</a>
+          <button class="btn ghost" data-action="copy" data-slug="${htmlesc(page.slug)}">Copy URL</button>
           <button class="btn" data-action="edit" data-id="${htmlesc(page.id)}">Edit</button>
+          <button class="btn danger" data-action="delete" data-id="${htmlesc(page.id)}">Delete</button>
         </div>
       </div>
     </div>
@@ -130,6 +132,12 @@ function renderPages() {
 
   els.bioPages.querySelectorAll('[data-action="edit"]').forEach((btn) => {
     btn.addEventListener('click', () => loadPage(btn.dataset.id));
+  });
+  els.bioPages.querySelectorAll('[data-action="copy"]').forEach((btn) => {
+    btn.addEventListener('click', () => copyPageUrl(btn.dataset.slug));
+  });
+  els.bioPages.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+    btn.addEventListener('click', () => deletePageById(btn.dataset.id));
   });
 }
 
@@ -332,6 +340,36 @@ async function deletePage() {
     await loadPages();
   } catch (err) {
     showError(err, 'Failed to delete page');
+  }
+}
+
+async function deletePageById(id) {
+  if (!id) return;
+  if (!confirm('Delete this bio page?')) return;
+  try {
+    await apiFetch(`/api/bio/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (currentPage?.id === id) clearEditor();
+    await loadPages();
+    showToast('Page deleted');
+  } catch (err) {
+    showError(err, 'Failed to delete page');
+  }
+}
+
+async function copyPageUrl(slug) {
+  if (!slug) return;
+  const url = `${window.location.origin}/b/${slug}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('URL copied');
+  } catch {
+    const input = document.createElement('input');
+    input.value = url;
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    input.remove();
+    showToast('URL copied');
   }
 }
 
