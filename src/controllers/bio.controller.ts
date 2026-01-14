@@ -61,6 +61,17 @@ function isIconUrl(value: string) {
   return /^https?:\/\//i.test(value);
 }
 
+function getFaviconUrl(rawUrl: string) {
+  try {
+    const parsed = new URL(rawUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    const host = parsed.hostname.replace(/^www\./, '');
+    return `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(host)}`;
+  } catch {
+    return '';
+  }
+}
+
 function parseImageDataUrl(value: string) {
   const match = value.match(/^data:(image\/(png|jpeg|webp));base64,([a-z0-9+/=\s]+)$/i);
   if (!match) return null;
@@ -423,10 +434,12 @@ export async function getPublicBioPage(req: Request, res: Response) {
     const items = linksRes.rows.map((link: any) => {
       const label = escapeHtml(link.label || '');
       const rawIcon = String(link.icon || '').trim();
-      const icon = rawIcon
-        ? (isIconUrl(rawIcon)
-          ? `<img class="bio-icon-img" src="${escapeHtml(rawIcon)}" alt="" loading="lazy">`
-          : `<span class="bio-icon">${escapeHtml(rawIcon)}</span>`)
+      const fallbackIcon = getFaviconUrl(String(link.url || '').trim());
+      const iconValue = rawIcon || fallbackIcon;
+      const icon = iconValue
+        ? (isIconUrl(iconValue)
+          ? `<img class="bio-icon-img" src="${escapeHtml(iconValue)}" alt="" loading="lazy">`
+          : `<span class="bio-icon">${escapeHtml(iconValue)}</span>`)
         : '';
       return `<a class="bio-link" href="/b/${escapeHtml(page.slug)}/go/${escapeHtml(link.id)}" rel="noopener">${icon}<span>${label}</span></a>`;
     }).join('');
