@@ -144,6 +144,7 @@ function renderLinks(links = []) {
     const row = document.createElement('div');
     row.className = 'card';
     row.dataset.id = link.id || '';
+    row.dataset.iconAuto = link.icon ? '0' : '1';
     row.innerHTML = `
       <div class="bio-link-row">
         <input class="input link-label" placeholder="Label" value="${htmlesc(link.label || '')}">
@@ -164,7 +165,26 @@ function renderLinks(links = []) {
         <button class="btn danger link-delete" type="button">Remove</button>
       </div>
     `;
+    const urlInput = row.querySelector('.link-url');
+    const iconInput = row.querySelector('.link-icon');
+    const updateIcon = () => {
+      const url = urlInput.value.trim();
+      if (!url) return;
+      const current = iconInput.value.trim();
+      if (current && row.dataset.iconAuto !== '1') return;
+      const iconUrl = getAutoIcon(url);
+      if (iconUrl) {
+        iconInput.value = iconUrl;
+        row.dataset.iconAuto = '1';
+      }
+    };
+    urlInput.addEventListener('blur', updateIcon);
+    urlInput.addEventListener('change', updateIcon);
+    iconInput.addEventListener('input', () => {
+      row.dataset.iconAuto = iconInput.value.trim() ? '0' : '1';
+    });
     row.querySelector('.link-delete').addEventListener('click', () => deleteLink(row.dataset.id));
+    if (!link.icon) updateIcon();
     els.bioLinks.appendChild(row);
   });
 }
@@ -202,6 +222,17 @@ async function loadPage(id) {
     renderLinks(page.links || []);
   } catch (err) {
     showError(err, 'Failed to load page');
+  }
+}
+
+function getAutoIcon(url) {
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    const host = parsed.hostname.replace(/^www\./, '');
+    return `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(host)}`;
+  } catch {
+    return '';
   }
 }
 

@@ -55,6 +55,12 @@ function normalizeTheme(input: any) {
   };
 }
 
+function isIconUrl(value: string) {
+  if (!value) return false;
+  if (value.startsWith('/')) return true;
+  return /^https?:\/\//i.test(value);
+}
+
 function parseImageDataUrl(value: string) {
   const match = value.match(/^data:(image\/(png|jpeg|webp));base64,([a-z0-9+/=\s]+)$/i);
   if (!match) return null;
@@ -416,7 +422,12 @@ export async function getPublicBioPage(req: Request, res: Response) {
     const ctaUrl = page.cta_url ? escapeHtml(page.cta_url) : '';
     const items = linksRes.rows.map((link: any) => {
       const label = escapeHtml(link.label || '');
-      const icon = link.icon ? `<span class="bio-icon">${escapeHtml(link.icon)}</span>` : '';
+      const rawIcon = String(link.icon || '').trim();
+      const icon = rawIcon
+        ? (isIconUrl(rawIcon)
+          ? `<img class="bio-icon-img" src="${escapeHtml(rawIcon)}" alt="" loading="lazy">`
+          : `<span class="bio-icon">${escapeHtml(rawIcon)}</span>`)
+        : '';
       return `<a class="bio-link" href="/b/${escapeHtml(page.slug)}/go/${escapeHtml(link.id)}" rel="noopener">${icon}<span>${label}</span></a>`;
     }).join('');
 
@@ -499,6 +510,13 @@ export async function getPublicBioPage(req: Request, res: Response) {
       border-radius: 50%;
       background: rgba(255,255,255,0.08);
       font-size: 14px;
+    }
+    .bio-icon-img {
+      width: 24px;
+      height: 24px;
+      border-radius: 7px;
+      object-fit: cover;
+      background: rgba(255,255,255,0.08);
     }
     .bio-cta {
       text-align: center;
