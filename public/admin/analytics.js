@@ -220,6 +220,13 @@ function plotGeoPoints(points){
     return;
   }
 
+  const svgAspect = 950 / 620;
+  const boxAspect = width / height;
+  const contentWidth = boxAspect > svgAspect ? height * svgAspect : width;
+  const contentHeight = boxAspect > svgAspect ? height : width / svgAspect;
+  const padX = (width - contentWidth) / 2;
+  const padY = (height - contentHeight) / 2;
+
   const max = Math.max(...points.map(p => p.count || 1), 1);
   points.forEach(p => {
     let lat = Number(p.lat);
@@ -231,8 +238,8 @@ function plotGeoPoints(points){
     if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
     lat = Math.max(-90, Math.min(90, lat));
     lon = Math.max(-180, Math.min(180, lon));
-    const x = offsetX + ((lon + 180) / 360) * width;
-    const y = offsetY + ((90 - lat) / 180) * height;
+    const x = offsetX + padX + ((lon + 180) / 360) * contentWidth;
+    const y = offsetY + padY + ((90 - lat) / 180) * contentHeight;
     const size = 4 + (p.count / max) * 10;
     const dot = document.createElement('div');
     dot.className = 'world-dot';
