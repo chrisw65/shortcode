@@ -42,6 +42,7 @@ let currentStartDate = '';
 let currentEndDate = '';
 let currentCountry = '';
 let lastGeoPoints = [];
+let lastEventsKey = '';
 
 function rangeLabel(range){
   if (range === '24h') return 'Clicks (24h)';
@@ -53,6 +54,10 @@ function rangeLabel(range){
 
 function isCustomRangeActive() {
   return Boolean(currentStartDate || currentEndDate);
+}
+
+function getActiveAnalyticsTab() {
+  return sessionStorage.getItem('analytics_active_tab') || 'summary';
 }
 
 function applyDateParams(params) {
@@ -131,12 +136,12 @@ async function selectLink(short, meta) {
   lastGeoPoints = summary?.geo_points || [];
   plotGeoPoints(lastGeoPoints);
 
-  let events = [];
-  const evParams = applyDateParams(new URLSearchParams({ limit: '500', range: currentRange }));
-  if (currentCountry) evParams.set('country', currentCountry);
-  try { events = (await api(`/api/analytics/links/${encodeURIComponent(short)}/events?${evParams.toString()}`)).data || []; } catch {}
-  renderEvents(events);
-  drawSparkline(sparkCanvas, summary?.sparkline || [], events);
+  drawSparkline(sparkCanvas, summary?.sparkline || [], []);
+  if (getActiveAnalyticsTab() === 'events') {
+    loadEventsForLink(short);
+  } else {
+    evBody.innerHTML = '<tr><td colspan="6" class="empty">Open Events to load clicks.</td></tr>';
+  }
 }
 
 function renderEvents(events){
@@ -152,6 +157,19 @@ function renderEvents(events){
       <td class="muted">${htmlesc((ev.user_agent||'').slice(0,120))}</td>
     </tr>
   `).join('');
+}
+
+async function loadEventsForLink(short) {
+  if (!short) return;
+  const key = [short, currentRange, currentStartDate || '', currentEndDate || '', currentCountry || ''].join('|');
+  if (key === lastEventsKey) return;
+  lastEventsKey = key;
+  evBody.innerHTML = '<tr><td colspan="6" class="empty">Loading events...</td></tr>';
+  let events = [];
+  const evParams = applyDateParams(new URLSearchParams({ limit: '500', range: currentRange }));
+  if (currentCountry) evParams.set('country', currentCountry);
+  try { events = (await api(`/api/analytics/links/${encodeURIComponent(short)}/events?${evParams.toString()}`)).data || []; } catch {}
+  renderEvents(events);
 }
 
 function drawSparkline(canvas, series, events){
@@ -297,6 +315,9 @@ function initAnalyticsTabs() {
     sessionStorage.setItem('analytics_active_tab', tab);
     if (tab === 'geo' && lastGeoPoints.length) {
       setTimeout(() => plotGeoPoints(lastGeoPoints), 60);
+    }
+    if (tab === 'events' && selectedShort) {
+      loadEventsForLink(selectedShort);
     }
   };
   const saved = sessionStorage.getItem('analytics_active_tab') || 'summary';
