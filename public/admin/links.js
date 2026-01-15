@@ -1,4 +1,4 @@
-import { requireAuth, api, mountNav, htmlesc, copyText, showToast } from '/admin/admin-common.js?v=20260120';
+import { requireAuth, api, mountNav, htmlesc, copyText, showToast, showError } from '/admin/admin-common.js?v=20260120';
 
 function fmtDate(v) {
   if (!v) return '—';
@@ -157,6 +157,14 @@ const els = {
   scheduleMsg: document.getElementById('scheduleMsg'),
   scheduleSave: document.getElementById('scheduleSave'),
   scheduleClear: document.getElementById('scheduleClear'),
+  editModal: document.getElementById('editModal'),
+  editBackdrop: document.getElementById('editBackdrop'),
+  editClose: document.getElementById('editClose'),
+  editTitle: document.getElementById('editTitle'),
+  editUrl: document.getElementById('editUrl'),
+  editCode: document.getElementById('editCode'),
+  editSave: document.getElementById('editSave'),
+  editMsg: document.getElementById('editMsg'),
   tagName:   document.getElementById('tagName'),
   tagColor:  document.getElementById('tagColor'),
   tagAdd:    document.getElementById('tagAdd'),
@@ -198,6 +206,7 @@ let selectedVariantCode = '';
 let selectedRouteCode = '';
 let selectedPasswordCode = '';
 let selectedScheduleCode = '';
+let currentEdit = null;
 let uiMode = 'beginner';
 let utmWizardStep = 1;
 let activeRouteTab = 'country';
@@ -360,6 +369,7 @@ function render() {
         <td>${created}</td>
         <td>${htmlesc(schedule)}</td>
         <td class="row" style="gap:6px">
+          <button class="btn btn-edit" data-code="${htmlesc(code)}">Edit</button>
           <button class="btn btn-qr" data-type="png" data-code="${htmlesc(code)}">QR PNG</button>
           <button class="btn btn-qr" data-type="svg" data-code="${htmlesc(code)}">QR SVG</button>
           <button class="btn btn-variants" data-code="${htmlesc(code)}">Variants</button>
@@ -375,6 +385,12 @@ function render() {
   }).join('');
 
   // wire buttons
+  els.tbody.querySelectorAll('.btn-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.dataset.code || '';
+      openEditModal(code);
+    });
+  });
   els.tbody.querySelectorAll('.btn-copy').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const tr = e.currentTarget.closest('tr');
@@ -468,6 +484,80 @@ async function load(opts = {}) {
     console.error('Load error:', err);
     els.tbody.innerHTML = `<tr><td class="empty danger" colspan="11">Failed to load links.</td></tr>`;
     if (opts.toast) showToast('Refresh failed', 'error');
+  }
+}
+
+async function openEditModal(code) {
+  if (!els.editModal || !code) return;
+  if (els.editMsg) {
+    els.editMsg.textContent = '';
+    els.editMsg.className = 'muted small';
+  }
+  if (els.editSave) els.editSave.disabled = true;
+  try {
+    const res = await api(`/api/links/${encodeURIComponent(code)}`);
+    const link = unwrap(res) || {};
+    currentEdit = {
+      code: link.short_code || code,
+      url: link.original_url || '',
+      title: link.title || '',
+    };
+    if (els.editTitle) els.editTitle.value = currentEdit.title || '';
+    if (els.editUrl) els.editUrl.value = currentEdit.url || '';
+    if (els.editCode) els.editCode.value = currentEdit.code || '';
+    els.editModal.classList.add('open');
+    els.editModal.setAttribute('aria-hidden', 'false');
+  } catch (err) {
+    showError(err, 'Failed to load link');
+  } finally {
+    if (els.editSave) els.editSave.disabled = false;
+  }
+}
+
+function closeEditModal() {
+  if (!els.editModal) return;
+  els.editModal.classList.remove('open');
+  els.editModal.setAttribute('aria-hidden', 'true');
+  currentEdit = null;
+}
+
+async function saveEdit() {
+  if (!currentEdit) return;
+  if (els.editSave) els.editSave.disabled = true;
+  if (els.editMsg) {
+    els.editMsg.textContent = '';
+    els.editMsg.className = 'muted small';
+  }
+  const url = els.editUrl?.value.trim() || '';
+  const title = els.editTitle?.value.trim() || '';
+  const newCode = els.editCode?.value.trim() || '';
+  if (!url) {
+    if (els.editMsg) {
+      els.editMsg.textContent = 'Destination URL is required.';
+      els.editMsg.className = 'muted small status warn';
+    }
+    if (els.editSave) els.editSave.disabled = false;
+    return;
+  }
+  const payload = { url, title };
+  if (newCode && newCode !== currentEdit.code) payload.short_code = newCode;
+  try {
+    await api(`/api/links/${encodeURIComponent(currentEdit.code)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    closeEditModal();
+    await load({ toast: true });
+    showToast('Link updated');
+  } catch (err) {
+    if (els.editMsg) {
+      els.editMsg.textContent = 'Failed to update link.';
+      els.editMsg.className = 'muted small status warn';
+    }
+    showError(err, 'Failed to update link');
+  } finally {
+    if (els.editSave) els.editSave.disabled = false;
   }
 }
 
@@ -1728,6 +1818,9 @@ els.scheduleClose?.addEventListener('click', closeScheduleModal);
 els.scheduleBackdrop?.addEventListener('click', closeScheduleModal);
 els.scheduleSave?.addEventListener('click', saveSchedule);
 els.scheduleClear?.addEventListener('click', clearSchedule);
+els.editClose?.addEventListener('click', closeEditModal);
+els.editBackdrop?.addEventListener('click', closeEditModal);
+els.editSave?.addEventListener('click', saveEdit);
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeQrModal();
@@ -1735,6 +1828,7 @@ document.addEventListener('keydown', (e) => {
     closeRoutesModal();
     closePasswordModal();
     closeScheduleModal();
+    closeEditModal();
   }
 });
 

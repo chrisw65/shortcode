@@ -527,6 +527,38 @@
     </div>
   </div>
 
+  <div class="modal" id="editModal" aria-hidden="true">
+    <div class="modal-backdrop" id="editBackdrop"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div>
+          <div class="small muted" id="editModalTitle">Edit link</div>
+        </div>
+        <button class="btn ghost" id="editClose" type="button">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid">
+          <label>
+            Destination URL
+            <input id="editUrl" class="input" type="url" placeholder="https://example.com">
+          </label>
+          <label>
+            Short code
+            <input id="editCode" class="input" type="text" placeholder="mycode">
+          </label>
+          <label>
+            Title (optional)
+            <input id="editTitle" class="input" type="text" placeholder="Campaign name">
+          </label>
+        </div>
+        <div class="muted small" id="editMsg" style="margin-top:8px"></div>
+      </div>
+      <div class="row" style="justify-content:flex-end;gap:8px">
+        <button class="btn" id="editSave" type="button">Save changes</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="/admin/links.js"></script>
 </body>
 </html>
