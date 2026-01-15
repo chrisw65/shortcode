@@ -30,6 +30,7 @@ const orgSparkLabel = document.getElementById('orgSparkLabel');
 const orgCountryBody = document.getElementById('orgCountryBody');
 const orgCityBody = document.getElementById('orgCityBody');
 const countryFilter = document.getElementById('countryFilter');
+const worldMapImg = document.getElementById('worldMapImg');
 const worldDots = document.getElementById('worldDots');
 const worldEmpty = document.getElementById('worldEmpty');
 const exportOrgBtn = document.getElementById('exportOrgCsv');
@@ -204,22 +205,21 @@ function populateCountryFilter(countries){
 }
 
 function plotGeoPoints(points){
-  if (!worldDots) return;
+  if (!worldDots || !worldMapImg) return;
   worldDots.innerHTML = '';
   if (worldEmpty) worldEmpty.style.display = points.length ? 'none' : 'block';
   if (!points.length) return;
   const rect = worldDots.getBoundingClientRect();
-  const width = rect.width || 1;
-  const height = rect.height || 1;
+  const imgRect = worldMapImg.getBoundingClientRect();
+  const width = imgRect.width || 1;
+  const height = imgRect.height || 1;
+  const offsetX = imgRect.left - rect.left;
+  const offsetY = imgRect.top - rect.top;
   if ((width < 10 || height < 10) && points.length) {
     setTimeout(() => plotGeoPoints(points), 120);
     return;
   }
 
-  const insetX = width * 0.08;
-  const insetY = height * 0.08;
-  const plotW = width * 0.84;
-  const plotH = height * 0.84;
   const max = Math.max(...points.map(p => p.count || 1), 1);
   points.forEach(p => {
     let lat = Number(p.lat);
@@ -231,8 +231,8 @@ function plotGeoPoints(points){
     if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
     lat = Math.max(-90, Math.min(90, lat));
     lon = Math.max(-180, Math.min(180, lon));
-    const x = insetX + ((lon + 180) / 360) * plotW;
-    const y = insetY + ((90 - lat) / 180) * plotH;
+    const x = offsetX + ((lon + 180) / 360) * width;
+    const y = offsetY + ((90 - lat) / 180) * height;
     const size = 4 + (p.count / max) * 10;
     const dot = document.createElement('div');
     dot.className = 'world-dot';
