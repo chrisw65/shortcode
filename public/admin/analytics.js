@@ -216,10 +216,14 @@ function plotGeoPoints(points){
     return;
   }
 
+  const insetX = width * 0.08;
+  const insetY = height * 0.08;
+  const plotW = width * 0.84;
+  const plotH = height * 0.84;
   const max = Math.max(...points.map(p => p.count || 1), 1);
   points.forEach(p => {
-    const x = ((p.lon + 180) / 360) * width;
-    const y = ((90 - p.lat) / 180) * height;
+    const x = insetX + ((p.lon + 180) / 360) * plotW;
+    const y = insetY + ((90 - p.lat) / 180) * plotH;
     const size = 4 + (p.count / max) * 10;
     const dot = document.createElement('div');
     dot.className = 'world-dot';
