@@ -373,16 +373,17 @@ function render() {
           <div class="action-menu">
             <button class="btn btn-actions" type="button">Actions</button>
             <div class="action-menu-panel">
-              <button class="btn btn-edit" data-code="${htmlesc(code)}">Edit</button>
-              <button class="btn btn-qr" data-type="png" data-code="${htmlesc(code)}">QR PNG</button>
-              <button class="btn btn-qr" data-type="svg" data-code="${htmlesc(code)}">QR SVG</button>
-              <button class="btn btn-variants" data-code="${htmlesc(code)}">Variants</button>
-              <button class="btn btn-routes" data-code="${htmlesc(code)}">Routing</button>
-              <button class="btn btn-schedule" data-code="${htmlesc(code)}">Schedule</button>
-              <button class="btn btn-protect" data-code="${htmlesc(code)}">${l.password_protected ? 'Reset password' : 'Protect'}</button>
-              ${l.password_protected ? `<button class="btn ghost btn-clear" data-code="${htmlesc(code)}">Clear</button>` : ''}
-              <a class="btn" href="/admin/analytics.html?code=${encodeURIComponent(code)}">Analytics</a>
-              <button class="btn danger btn-del">Delete</button>
+              <button class="action-item btn-edit" data-code="${htmlesc(code)}">Edit</button>
+              <button class="action-item btn-qr" data-type="png" data-code="${htmlesc(code)}">QR PNG</button>
+              <button class="action-item btn-qr" data-type="svg" data-code="${htmlesc(code)}">QR SVG</button>
+              <button class="action-item btn-variants" data-code="${htmlesc(code)}">Variants</button>
+              <button class="action-item btn-routes" data-code="${htmlesc(code)}">Routing</button>
+              <button class="action-item btn-schedule" data-code="${htmlesc(code)}">Schedule</button>
+              <button class="action-item btn-protect" data-code="${htmlesc(code)}">${l.password_protected ? 'Reset password' : 'Protect'}</button>
+              ${l.password_protected ? `<button class="action-item btn-clear" data-code="${htmlesc(code)}">Clear protection</button>` : ''}
+              <div class="action-sep"></div>
+              <a class="action-item" href="/admin/analytics.html?code=${encodeURIComponent(code)}">Analytics</a>
+              <button class="action-item danger btn-del">Delete</button>
             </div>
           </div>
         </td>

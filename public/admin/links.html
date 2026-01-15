@@ -20,14 +20,31 @@
       background:var(--panel);
       border:1px solid var(--border);
       border-radius:12px;
-      padding:8px;
+      padding:6px;
       display:none;
-      min-width:190px;
+      min-width:200px;
       z-index:20;
       box-shadow:0 18px 40px rgba(0,0,0,0.35);
     }
     .action-menu.open .action-menu-panel { display:block; }
-    .action-menu-panel .btn { width:100%; justify-content:flex-start; }
+    .action-menu-panel .action-item {
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:flex-start;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:8px;
+      background:transparent;
+      border:none;
+      color:var(--text);
+      cursor:pointer;
+      font:inherit;
+      text-align:left;
+    }
+    .action-menu-panel .action-item:hover { background:rgba(255,255,255,0.06); }
+    .action-menu-panel .action-item.danger { color:var(--danger); }
+    .action-menu-panel .action-sep { height:1px; background:var(--border); margin:6px 6px; }
   </style>
 </head>
 <body>
