@@ -222,8 +222,17 @@ function plotGeoPoints(points){
   const plotH = height * 0.84;
   const max = Math.max(...points.map(p => p.count || 1), 1);
   points.forEach(p => {
-    const x = insetX + ((p.lon + 180) / 360) * plotW;
-    const y = insetY + ((90 - p.lat) / 180) * plotH;
+    let lat = Number(p.lat);
+    let lon = Number(p.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
+      const tmp = lat; lat = lon; lon = tmp;
+    }
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
+    lat = Math.max(-90, Math.min(90, lat));
+    lon = Math.max(-180, Math.min(180, lon));
+    const x = insetX + ((lon + 180) / 360) * plotW;
+    const y = insetY + ((90 - lat) / 180) * plotH;
     const size = 4 + (p.count / max) * 10;
     const dot = document.createElement('div');
     dot.className = 'world-dot';
