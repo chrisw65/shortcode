@@ -207,6 +207,7 @@ let selectedRouteCode = '';
 let selectedPasswordCode = '';
 let selectedScheduleCode = '';
 let currentEdit = null;
+let actionsMenuBound = false;
 let uiMode = 'beginner';
 let utmWizardStep = 1;
 let activeRouteTab = 'country';
@@ -368,21 +369,43 @@ function render() {
         <td>${clicks}</td>
         <td>${created}</td>
         <td>${htmlesc(schedule)}</td>
-        <td class="row" style="gap:6px">
-          <button class="btn btn-edit" data-code="${htmlesc(code)}">Edit</button>
-          <button class="btn btn-qr" data-type="png" data-code="${htmlesc(code)}">QR PNG</button>
-          <button class="btn btn-qr" data-type="svg" data-code="${htmlesc(code)}">QR SVG</button>
-          <button class="btn btn-variants" data-code="${htmlesc(code)}">Variants</button>
-          <button class="btn btn-routes" data-code="${htmlesc(code)}">Routing</button>
-          <button class="btn btn-schedule" data-code="${htmlesc(code)}">Schedule</button>
-          <button class="btn btn-protect" data-code="${htmlesc(code)}">${l.password_protected ? 'Reset password' : 'Protect'}</button>
-          ${l.password_protected ? `<button class="btn ghost btn-clear" data-code="${htmlesc(code)}">Clear</button>` : ''}
-          <a class="btn" href="/admin/analytics.html?code=${encodeURIComponent(code)}">Analytics</a>
-          <button class="btn danger btn-del">Delete</button>
+        <td>
+          <div class="action-menu">
+            <button class="btn btn-actions" type="button">Actions</button>
+            <div class="action-menu-panel">
+              <button class="btn btn-edit" data-code="${htmlesc(code)}">Edit</button>
+              <button class="btn btn-qr" data-type="png" data-code="${htmlesc(code)}">QR PNG</button>
+              <button class="btn btn-qr" data-type="svg" data-code="${htmlesc(code)}">QR SVG</button>
+              <button class="btn btn-variants" data-code="${htmlesc(code)}">Variants</button>
+              <button class="btn btn-routes" data-code="${htmlesc(code)}">Routing</button>
+              <button class="btn btn-schedule" data-code="${htmlesc(code)}">Schedule</button>
+              <button class="btn btn-protect" data-code="${htmlesc(code)}">${l.password_protected ? 'Reset password' : 'Protect'}</button>
+              ${l.password_protected ? `<button class="btn ghost btn-clear" data-code="${htmlesc(code)}">Clear</button>` : ''}
+              <a class="btn" href="/admin/analytics.html?code=${encodeURIComponent(code)}">Analytics</a>
+              <button class="btn danger btn-del">Delete</button>
+            </div>
+          </div>
         </td>
       </tr>
     `;
   }).join('');
+
+  els.tbody.querySelectorAll('.btn-actions').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const menu = btn.closest('.action-menu');
+      if (!menu) return;
+      closeAllActionMenus(menu);
+      menu.classList.toggle('open');
+    });
+  });
+  if (!actionsMenuBound) {
+    actionsMenuBound = true;
+    document.addEventListener('click', () => closeAllActionMenus());
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAllActionMenus();
+    });
+  }
 
   // wire buttons
   els.tbody.querySelectorAll('.btn-edit').forEach(btn => {
@@ -458,6 +481,13 @@ function render() {
       const code = btn.dataset.code || '';
       openPasswordModal(code, true);
     });
+  });
+}
+
+function closeAllActionMenus(except) {
+  document.querySelectorAll('.action-menu.open').forEach((menu) => {
+    if (except && menu === except) return;
+    menu.classList.remove('open');
   });
 }
 
