@@ -553,7 +553,7 @@ tbody tr:hover td{background:rgba(213,162,75,.06)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .card,.admin-top{animation:fadeUp .5s ease both}
 
-.tenants-modal .modal-body{padding:16px}
+.tenants-modal .modal-body{padding:16px;display:flex;flex-direction:column;gap:16px;align-items:stretch;justify-content:flex-start}
 .tenants-modal .tenants-grid{display:grid;gap:16px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}
 .tenants-modal .card{min-width:0}
 .tenants-modal .table{min-width:0}
