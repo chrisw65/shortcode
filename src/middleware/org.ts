@@ -9,13 +9,21 @@ export type OrgRequest = AuthenticatedRequest & {
   org?: {
     orgId: string;
     role: OrgRole;
+    is_active?: boolean;
   };
 };
 
 export async function requireOrg(req: OrgRequest, res: Response, next: NextFunction) {
   try {
     if (req.apiKey?.orgId) {
-      req.org = { orgId: req.apiKey.orgId, role: 'admin' };
+      const { rows: orgRows } = await db.query<{ is_active: boolean }>(
+        `SELECT COALESCE(is_active, true) AS is_active FROM orgs WHERE id = $1 LIMIT 1`,
+        [req.apiKey.orgId],
+      );
+      if (!orgRows.length) {
+        return res.status(403).json({ success: false, error: 'Organization not found' });
+      }
+      req.org = { orgId: req.apiKey.orgId, role: 'admin', is_active: orgRows[0].is_active };
       return next();
     }
 
@@ -25,9 +33,10 @@ export async function requireOrg(req: OrgRequest, res: Response, next: NextFunct
     const requestedOrgId = String(req.headers['x-org-id'] || req.query.org_id || '').trim();
     const params: Array<string> = [userId];
     let sql = `
-      SELECT org_id, role
-        FROM org_memberships
-       WHERE user_id = $1
+      SELECT m.org_id, m.role, COALESCE(o.is_active, true) AS is_active
+        FROM org_memberships m
+        JOIN orgs o ON o.id = m.org_id
+       WHERE m.user_id = $1
     `;
     if (requestedOrgId) {
       params.push(requestedOrgId);
@@ -37,13 +46,13 @@ export async function requireOrg(req: OrgRequest, res: Response, next: NextFunct
     }
     sql += ' LIMIT 1';
 
-    const { rows } = await db.query<{ org_id: string; role: 'owner' | 'admin' | 'member' }>(sql, params);
+    const { rows } = await db.query<{ org_id: string; role: 'owner' | 'admin' | 'member'; is_active: boolean }>(sql, params);
 
     if (!rows.length) {
       return res.status(403).json({ success: false, error: 'No organization membership' });
     }
 
-    req.org = { orgId: rows[0].org_id, role: rows[0].role };
+    req.org = { orgId: rows[0].org_id, role: rows[0].role, is_active: rows[0].is_active };
     return next();
   } catch (e) {
     log('error', 'requireOrg error', { error: String(e) });
@@ -67,4 +76,17 @@ export function requireOrgRole(roles: Array<OrgRole>) {
     }
     return next();
   };
+}
+
+export function requireActiveOrg(req: OrgRequest, res: Response, next: NextFunction) {
+  if (req.user?.is_superadmin) return next();
+  if (req.org?.is_active === false) {
+    return res.status(402).json({
+      success: false,
+      error: 'Organization suspended',
+      suspended: true,
+      payment_url: '/admin/billing.html',
+    });
+  }
+  return next();
 }

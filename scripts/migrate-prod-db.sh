@@ -94,8 +94,14 @@ CREATE TABLE IF NOT EXISTS orgs (
   api_rate_limit_rpm INTEGER,
   link_limit INTEGER,
   domain_limit INTEGER,
+  is_active BOOLEAN DEFAULT true,
+  suspended_at TIMESTAMP NULL,
+  suspended_reason TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE orgs ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE orgs ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMP NULL;
+ALTER TABLE orgs ADD COLUMN IF NOT EXISTS suspended_reason TEXT;
 
 CREATE TABLE IF NOT EXISTS domains (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

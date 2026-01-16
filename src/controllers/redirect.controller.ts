@@ -26,6 +26,30 @@ function safeRedirectUrl(raw: string): string | null {
 const PW_COOKIE_TTL_SECONDS = 60 * 60 * 24;
 const DEEP_LINK_TIMEOUT_MS = 1500;
 
+function renderSuspended(res: Response) {
+  return res.status(403).send(`<!doctype html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Account suspended</title>
+    <style>
+      body { margin:0; font-family: system-ui, sans-serif; background:#0b0d10; color:#f1f5f9; display:flex; min-height:100vh; align-items:center; justify-content:center; padding:24px; }
+      .card { max-width:520px; width:100%; background:#151c26; border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:24px; text-align:center; }
+      .btn { display:inline-block; margin-top:12px; padding:10px 18px; border-radius:999px; background:#e0b15a; color:#1a1305; text-decoration:none; font-weight:600; }
+      .muted { color:#b8b3a9; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Account suspended</h1>
+      <p class="muted">This link is temporarily unavailable while the account is inactive.</p>
+      <a class="btn" href="/admin/billing.html">Resolve billing</a>
+    </div>
+  </body>
+  </html>`);
+}
+
 function normalizeHost(raw?: string | null): string {
   const input = String(raw || '').trim().toLowerCase();
   if (!input) return '';
@@ -248,7 +272,8 @@ export class RedirectController {
       }
       if (!link) {
         const q = `
-          SELECT l.id, l.original_url, l.expires_at, l.scheduled_start_at, l.scheduled_end_at, l.active, l.org_id, o.ip_anonymization, l.password_hash,
+          SELECT l.id, l.original_url, l.expires_at, l.scheduled_start_at, l.scheduled_end_at, l.active, l.org_id,
+                 o.ip_anonymization, o.is_active AS org_active, l.password_hash,
                  l.deep_link_url, l.ios_fallback_url, l.android_fallback_url, l.deep_link_enabled,
                  d.domain AS domain
             FROM links l
@@ -282,6 +307,7 @@ export class RedirectController {
           scheduled_end_at: rows[0].scheduled_end_at ?? null,
           active: rows[0].active !== false,
           org_id: rows[0].org_id,
+          org_active: rows[0].org_active !== false,
           ip_anonymization: rows[0].ip_anonymization === true,
           password_hash: rows[0].password_hash || null,
           deep_link_url: rows[0].deep_link_url || null,
@@ -304,6 +330,10 @@ export class RedirectController {
         } else if (!ALLOW_ANY_CORE_HOST && !CORE_HOSTS.has(requestHost)) {
           return res.status(404).send('Not found');
         }
+      }
+
+      if (link.org_active === false) {
+        return renderSuspended(res);
       }
 
       if (link.active === false) {

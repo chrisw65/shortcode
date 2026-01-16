@@ -32,6 +32,7 @@ import affiliateAuthRoutes from './routes/affiliateAuth.routes';
 import billingRoutes from './routes/billing.routes';
 import openapiRoutes from './routes/openapi.routes';
 import platformRoutes from './routes/platform.routes';
+import adminRoutes from './routes/admin.routes';
 import ecosystemRoutes from './routes/ecosystem.routes';
 import bioRoutes from './routes/bio.routes';
 import mobileAppsRoutes from './routes/mobileApps.routes';
@@ -308,6 +309,7 @@ if (enableApi) {
     app.use(`${base}/phase4/ecosystem`, ecosystemRoutes);
     app.use(`${base}/webhooks`, webhooksRoutes);
     app.use(`${base}/platform-config`, platformRoutes);
+    app.use(`${base}/admin`, adminRoutes);
     app.use(`${base}/bio`, bioRoutes);
     app.use(`${base}/mobile-apps`, mobileAppsRoutes);
     app.use(base, openapiRoutes);

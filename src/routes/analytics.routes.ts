@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import { authenticate } from '../middleware/auth';
 import { summary, linkSummary, linkEvents, domainSummary, exportOrgCsv, exportLinkCsv } from '../controllers/analytics.controller';
 import { perOrgApiRpmRedis } from '../middleware/redisRateLimit';
-import { requireOrg } from '../middleware/org';
+import { requireOrg, requireActiveOrg } from '../middleware/org';
 import { requireApiScope } from '../middleware/apiScope';
 
 const router = Router();
@@ -13,6 +13,7 @@ const apiLimiter = process.env.RATE_LIMIT_API_DISABLED === '1' ? noLimit : perOr
 
 router.use(authenticate);
 router.use(requireOrg);
+router.use(requireActiveOrg);
 router.use(apiLimiter);
 
 router.get('/summary', requireApiScope('analytics:read'), wrap(summary));

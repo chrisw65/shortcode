@@ -60,13 +60,30 @@ function captureTokenFromUrl() {
 
 captureTokenFromUrl();
 
+let mePromise = null;
+
+async function fetchMe() {
+  if (!mePromise) {
+    mePromise = apiFetch('/api/auth/me').then((res) => res?.data || res);
+  }
+  return mePromise;
+}
+
 export function requireAuth() {
   if (!hasSession()) {
     // redirect to login, then throw to stop page logic
     window.location.href = '/admin/index.html';
     throw new Error('Not authenticated');
   }
-  apiFetch('/api/auth/me').catch(() => {
+  fetchMe().then((me) => {
+    const user = me?.user;
+    const org = me?.org;
+    if (!user?.is_superadmin && org?.is_active === false) {
+      if (window.location.pathname !== '/admin/billing.html') {
+        window.location.href = '/admin/billing.html';
+      }
+    }
+  }).catch(() => {
     console.warn('Auth session check failed.');
     window.location.href = '/admin/index.html';
   });
@@ -120,6 +137,14 @@ export async function apiFetch(path, opts = {}) {
   let body = null;
   const text = await res.text();
   try { body = text ? JSON.parse(text) : null; } catch { body = null; }
+
+  if (res.status === 402 && body?.suspended && body?.payment_url) {
+    window.location.href = body.payment_url;
+    const err = new Error('Organization suspended');
+    err.status = res.status;
+    err.body = body;
+    throw err;
+  }
 
   if (!res.ok) {
     const message = body?.error || body?.message || `${res.status} ${res.statusText}`;
@@ -245,8 +270,8 @@ async function ensureEmailVerificationBanner() {
   const main = document.querySelector('.admin-main');
   if (!main || main.querySelector('[data-email-banner]')) return;
   try {
-    const me = await apiFetch('/api/auth/me');
-    const user = me?.data?.user || me?.user;
+    const me = await fetchMe();
+    const user = me?.user;
     if (!user || user.email_verified !== false) return;
     const email = escapeHtml(user.email || '');
     const banner = document.createElement('div');
@@ -356,8 +381,28 @@ onReady(() => {
   ensureAdminNavIncludesMobileApps();
   ensureEmailVerificationBanner();
   ensureExtensionInstallBanner();
+  ensureSuperadminNav();
   ensureOrgSwitcher();
 });
+
+async function ensureSuperadminNav() {
+  if (!hasSession()) return;
+  const nav = document.querySelector('.side-nav');
+  if (!nav || nav.querySelector('[data-superadmin-link]')) return;
+  try {
+    const me = await fetchMe();
+    if (!me?.user?.is_superadmin) return;
+    const group = document.createElement('div');
+    group.className = 'side-group';
+    group.innerHTML = `
+      <div class="side-group-title">Superadmin</div>
+      <a href="/admin/tenants.html" data-superadmin-link="1">Tenants</a>
+    `;
+    nav.appendChild(group);
+  } catch (err) {
+    console.warn('superadmin nav failed', err);
+  }
+}
 
 export function setText(el, value) {
   const node = typeof el === 'string' ? $(el) : el;

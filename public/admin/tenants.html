@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Shortlink Admin - Tenants</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/admin/admin.css?v=20260117" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-side">
+      <div class="brand">
+        <span class="brand-badge">O</span>
+        <span>OkLeaf</span>
+      </div>
+      <div class="side-meta">Admin workspace</div>
+      <nav class="side-nav">
+        <div class="side-group">
+          <div class="side-group-title">Core</div>
+          <a href="/admin/dashboard.html">Dashboard</a>
+          <a href="/admin/links.html">Links</a>
+          <a href="/admin/amazon.html">Amazon</a>
+          <a href="/admin/bio.html">Link-in-bio</a>
+          <a href="/admin/domains.html">Domains</a>
+          <a href="/admin/analytics.html">Analytics</a>
+        </div>
+        <div class="side-group">
+          <div class="side-group-title">Org</div>
+          <a href="/admin/team.html">Team</a>
+          <a href="/admin/api-keys.html">API Keys</a>
+          <a href="/admin/audit.html">Audit</a>
+        </div>
+        <div class="side-group">
+          <div class="side-group-title">Growth</div>
+          <a href="/admin/billing.html">Billing</a>
+          <a href="/admin/affiliates.html">Affiliates</a>
+          <a href="/admin/ecosystem.html">Ecosystem</a>
+        </div>
+        <div class="side-group">
+          <div class="side-group-title">Platform</div>
+          <a href="/admin/site-settings.html">Site</a>
+          <a href="/admin/settings.html">Settings</a>
+          <a href="/admin/mobile-apps.html">Mobile apps</a>
+        </div>
+        <div class="side-group">
+          <div class="side-group-title">Superadmin</div>
+          <a class="active" href="/admin/tenants.html">Tenants</a>
+        </div>
+      </nav>
+      <div class="side-footer">
+        <button class="btn ghost" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-top">
+        <div>
+          <h1 class="page-title">Tenants</h1>
+          <p class="page-sub">Manage organizations, billing status, and access.</p>
+        </div>
+      </header>
+
+      <main class="admin-content">
+        <section class="card">
+          <div class="row-between" style="gap:16px; flex-wrap:wrap;">
+            <div class="row" style="gap:10px; flex-wrap:wrap;">
+              <input id="orgSearch" class="input" placeholder="Search by org name or owner email" style="min-width:240px">
+              <select id="orgStatusFilter" class="input">
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+              </select>
+              <select id="orgBillingFilter" class="input">
+                <option value="all">All billing</option>
+                <option value="paid">Paid</option>
+                <option value="unpaid">Unpaid</option>
+              </select>
+            </div>
+            <div class="row" style="gap:10px">
+              <button id="reloadOrgs" class="btn ghost" type="button">Reload</button>
+              <span class="muted" id="orgMeta"></span>
+            </div>
+          </div>
+
+          <div class="table-wrap" style="margin-top:14px">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Organization</th>
+                  <th>Owner</th>
+                  <th>Plan</th>
+                  <th>Usage</th>
+                  <th>Billing</th>
+                  <th>Status</th>
+                  <th>Last activity</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="orgTableBody">
+                <tr><td colspan="8" class="muted">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="row" style="margin-top:12px; gap:12px; align-items:center;">
+            <button id="loadMoreOrgs" class="btn ghost" type="button">Load more</button>
+            <span class="muted" id="orgMsg"></span>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal" id="orgModal">
+    <div class="modal-backdrop" data-close="org-modal"></div>
+    <div class="modal-card modal-wide modal-scroll">
+      <div class="modal-head">
+        <div>
+          <h3 id="orgModalTitle" class="m-0">Organization</h3>
+          <div class="muted small" id="orgModalSubtitle"></div>
+        </div>
+        <button class="btn ghost" type="button" data-close="org-modal">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid grid-2" style="gap:16px">
+          <div class="card">
+            <h4 class="m-0">Status</h4>
+            <div class="muted small" id="orgStatusText" style="margin-top:6px"></div>
+            <div style="margin-top:10px">
+              <label class="muted small">Suspension reason</label>
+              <input id="orgSuspendReason" class="input" placeholder="Optional reason">
+            </div>
+            <div class="row" style="margin-top:12px; gap:8px; flex-wrap:wrap;">
+              <button id="orgToggleStatus" class="btn" type="button">Suspend org</button>
+              <span id="orgStatusMsg" class="muted"></span>
+            </div>
+          </div>
+          <div class="card">
+            <h4 class="m-0">Plan override</h4>
+            <div class="muted small" style="margin-top:6px">Applies immediately for the organization.</div>
+            <div style="margin-top:10px">
+              <label class="muted small">Plan</label>
+              <select id="orgPlanSelect" class="input"></select>
+            </div>
+            <div style="margin-top:10px">
+              <label class="muted small">Duration (months)</label>
+              <input id="orgPlanDuration" class="input" type="number" min="0" placeholder="0 = no expiry">
+            </div>
+            <div style="margin-top:10px">
+              <label class="muted small">Reason</label>
+              <input id="orgPlanReason" class="input" placeholder="admin_override">
+            </div>
+            <div class="row" style="margin-top:12px; gap:8px; flex-wrap:wrap;">
+              <button id="orgSavePlan" class="btn" type="button">Apply plan</button>
+              <span id="orgPlanMsg" class="muted"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="row-between">
+            <h4 class="m-0">Members</h4>
+            <span class="muted small" id="orgMembersMeta"></span>
+          </div>
+          <div class="table-wrap" style="margin-top:10px">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="orgMembersBody">
+                <tr><td colspan="4" class="muted">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn ghost" type="button" data-close="org-modal">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/admin/admin-common.js"></script>
+  <script type="module" src="/admin/tenants.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from 'express';
 import { authenticate } from '../middleware/auth';
-import { requireOrg, requireOrgRole } from '../middleware/org';
+import { requireOrg, requireOrgRole, requireActiveOrg } from '../middleware/org';
 import { perOrgApiRpmRedis } from '../middleware/redisRateLimit';
 import { listMembers, addMember, removeMember, getOrg, updateOrg } from '../controllers/org.controller';
 import { getOrgSso, updateOrgSso } from '../controllers/orgSso.controller';
@@ -15,6 +15,7 @@ const apiLimiter = process.env.RATE_LIMIT_API_DISABLED === '1' ? noLimit : perOr
 
 router.use(authenticate);
 router.use(requireOrg);
+router.use(requireActiveOrg);
 router.use(apiLimiter);
 
 router.get('/', requireApiScope('org:read'), wrap(getOrg));

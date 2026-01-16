@@ -13,6 +13,7 @@ export type CachedLink = {
   scheduled_end_at?: string | null;
   active: boolean;
   org_id?: string;
+  org_active?: boolean;
   ip_anonymization?: boolean;
   password_hash?: string | null;
   deep_link_url?: string | null;
